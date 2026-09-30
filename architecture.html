@@ -1,0 +1,148 @@
+<html style="margin:0;padding:0;">
+<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f8f9fa;padding:24px;color:#1a1a1a;">
+
+<div style="text-align:center;margin-bottom:20px;">
+  <div style="font-size:20px;font-weight:700;margin-bottom:4px;">Talos Dashboard 整改后架构图</div>
+  <div style="font-size:13px;color:#6b7280;">三栏布局 · 消除重复 · 职责清晰</div>
+</div>
+
+<!-- 图例 -->
+<div style="display:flex;gap:20px;justify-content:center;margin-bottom:20px;font-size:12px;">
+  <div style="display:flex;align-items:center;gap:6px;"><div style="width:14px;height:14px;background:#22c55e;border-radius:3px;"></div>保留模块</div>
+  <div style="display:flex;align-items:center;gap:6px;"><div style="width:14px;height:14px;background:#ef4444;border-radius:3px;"></div>移除的重复模块</div>
+  <div style="display:flex;align-items:center;gap:6px;"><div style="width:14px;height:14px;background:#3b82f6;border-radius:3px;"></div>优化/新增模块</div>
+</div>
+
+<!-- 三栏布局 -->
+<div style="display:flex;gap:16px;align-items:stretch;">
+
+  <!-- 左侧边栏 -->
+  <div style="flex:0 0 220px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
+    <div style="background:#1f2937;color:#fff;padding:10px 14px;font-size:14px;font-weight:600;text-align:center;">左侧边栏 · 260px<br><span style="font-size:11px;font-weight:400;opacity:0.8;">导航 + 全局操作</span></div>
+    <div style="padding:12px;display:flex;flex-direction:column;gap:8px;">
+      
+      <div style="background:#ecfdf5;border:1px solid #22c55e;border-radius:6px;padding:8px 10px;font-size:12px;">
+        <div style="font-weight:600;color:#166534;">🔍 Logo + 全局搜索</div>
+      </div>
+
+      <div style="background:#ecfdf5;border:1px solid #22c55e;border-radius:6px;padding:8px 10px;font-size:12px;">
+        <div style="font-weight:600;color:#166534;">📊 数据概览（4统计）</div>
+        <div style="font-size:11px;color:#166534;margin-top:2px;">今日待办 · 笔记总数 · 星标 · 标签</div>
+      </div>
+
+      <div style="background:#ecfdf5;border:1px solid #22c55e;border-radius:6px;padding:8px 10px;font-size:12px;">
+        <div style="font-weight:600;color:#166534;">🔄 看板切换（主导航）</div>
+        <div style="font-size:11px;color:#166534;margin-top:2px;">💼工作 · 📚知识库 · 🎯复习</div>
+      </div>
+
+      <div style="background:#dbeafe;border:1px solid #3b82f6;border-radius:6px;padding:8px 10px;font-size:12px;">
+        <div style="font-weight:600;color:#1e40af;">⚡ 快捷操作（全局）</div>
+        <div style="font-size:11px;color:#1e40af;margin-top:2px;">📝新建笔记 · 📔写日记<br>📋新建任务 · 📄插入模板</div>
+        <div style="font-size:10px;color:#6b7280;margin-top:4px;">↑ 移除"打开设置"（底部已有）</div>
+      </div>
+
+      <div style="background:#ecfdf5;border:1px solid #22c55e;border-radius:6px;padding:8px 10px;font-size:12px;">
+        <div style="font-weight:600;color:#166534;">🕐 最近编辑（5篇）</div>
+      </div>
+
+      <div style="background:#dbeafe;border:1px solid #3b82f6;border-radius:6px;padding:8px 10px;font-size:12px;">
+        <div style="font-weight:600;color:#1e40af;">⚙️ 底部：设置 · 主题</div>
+        <div style="font-size:10px;color:#6b7280;margin-top:4px;">↑ 移除"＋新建卡片"按钮<br>（每个看板顶部已有新建）</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 箭头 -->
+  <div style="display:flex;align-items:center;font-size:24px;color:#9ca3af;">→</div>
+
+  <!-- 中间画布 -->
+  <div style="flex:1;background:#fff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;min-width:0;">
+    <div style="background:#1f2937;color:#fff;padding:10px 14px;font-size:14px;font-weight:600;text-align:center;">中间画布 · 弹性宽度<br><span style="font-size:11px;font-weight:400;opacity:0.8;">看板专属内容（三个看板切换）</span></div>
+    
+    <div style="padding:12px;display:flex;flex-direction:column;gap:10px;">
+
+      <!-- 工作看板 -->
+      <div style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+        <div style="background:#f0fdf4;padding:6px 12px;font-size:13px;font-weight:600;color:#166534;border-bottom:1px solid #bbf7d0;">💼 工作看板</div>
+        <div style="padding:10px;display:flex;flex-wrap:wrap;gap:6px;">
+          <span style="background:#ecfdf5;border:1px solid #22c55e;border-radius:4px;padding:4px 8px;font-size:11px;color:#166534;">📊 4工作统计</span>
+          <span style="background:#ecfdf5;border:1px solid #22c55e;border-radius:4px;padding:4px 8px;font-size:11px;color:#166534;">🟢 今日焦点</span>
+          <span style="background:#ecfdf5;border:1px solid #22c55e;border-radius:4px;padding:4px 8px;font-size:11px;color:#166534;">📅 每日打卡</span>
+          <span style="background:#ecfdf5;border:1px solid #22c55e;border-radius:4px;padding:4px 8px;font-size:11px;color:#166534;">📊 甘特图</span>
+          <span style="background:#ecfdf5;border:1px solid #22c55e;border-radius:4px;padding:4px 8px;font-size:11px;color:#166534;">🗂️ 任务看板三列</span>
+          <span style="background:#dbeafe;border:1px solid #3b82f6;border-radius:4px;padding:4px 8px;font-size:11px;color:#1e40af;">＋ 新建任务（顶部）</span>
+          <span style="background:#fef2f2;border:1px solid #ef4444;border-radius:4px;padding:4px 8px;font-size:11px;color:#991b1b;text-decoration:line-through;">❌ 快捷操作4按钮</span>
+          <span style="background:#fef2f2;border:1px solid #ef4444;border-radius:4px;padding:4px 8px;font-size:11px;color:#991b1b;text-decoration:line-through;">❌ 最近任务4篇</span>
+        </div>
+      </div>
+
+      <!-- 知识库看板 -->
+      <div style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+        <div style="background:#f0fdf4;padding:6px 12px;font-size:13px;font-weight:600;color:#166534;border-bottom:1px solid #bbf7d0;">📚 知识库看板</div>
+        <div style="padding:10px;display:flex;flex-wrap:wrap;gap:6px;">
+          <span style="background:#ecfdf5;border:1px solid #22c55e;border-radius:4px;padding:4px 8px;font-size:11px;color:#166534;">📊 4知识库统计</span>
+          <span style="background:#ecfdf5;border:1px solid #22c55e;border-radius:4px;padding:4px 8px;font-size:11px;color:#166534;">📈 笔记产出图</span>
+          <span style="background:#ecfdf5;border:1px solid #22c55e;border-radius:4px;padding:4px 8px;font-size:11px;color:#166534;">🗂️ PARA分布图</span>
+          <span style="background:#ecfdf5;border:1px solid #22c55e;border-radius:4px;padding:4px 8px;font-size:11px;color:#166534;">🕐 最近笔记</span>
+          <span style="background:#ecfdf5;border:1px solid #22c55e;border-radius:4px;padding:4px 8px;font-size:11px;color:#166534;">📡 RSS资讯</span>
+          <span style="background:#dbeafe;border:1px solid #3b82f6;border-radius:4px;padding:4px 8px;font-size:11px;color:#1e40af;">＋ 新建笔记（顶部）</span>
+        </div>
+      </div>
+
+      <!-- 复习看板 -->
+      <div style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+        <div style="background:#f0fdf4;padding:6px 12px;font-size:13px;font-weight:600;color:#166534;border-bottom:1px solid #bbf7d0;">🎯 复习看板</div>
+        <div style="padding:10px;display:flex;flex-wrap:wrap;gap:6px;">
+          <span style="background:#ecfdf5;border:1px solid #22c55e;border-radius:4px;padding:4px 8px;font-size:11px;color:#166534;">📊 4复习统计</span>
+          <span style="background:#ecfdf5;border:1px solid #22c55e;border-radius:4px;padding:4px 8px;font-size:11px;color:#166534;">🎯 进度总览环</span>
+          <span style="background:#ecfdf5;border:1px solid #22c55e;border-radius:4px;padding:4px 8px;font-size:11px;color:#166534;">📋 今日复习任务</span>
+          <span style="background:#ecfdf5;border:1px solid #22c55e;border-radius:4px;padding:4px 8px;font-size:11px;color:#166534;">📝 备忘录</span>
+          <span style="background:#dbeafe;border:1px solid #3b82f6;border-radius:4px;padding:4px 8px;font-size:11px;color:#1e40af;">＋ 新建复习（顶部）</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 箭头 -->
+  <div style="display:flex;align-items:center;font-size:24px;color:#9ca3af;">→</div>
+
+  <!-- 右侧详情面板 -->
+  <div style="flex:0 0 200px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
+    <div style="background:#1f2937;color:#fff;padding:10px 14px;font-size:14px;font-weight:600;text-align:center;">右侧面板 · 320px<br><span style="font-size:11px;font-weight:400;opacity:0.8;">上下文详情</span></div>
+    <div style="padding:12px;display:flex;flex-direction:column;gap:8px;">
+      
+      <div style="background:#dbeafe;border:1px solid #3b82f6;border-radius:6px;padding:8px 10px;font-size:12px;">
+        <div style="font-weight:600;color:#1e40af;">📋 空状态：今日待办</div>
+        <div style="font-size:11px;color:#1e40af;margin-top:2px;">不再显示"点击卡片查看详情"<br>改为显示今日待办列表</div>
+      </div>
+
+      <div style="background:#ecfdf5;border:1px solid #22c55e;border-radius:6px;padding:8px 10px;font-size:12px;">
+        <div style="font-weight:600;color:#166534;">🎯 点击任务时：任务详情</div>
+        <div style="font-size:11px;color:#166534;margin-top:2px;">优先级 · 状态 · 进度<br>截止日期 · 负责人 · 操作按钮</div>
+      </div>
+
+      <div style="background:#ecfdf5;border:1px solid #22c55e;border-radius:6px;padding:8px 10px;font-size:12px;">
+        <div style="font-weight:600;color:#166534;">📚 本周学习</div>
+        <div style="font-size:11px;color:#166534;margin-top:2px;">学习进度条列表</div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- 底部说明 -->
+<div style="margin-top:20px;background:#fffbeb;border:1px solid #f59e0b;border-radius:8px;padding:14px 18px;">
+  <div style="font-size:14px;font-weight:600;color:#92400e;margin-bottom:8px;">📌 整改核心原则</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:12px;color:#78350f;">
+    <div><b>1. 职责分离：</b>左侧=全局导航/操作，中间=看板专属内容，右侧=上下文详情</div>
+    <div><b>2. 消除重复：</b>快捷操作只在左侧，最近编辑只在左侧，新建按钮每个看板顶部一个</div>
+    <div><b>3. 数据概览保留：</b>左侧全局统计（笔记总数等），中间看板专属统计（进行中/已完成等），维度不同不重复</div>
+    <div><b>4. 提升利用率：</b>右侧面板空状态显示今日待办，不再浪费320px空间</div>
+  </div>
+</div>
+
+</div>
+</html>

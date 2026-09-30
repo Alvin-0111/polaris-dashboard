@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Talos Dashboard 设计系统 · 视觉版 v2</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<style>
+:root{
+  --bg:#0f0f13; --bg2:#16161c; --card:rgba(28,28,34,.75); --card-solid:#1c1c22;
+  --text:#f0f0f3; --text2:#a1a1aa; --text3:#71717a; --border:rgba(255,255,255,.09);
+  --brand:#c8e060; --brand-dark:#a8c040; --brand-darker:#96b030;
+  --purple:#a78bfa; --green:#22c55e; --red:#f87171; --amber:#fbbf24; --blue:#60a5fa;
+  --p0:#c084fc; --p1:#fbbf24; --p2:#9ca3af;
+  --input-bg:rgba(255,255,255,.06); --input-border:rgba(255,255,255,.12);
+  --focus-border:rgba(168,192,64,.7); --track:rgba(255,255,255,.08);
+  --shadow:0 2px 8px rgba(0,0,0,.12),0 16px 40px -12px rgba(0,0,0,.2),0 40px 80px -32px rgba(0,0,0,.25);
+}
+[data-theme="light"]{
+  --bg:#f5f5f0; --bg2:#ecece4; --card:rgba(255,255,255,.85); --card-solid:#ffffff;
+  --text:#1a1a1f; --text2:#52525b; --text3:#71717a; --border:rgba(0,0,0,.1);
+  --input-bg:rgba(0,0,0,.04); --input-border:rgba(0,0,0,.12);
+  --focus-border:#96b030; --track:rgba(0,0,0,.08);
+  --shadow:0 2px 8px rgba(0,0,0,.04),0 16px 40px -12px rgba(0,0,0,.05);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  background:var(--bg);color:var(--text);font-size:14px;line-height:1.6;transition:background .3s,color .3s}
+header{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:12px;padding:0 24px;height:56px;
+  background:var(--card);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid var(--border)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px;flex:1}
+.brand .dot{width:10px;height:10px;border-radius:3px;background:var(--brand)}
+.brand small{font-weight:400;color:var(--text3);font-size:12px}
+.theme-btn{appearance:none;border:1px solid var(--border);background:var(--bg2);color:var(--text2);
+  border-radius:12px;padding:7px 14px;font-size:12px;cursor:pointer;font-family:inherit}
+.theme-btn:hover{border-color:var(--brand);color:var(--brand)}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 24px 80px}
+.section{margin:34px 0}
+.sec-title{font-size:20px;font-weight:800;margin-bottom:6px;display:flex;align-items:center;gap:10px}
+.sec-title::before{content:"";width:5px;height:20px;border-radius:3px;background:var(--brand)}
+.sec-desc{color:var(--text3);font-size:13px;margin-bottom:16px;padding-left:15px}
+.grid{display:grid;gap:12px}
+.g-5{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}
+.g-4{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
+.g-3{grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
+.card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:20px;box-shadow:var(--shadow)}
+.swatch .chip{height:70px;border-radius:14px;border:1px solid var(--border);margin-bottom:10px;position:relative}
+.swatch .chip .hex{position:absolute;bottom:8px;left:10px;font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;background:rgba(0,0,0,.45);color:#fff}
+[data-theme="light"] .swatch .chip .hex{background:rgba(255,255,255,.9);color:#1a1a1f}
+.swatch .name{font-weight:700;font-size:13px}
+.swatch .use{font-size:12px;color:var(--text3)}
+.type-row{display:flex;align-items:baseline;gap:16px;padding:9px 0;border-bottom:1px dashed var(--border)}
+.type-row .meta{font-size:11px;color:var(--text3);white-space:nowrap;width:160px;text-align:right}
+.btnrow{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.btn{font-family:inherit;border:none;cursor:pointer;border-radius:16px;padding:10px 20px;font-size:14px;font-weight:700;transition:all .2s}
+.btn-primary{background:var(--brand);color:#0f0f13}
+.btn-primary:hover{background:var(--brand-dark);transform:translateY(-1px);box-shadow:0 8px 24px -6px rgba(200,224,96,.45)}
+.btn-ghost{background:transparent;border:1px solid rgba(255,255,255,.2);color:var(--text)}
+[data-theme="light"] .btn-ghost{border-color:rgba(0,0,0,.2)}
+.icon-btn{width:36px;height:36px;border-radius:12px;border:1px solid var(--border);background:var(--bg2);color:var(--text2);font-size:15px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.icon-btn:hover{border-color:var(--brand);color:var(--brand)}
+.seg{display:inline-flex;background:var(--track);border-radius:12px;padding:3px;gap:2px}
+.seg button{font-family:inherit;border:none;background:transparent;color:var(--text3);border-radius:8px;padding:6px 14px;font-size:13px;cursor:pointer}
+.seg button.on{background:var(--brand);color:#0f0f13;font-weight:600}
+.pill{font-family:inherit;border:1px solid var(--border);background:transparent;color:var(--text2);border-radius:999px;padding:6px 16px;font-size:13px;cursor:pointer}
+.pill.on{background:var(--brand);border-color:var(--brand);color:#0f0f13;font-weight:600}
+.radii{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end}
+.rad{text-align:center}
+.rad .box{width:76px;height:76px;background:var(--brand);margin-bottom:6px;border:1px solid rgba(0,0,0,.15)}
+.rad .v{font-size:11px;color:var(--text3)}
+.space{display:flex;align-items:flex-end;height:110px}
+.space .b{width:34px;background:var(--brand);border-radius:6px 6px 0 0;display:flex;align-items:flex-start;justify-content:center}
+.space .b span{font-size:10px;color:#0f0f13;font-weight:700;padding-top:4px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field .seg,.field .pill{align-self:flex-start}
+.field label{font-size:12px;color:var(--text2);font-weight:600}
+.input{width:100%;font-family:inherit;font-size:14px;color:var(--text);background:var(--input-bg);border:1px solid var(--input-border);border-radius:12px;padding:10px 14px;outline:none}
+.input::placeholder{color:var(--text3)}
+.input:focus{border-color:var(--focus-border);box-shadow:0 0 0 1px var(--focus-border)}
+.track{height:8px;border-radius:999px;background:var(--track);overflow:hidden}
+.fill{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--brand),var(--brand-dark))}
+.legend{font-size:11px;color:var(--text3);margin-top:6px}
+/* 顶部导航样例 */
+.navbar{display:flex;align-items:center;gap:14px;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:10px 16px;box-shadow:var(--shadow)}
+.navbar .logo{width:28px;height:28px;border-radius:8px;background:var(--brand);display:flex;align-items:center;justify-content:center;font-size:14px}
+.navbar .tabs{display:flex;gap:4px}
+.navbar .tab{padding:6px 14px;border-radius:10px;font-size:13px;color:var(--text3)}
+.navbar .tab.on{background:var(--brand);color:#0f0f13;font-weight:600}
+.navbar .search{flex:1;display:flex;align-items:center;gap:8px;background:var(--input-bg);border:1px solid var(--input-border);border-radius:12px;padding:7px 12px;font-size:13px;color:var(--text3);max-width:340px}
+.navbar .search kbd{margin-left:auto;font-family:inherit;font-size:11px;opacity:.7}
+/* 数据概览卡 */
+.stat{padding:16px;border-radius:16px;background:var(--bg2);border:1px solid var(--border)}
+.stat .label{font-size:12px;color:var(--text3)}
+.stat .num{font-size:28px;font-weight:800;margin:4px 0}
+.stat .delta{font-size:11px;font-weight:600}
+.stat .up{color:var(--brand)} .stat .down{color:var(--red)}
+/* 任务卡 */
+.task{display:flex;gap:12px;padding:14px;border-radius:14px;background:var(--bg2);border:1px solid var(--border);margin-bottom:10px;align-items:center}
+.task .grip{color:var(--text3);cursor:grab}
+.task .bar{width:3px;height:36px;border-radius:2px;flex-shrink:0}
+.task .body{flex:1;min-width:0}
+.task .t{font-size:13px;font-weight:600}
+.task .m{font-size:11px;color:var(--text3);margin-top:2px}
+.task .prog{width:90px}
+/* 甘特 */
+.gantt{display:flex;align-items:center;gap:10px;margin:10px 0}
+.gantt .lbl{width:110px;font-size:12px;color:var(--text2)}
+.gantt .track{flex:1;height:20px;border-radius:10px}
+.gantt .fill{height:20px;border-radius:10px;background:var(--brand);display:flex;align-items:center;padding-left:10px;font-size:11px;color:#0f0f13;font-weight:600}
+/* 日历卡 */
+.cal{padding:18px;border-radius:16px;background:var(--bg2);border:1px solid var(--border);text-align:center}
+.cal .weekday{display:inline-block;background:var(--brand);color:#0f0f13;font-size:11px;font-weight:700;padding:2px 10px;border-radius:999px;margin-bottom:8px}
+.cal .day{font-size:34px;font-weight:800;color:var(--brand);line-height:1.1}
+[data-theme="light"] .cal .day{color:#a8c040}
+.cal .lunar{font-size:12px;color:var(--text2);margin:6px 0}
+.cal .fest{font-size:11px;color:var(--text3);margin-bottom:8px}
+.cal .fest b{color:var(--amber);font-weight:600}
+.cal .quote{font-size:12px;color:var(--text2);border-top:1px dashed var(--border);padding-top:8px}
+/* 周打卡 */
+.week{display:flex;justify-content:space-between;gap:6px}
+.week .d{flex:1;text-align:center}
+.week .dot{width:26px;height:26px;border-radius:50%;margin:0 auto 4px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:1.5px solid var(--track)}
+.week .d.done .dot{background:var(--brand);border-color:var(--brand);color:#0f0f13}
+.week .d.today .dot{border-color:var(--brand);color:var(--brand)}
+.week .dn{font-size:11px;color:var(--text3)}
+/* 搜索下拉 */
+.tp{background:var(--card-solid);border:1px solid var(--focus-border);border-radius:16px;overflow:hidden;box-shadow:var(--shadow)}
+.tp .inp{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text3)}
+.tp .grp{font-size:11px;font-weight:700;color:var(--text3);padding:8px 14px 4px;letter-spacing:.05em}
+.tp .item{padding:9px 14px}
+.tp .item:hover{background:rgba(200,224,96,.06)}
+.tp .item .h{font-size:13px;font-weight:600}
+.tp .item .h em{font-style:normal;color:var(--brand)}
+.tp .item .p{font-size:11px;color:var(--text3);margin-top:2px;word-break:break-all}
+.tp .foot{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-top:1px solid var(--border);font-size:11px;color:var(--text3)}
+/* 弹窗 */
+.modal{border-radius:28px;background:var(--card-solid);border:1px solid var(--border);box-shadow:var(--shadow);overflow:hidden;max-width:420px;margin:0 auto}
+.modal .mh{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;font-weight:700;font-size:15px}
+.modal .mb{padding:16px 20px}
+.modal .mf{display:flex;justify-content:flex-end;gap:10px;padding:12px 20px;border-top:1px solid var(--border)}
+/* toast */
+.toast{display:inline-block;padding:10px 18px;border-radius:12px;background:var(--card-solid);border:1px solid var(--brand);font-size:13px;box-shadow:var(--shadow)}
+.toast b{color:var(--brand)}
+/* 空态 */
+.empty{text-align:center;padding:30px;color:var(--text3)}
+.empty .ic{font-size:30px;margin-bottom:8px;opacity:.5}
+/* 核心规则强调条 */
+.rule{display:flex;gap:12px;align-items:flex-start;background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--brand);border-radius:12px;padding:12px 14px}
+.rule .tag{flex-shrink:0;font-size:11px;font-weight:700;color:#0f0f13;background:var(--brand);padding:2px 8px;border-radius:6px}
+.rule p{font-size:12px;color:var(--text2)}
+.rule code{background:var(--track);padding:1px 6px;border-radius:4px;font-family:ui-monospace,Menlo,monospace;font-size:11px}
+/* 统计卡色块图标 */
+.st-ic{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+/* 规范参数表 */
+table.spec{width:100%;border-collapse:collapse;font-size:12px}
+table.spec th,table.spec td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border)}
+table.spec th{color:var(--text2);font-weight:600}
+table.spec code{background:var(--track);padding:1px 6px;border-radius:4px;font-family:ui-monospace,Menlo,monospace;font-size:11px}
+/* 文档列表弹窗 */
+.doclist{background:var(--card-solid);border:1px solid var(--border);border-radius:20px;overflow:hidden;box-shadow:var(--shadow)}
+.doclist .dh{display:flex;justify-content:space-between;align-items:center;padding:14px 16px 10px;font-weight:600;font-size:14px}
+.doclist .dh .x{cursor:pointer;color:var(--text3)}
+.doclist .srch{padding:0 16px 8px}
+.doclist .di{display:flex;justify-content:space-between;align-items:center;padding:7px 16px;font-size:13px}
+.doclist .di:hover{background:rgba(200,224,96,.06)}
+.doclist .di .b{font-size:11px;color:var(--text3)}
+.doclist .dd{border-top:1px solid var(--border);margin-top:4px}
+.doclist .df{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;font-size:11px;color:var(--text3)}
+/* 滑动开关（真实设置弹窗样式） */
+.switch{position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0}
+.switch input{opacity:0;width:0;height:0}
+.slider{position:absolute;inset:0;background:var(--track);border-radius:20px;transition:.2s;cursor:pointer}
+.slider:before{content:"";position:absolute;width:16px;height:16px;left:2px;top:2px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.switch input:checked + .slider{background:var(--brand)}
+.switch input:checked + .slider:before{transform:translateX(16px)}
+/* 双主题对照 */
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.pane-dark,.pane-light{border-radius:20px;padding:20px;border:1px solid var(--border)}
+.pane-dark{background:#0f0f13;color:#f0f0f3}
+.pane-light{background:#f5f5f0;color:#1a1a1f}
+.pane-tag{font-size:11px;font-weight:700;letter-spacing:.08em;margin-bottom:14px;opacity:.7}
+.mini-card{border-radius:14px;padding:14px;margin-bottom:10px}
+.pane-dark .mini-card{background:rgba(28,28,34,.75);border:1px solid rgba(255,255,255,.08)}
+.pane-light .mini-card{background:rgba(255,255,255,.85);border:1px solid rgba(0,0,0,.06)}
+.mini-card h5{font-size:14px;font-weight:700;margin-bottom:4px}
+.mini-card p{font-size:12px;margin:2px 0}
+.mini-stat{font-size:26px;font-weight:800;color:#c8e060}
+.pane-light .mini-stat{color:#a8c040}
+.badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:600}
+.badge-g{background:#c8e060;color:#0f0f13}
+.badge-gl{background:rgba(200,224,96,.28);color:#a8c040}
+.ring-demo{width:240px;height:240px;margin:0 auto}
+.bar-demo{height:220px}
+.opac{display:flex;gap:8px;align-items:flex-end}
+.opac .o{width:60px;height:70px;border-radius:10px;border:1px solid var(--border);background:rgba(28,28,34,.75);position:relative}
+.opac .o span{position:absolute;bottom:-20px;left:0;right:0;text-align:center;font-size:10px;color:var(--text3)}
+@media(max-width:860px){.duo{grid-template-columns:1fr}.g-5,.g-4,.g-3{grid-template-columns:1fr 1fr}.navbar .search{max-width:none}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span class="dot"></span>Talos Dashboard 设计系统 · 视觉版 v2 <small>全组件实际渲染</small></div>
+  <button class="theme-btn" id="themeBtn" type="button">切换浅色</button>
+</header>
+<div class="wrap">
+
+  <div class="section">
+    <div class="sec-title">0 · 核心设计规则</div>
+    <div class="sec-desc">三条规则解决"两档绿并存"和"切换样式不统一"问题，所有组件都服从这三条</div>
+    <div class="card" style="display:flex;flex-direction:column;gap:10px">
+      <div class="rule"><span class="tag">规则 1</span><p><b>绿色单轨制</b>：一屏只出现一种品牌绿 <code>#c8e060</code>。它属于<b>图形语言</b>（图标/进度/按钮底/选中态/边框/强调），浅色文字统一用深档 <code>#a8c040</code>，不与主绿同屏。</p></div>
+      <div class="rule"><span class="tag">规则 2</span><p><b>选中态统一</b>：导航 Tab、分段、筛选胶囊、看板列头选中 = 品牌绿实底 + 深字 <code>#0f0f13</code>，暗色/浅色完全一致，禁止"绿字浅绿底"变体。</p></div>
+      <div class="rule"><span class="tag">规则 3</span><p><b>聚焦态无发光</b>：所有输入框/搜索框聚焦只换 1px 细绿描边（暗色 <code>rgba(168,192,64,.7)</code> / 浅色 <code>#96b030</code>），不加 box-shadow 光晕，不抢视线。</p></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">1 · 品牌色 / 状态色</div>
+    <div class="sec-desc">绿色单轨制：一屏只有一种品牌绿 #c8e060</div>
+    <div class="grid g-5">
+      <div class="card swatch"><div class="chip" style="background:#c8e060"><span class="hex">#c8e060</span></div><div class="name">主色</div><div class="use">按钮/激活/进度</div></div>
+      <div class="card swatch"><div class="chip" style="background:#a8c040"><span class="hex">#a8c040</span></div><div class="name">主色深档</div><div class="use">hover、浅色文字、日期</div></div>
+      <div class="card swatch"><div class="chip" style="background:#96b030"><span class="hex">#96b030</span></div><div class="name">主色 active</div><div class="use">按钮按下</div></div>
+      <div class="card swatch"><div class="chip" style="background:#a78bfa"><span class="hex">#a78bfa</span></div><div class="name">辅助紫</div><div class="use">统计卡/标签</div></div>
+      <div class="card swatch"><div class="chip" style="background:#22c55e"><span class="hex">#22c55e</span></div><div class="name">成功</div><div class="use">完成/打卡</div></div>
+      <div class="card swatch"><div class="chip" style="background:#f87171"><span class="hex">#f87171</span></div><div class="name">危险/逾期</div><div class="use">删除/逾期</div></div>
+      <div class="card swatch"><div class="chip" style="background:#fbbf24"><span class="hex">#fbbf24</span></div><div class="name">警告/P1</div><div class="use">待处理</div></div>
+      <div class="card swatch"><div class="chip" style="background:#60a5fa"><span class="hex">#60a5fa</span></div><div class="name">信息/进行中</div><div class="use">进行中</div></div>
+      <div class="card swatch"><div class="chip" style="background:#c084fc"><span class="hex">#c084fc</span></div><div class="name">P0</div><div class="use">最高优先级</div></div>
+      <div class="card swatch"><div class="chip" style="background:#9ca3af"><span class="hex">#9ca3af</span></div><div class="name">P2</div><div class="use">低优先级</div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">2 · 卡片材质（毛玻璃 & 透明度）</div>
+    <div class="sec-desc">卡片透明度 0.1~1 可调，默认暗色 0.75 / 浅色 0.85，backdrop-blur 20px</div>
+    <div class="card">
+      <div class="opac">
+        <div class="o" style="opacity:.35"><span>0.35</span></div>
+        <div class="o" style="opacity:.55"><span>0.55</span></div>
+        <div class="o" style="opacity:.75"><span>0.75 默认</span></div>
+        <div class="o" style="opacity:.85"><span>0.85 浅色</span></div>
+        <div class="o" style="opacity:1"><span>1.0 实底</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">3 · 顶部导航条（实际渲染）</div>
+    <div class="sec-desc">Logo + 三看板 Tab + 全局搜索 ⌘K + 主题切换 + 设置</div>
+    <div class="card">
+      <div class="navbar">
+        <div class="logo">▦</div>
+        <div class="tabs">
+          <div class="tab on">工作看板</div><div class="tab">知识库看板</div><div class="tab">复习看板</div>
+        </div>
+        <div class="search">🔍 搜索笔记、任务、文档…<kbd>⌘K</kbd></div>
+        <div class="icon-btn" style="width:32px;height:32px">☾</div>
+        <div class="icon-btn" style="width:32px;height:32px">⚙</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">4 · 按钮 / 分段 / 胶囊</div>
+    <div class="sec-desc">主要按钮文字为深色 #0f0f13（非白）；选中态统一：品牌绿实底 + 深字</div>
+    <div class="card">
+      <div class="btnrow" style="margin-bottom:14px">
+        <button class="btn btn-primary">主要按钮</button>
+        <button class="btn btn-primary" style="opacity:.5;cursor:not-allowed">禁用</button>
+        <button class="btn btn-ghost">次要按钮</button>
+        <button class="icon-btn">⚙</button><button class="icon-btn">📅</button>
+      </div>
+      <div class="btnrow">
+        <div class="seg"><button>全部</button><button class="on">进行中</button><button>已完成</button></div>
+        <button class="pill">全部</button><button class="pill on">待办</button><button class="pill">进行中</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">5 · 圆角阶梯 & 间距阶梯</div>
+    <div class="sec-desc">圆角 8/12/16/20/28/999；间距为 4px 倍数（卡片间距 12、内边距 16、边距 20）</div>
+    <div class="card">
+      <div class="radii" style="margin-bottom:24px">
+        <div class="rad"><div class="box" style="border-radius:8px"></div><div class="v">8</div></div>
+        <div class="rad"><div class="box" style="border-radius:12px"></div><div class="v">12 输入框</div></div>
+        <div class="rad"><div class="box" style="border-radius:16px"></div><div class="v">16 按钮</div></div>
+        <div class="rad"><div class="box" style="border-radius:20px"></div><div class="v">20 卡片</div></div>
+        <div class="rad"><div class="box" style="border-radius:28px"></div><div class="v">28 弹窗</div></div>
+        <div class="rad"><div class="box" style="border-radius:999px"></div><div class="v">999 胶囊</div></div>
+      </div>
+      <div class="space">
+        <div class="b" style="height:4px"><span>4</span></div><div class="b" style="height:8px"><span>8</span></div>
+        <div class="b" style="height:12px"><span>12</span></div><div class="b" style="height:16px"><span>16</span></div>
+        <div class="b" style="height:20px"><span>20</span></div><div class="b" style="height:24px"><span>24</span></div>
+        <div class="b" style="height:32px"><span>32</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">6 · 字体层级</div>
+    <div class="card">
+      <div class="type-row"><div style="font-size:32px;font-weight:700">统计数字 1,725</div><div class="meta">32/700</div></div>
+      <div class="type-row"><div style="font-size:28px;font-weight:700">Hero 主标题</div><div class="meta">28/700</div></div>
+      <div class="type-row"><div style="font-size:20px;font-weight:600">卡片标题</div><div class="meta">20/600</div></div>
+      <div class="type-row"><div style="font-size:16px;font-weight:600">次级标题</div><div class="meta">16/600</div></div>
+      <div class="type-row"><div style="font-size:14px">正文 / 按钮</div><div class="meta">14/400</div></div>
+      <div class="type-row"><div style="font-size:12px;color:var(--text2)">辅助：时间、标签</div><div class="meta">12/400</div></div>
+      <div class="type-row" style="border-bottom:none"><div style="font-size:11px;color:var(--text3)">微标签</div><div class="meta">11/400</div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">7 · 表单 / 搜索框聚焦态</div>
+    <div class="sec-desc">细绿描边无发光：暗色 rgba(168,192,64,.7) / 浅色 #96b030。点一下试试：</div>
+    <div class="card" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">
+      <div class="field"><label>任务标题</label><input class="input" placeholder="输入标题…"></div>
+      <div class="field"><label>搜索</label><input class="input" placeholder="🔍 搜索…"></div>
+      <div class="field"><label>截止日期</label><input class="input" value="2026-09-19" readonly></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">8 · 数据概览卡 & 进度条</div>
+    <div class="sec-desc">统计卡：大数字 + 同比箭头；进度条：绿→深绿渐变、高 8px、与轨道同宽同圆角</div>
+    <div class="grid g-4" style="margin-bottom:14px">
+      <div class="stat" style="display:flex;align-items:center;gap:12px">
+        <div class="st-ic" style="background:rgba(200,224,96,.15)">📚</div>
+        <div><div class="label">总笔记</div><div class="num" style="font-size:24px;margin:2px 0">1,725</div><div class="delta up">▲ 本月 +32</div></div>
+      </div>
+      <div class="stat" style="display:flex;align-items:center;gap:12px">
+        <div class="st-ic" style="background:rgba(248,113,113,.15)">🔗</div>
+        <div><div class="label">断链笔记</div><div class="num" style="font-size:24px;margin:2px 0">213</div><div class="delta down">▼ 修复 17</div></div>
+      </div>
+      <div class="stat" style="display:flex;align-items:center;gap:12px">
+        <div class="st-ic" style="background:rgba(96,165,250,.15)">🎯</div>
+        <div><div class="label">今日复习</div><div class="num" style="font-size:24px;margin:2px 0">12</div><div class="delta up">▲ 完成 68%</div></div>
+      </div>
+      <div class="stat" style="display:flex;align-items:center;gap:12px">
+        <div class="st-ic" style="background:rgba(167,139,250,.15)">📄</div>
+        <div><div class="label">本月新增</div><div class="num" style="font-size:24px;margin:2px 0">36</div><div class="delta up">▲ +18%</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div style="margin-bottom:12px"><div style="font-size:12px;color:var(--text2);margin-bottom:6px">复习进度 · 68%</div><div class="track"><div class="fill" style="width:68%"></div></div></div>
+      <div><div style="font-size:12px;color:var(--text2);margin-bottom:6px">空轨道（与填充同宽）</div><div class="track"></div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">9 · 任务卡（看板）</div>
+    <div class="sec-desc">拖拽手柄 + 左侧状态色条 + 优先级胶囊 + 进度条；拖拽进"进行中"默认 5%</div>
+    <div class="card">
+      <div class="task">
+        <span class="grip">⠿</span><span class="bar" style="background:var(--p0)"></span>
+        <div class="body"><div class="t">数据面板需求梳理</div><div class="m">截止 09-22 · <span class="badge badge-g">P0</span></div></div>
+        <div class="prog"><div class="track"><div class="fill" style="width:5%"></div></div></div>
+      </div>
+      <div class="task">
+        <span class="grip">⠿</span><span class="bar" style="background:var(--blue)"></span>
+        <div class="body"><div class="t">设计系统收敛</div><div class="m">截止 09-20 · <span class="badge badge-gl">P1</span></div></div>
+        <div class="prog"><div class="track"><div class="fill" style="width:45%"></div></div></div>
+      </div>
+      <div class="task">
+        <span class="grip">⠿</span><span class="bar" style="background:var(--green)"></span>
+        <div class="body"><div class="t">复习引擎调试</div><div class="m">已完成 · <span class="badge" style="background:rgba(156,163,171,.2);color:var(--p2)">P2</span></div></div>
+        <div class="prog"><div class="track"><div class="fill" style="width:100%"></div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">10 · 甘特条（项目时间线）</div>
+    <div class="sec-desc">条高 20px、与轨道同高、圆角 10px；hover 轻微放大；今日红线</div>
+    <div class="card">
+      <div class="gantt"><div class="lbl">数据面板</div><div class="track"><div class="fill" style="width:45%">45%</div></div></div>
+      <div class="gantt"><div class="lbl">设计系统</div><div class="track"><div class="fill" style="width:70%;background:var(--blue)">70%</div></div></div>
+      <div class="gantt"><div class="lbl">复习引擎</div><div class="track"><div class="fill" style="width:100%;background:var(--green)">完成</div></div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">11 · 日历卡片</div>
+    <div class="sec-desc">星期=黄绿底黑字胶囊；日期大字暗色用品牌绿、浅色用深档 #a8c040；农历/节日倒计时/每日一句</div>
+    <div class="grid g-3">
+      <div class="card">
+        <div class="cal">
+          <div class="weekday">星期五</div>
+          <div class="day">09 / 19</div>
+          <div class="lunar">农历八月初七</div>
+          <div class="fest">🔔 距中秋节还有 <b>26</b> 天</div>
+          <div class="quote">"日拱一卒，功不唐捐" —— 《续世说》</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="week">
+          <div class="d done"><div class="dot">✓</div><div class="dn">一</div></div>
+          <div class="d done"><div class="dot">✓</div><div class="dn">二</div></div>
+          <div class="d done"><div class="dot">✓</div><div class="dn">三</div></div>
+          <div class="d today"><div class="dot">今</div><div class="dn">四</div></div>
+          <div class="d"><div class="dot">·</div><div class="dn">五</div></div>
+          <div class="d"><div class="dot">·</div><div class="dn">六</div></div>
+          <div class="d"><div class="dot">·</div><div class="dn">日</div></div>
+        </div>
+        <div class="legend">本周打卡：4/7　·　点 📅 在卡片内展开日历</div>
+      </div>
+      <div class="card">
+        <div class="empty"><div class="ic">🎴</div>每日一签（当天锁定）<br><br>
+          <button class="btn btn-primary">抽签</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">12 · 环形分段图 & 近 7 天柱状图</div>
+    <div class="sec-desc">环宽 22px、断口 6px、端头圆角；柱状图底色 track 与填充对比足够（浅色下不与白底融合）</div>
+    <div class="grid g-2" style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="card"><div id="ringDemo" class="ring-demo"></div><div class="legend" style="text-align:center">已复习 68 · 待复习 22 · 逾期 10</div></div>
+      <div class="card"><div id="barDemo" class="bar-demo"></div><div class="legend" style="text-align:center">近 7 天复习趋势</div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">13 · 全局搜索下拉 v3</div>
+    <div class="sec-desc">连体展开（搜索框底圆角归零、外框细绿描边）；两行制：标题行 + 副行完整路径不省略</div>
+    <div class="card">
+      <div class="tp">
+        <div class="inp">🔍 design-system</div>
+        <div class="grp">笔记</div>
+        <div class="item"><div class="h"><em>design</em>-system-visual.html</div><div class="p">Desktop/talos-dashboard-plugin/</div></div>
+        <div class="item"><div class="h"><em>design</em>-system.md</div><div class="p">Desktop/talos-dashboard-plugin/</div></div>
+        <div class="grp">任务</div>
+        <div class="item"><div class="h">设计系统收敛</div><div class="p">进行中 · P1 · 截止 09-20</div></div>
+        <div class="foot"><span>已显示 4 · 共 12 条</span><span>查看全部 12 条　✕</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">14 · 弹窗 & Toast & 空态</div>
+    <div class="sec-desc">弹窗 28px 圆角；头部标题+关闭、内容、底部取消/应用（与分割线留 12px）；内置 Notice 替代自定义 Toast</div>
+    <div class="grid g-3">
+      <div class="modal">
+        <div class="mh">新建任务 <span style="cursor:pointer;color:var(--text3)">✕</span></div>
+        <div class="mb"><div class="field" style="gap:10px">
+          <input class="input" placeholder="任务标题…">
+          <div class="seg"><button class="on">P0</button><button>P1</button><button>P2</button></div>
+        </div></div>
+        <div class="mf"><button class="btn btn-ghost" style="padding:8px 16px;font-size:13px">取消</button><button class="btn btn-primary" style="padding:8px 16px;font-size:13px">应用</button></div>
+      </div>
+      <div class="card"><div class="toast">✓ <b>已保存</b> 复习配置</div><br><br>
+        <div class="toast" style="border-color:var(--red)">⚠ <b>逾期</b> 2 条任务</div>
+      </div>
+      <div class="card"><div class="empty"><div class="ic">📭</div>暂无空笔记<br><span style="font-size:12px">扫描 Vault 后这里会列出空文件</span></div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">15 · 暗色 / 浅色 并排对照</div>
+    <div class="sec-desc">同一组件两套主题的真实渲染（此区块恒为对照，不受顶部切换影响）</div>
+    <div class="duo">
+      <div class="pane-dark">
+        <div class="pane-tag">暗色 #0f0f13</div>
+        <div class="mini-card">
+          <h5>今日复习总览</h5><div class="mini-stat">68%</div>
+          <p style="color:#a1a1aa">已复习 12 · 待复习 5 · 逾期 2</p>
+          <span class="badge badge-g">今日已复习</span>
+        </div>
+        <div class="track" style="margin-top:10px"><div class="fill" style="width:68%"></div></div>
+      </div>
+      <div class="pane-light">
+        <div class="pane-tag">浅色 #f5f5f0</div>
+        <div class="mini-card">
+          <h5>今日复习总览</h5><div class="mini-stat">68%</div>
+          <p style="color:#52525b">已复习 12 · 待复习 5 · 逾期 2</p>
+          <span class="badge badge-gl">今日已复习</span>
+        </div>
+        <div class="track" style="margin-top:10px;background:rgba(0,0,0,.08)"><div class="fill" style="width:68%"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">16 · 复习 SRS 卡片（完整组件）</div>
+    <div class="sec-desc">新笔记首轮 / 学习中 / 已掌握；底部操作按钮组（重来·不熟·简单·顺利）</div>
+    <div class="grid g-3">
+      <div class="card">
+        <div style="font-size:11px;color:var(--brand);font-weight:700;margin-bottom:4px">新笔记 · 首轮</div>
+        <div style="font-size:14px;font-weight:600;margin-bottom:8px">设计系统如何收敛色板？</div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:14px">知识管理 / PARA 分布 · 今天加入</div>
+        <div class="btnrow" style="gap:8px">
+          <button class="btn btn-ghost" style="padding:8px 12px;font-size:12px;color:var(--red)">重来</button>
+          <button class="btn btn-ghost" style="padding:8px 12px;font-size:12px">不熟</button>
+          <button class="btn btn-primary" style="padding:8px 12px;font-size:12px">简单</button>
+          <button class="btn btn-primary" style="padding:8px 12px;font-size:12px;background:var(--brand-dark)">顺利</button>
+        </div>
+      </div>
+      <div class="card">
+        <div style="font-size:11px;color:var(--amber);font-weight:700;margin-bottom:4px">学习中 · 第 2 次</div>
+        <div style="font-size:14px;font-weight:600;margin-bottom:8px">ECharts 环形图断口怎么画？</div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:14px">技术 · 间隔 1 天</div>
+        <div class="btnrow" style="gap:8px">
+          <button class="btn btn-ghost" style="padding:8px 12px;font-size:12px;color:var(--red)">重来</button>
+          <button class="btn btn-ghost" style="padding:8px 12px;font-size:12px">不熟</button>
+          <button class="btn btn-primary" style="padding:8px 12px;font-size:12px">简单</button>
+          <button class="btn btn-primary" style="padding:8px 12px;font-size:12px;background:var(--brand-dark)">顺利</button>
+        </div>
+      </div>
+      <div class="card" style="display:flex;align-items:center;justify-content:center;min-height:170px">
+        <div class="empty"><div class="ic">🎉</div>已掌握<br><span style="font-size:12px">完成全部复习阶梯</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">17 · 任务详情面板（点击展开整卡）</div>
+    <div class="sec-desc">从任务卡向下展开：开始/截止日期、负责人、状态、优先级、任务关联；与今日待办详情同构</div>
+    <div class="card">
+      <div style="font-size:14px;font-weight:700;margin-bottom:12px">数据面板需求梳理</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;margin-bottom:14px">
+        <div><div style="font-size:11px;color:var(--text3)">开始日期</div><div style="font-size:13px;margin-top:2px">2026-09-16</div></div>
+        <div><div style="font-size:11px;color:var(--text3)">截止日期</div><div style="font-size:13px;margin-top:2px;color:var(--red)">2026-09-22</div></div>
+        <div><div style="font-size:11px;color:var(--text3)">负责人</div><div style="font-size:13px;margin-top:2px">我</div></div>
+        <div><div style="font-size:11px;color:var(--text3)">状态 / 优先级</div><div style="margin-top:4px;display:flex;gap:6px"><span class="badge badge-g">进行中</span><span class="badge" style="background:rgba(192,132,252,.18);color:var(--p0)">P0</span></div></div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:6px">任务关联</div>
+      <div style="font-size:12px;padding:8px 12px;border-radius:10px;background:rgba(200,224,96,.1);color:var(--brand-dark)">📄 数据面板-需求文档.md</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">18 · 看板列（拖拽整列）</div>
+    <div class="sec-desc">列头 = 圆形状态点 + 列名 + 靠右数字胶囊；列头底 1px 分割线；列背景极淡；拖入时绿底 6% + 2px 绿虚线</div>
+    <div class="grid g-3">
+      <div style="background:rgba(127,127,127,.04);border:1px solid var(--border);border-radius:16px;padding:12px;min-height:140px">
+        <div style="display:flex;align-items:center;gap:8px;padding:0 4px 10px;margin-bottom:10px;font-weight:600;font-size:12px;color:var(--text2);border-bottom:1px solid var(--border)"><span style="width:8px;height:8px;border-radius:50%;background:var(--p2)"></span>待办 <span style="margin-left:auto;background:var(--track);border-radius:999px;padding:2px 10px;font-size:11px;font-weight:600">2</span></div>
+        <div class="task" style="margin-bottom:8px"><span class="bar" style="background:var(--p2)"></span><div class="body"><div class="t" style="font-size:12px">文档补全</div><div class="m" style="font-size:11px">P2</div></div></div>
+      </div>
+      <div style="background:rgba(127,127,127,.04);border:1px solid var(--border);border-radius:16px;padding:12px;min-height:140px">
+        <div style="display:flex;align-items:center;gap:8px;padding:0 4px 10px;margin-bottom:10px;font-weight:600;font-size:12px;color:var(--text2);border-bottom:1px solid var(--border)"><span style="width:8px;height:8px;border-radius:50%;background:var(--blue)"></span>进行中 <span style="margin-left:auto;background:var(--track);border-radius:999px;padding:2px 10px;font-size:11px;font-weight:600">2</span></div>
+        <div class="task" style="margin-bottom:8px"><span class="bar" style="background:var(--p0)"></span><div class="body"><div class="t" style="font-size:12px">数据面板</div><div class="m" style="font-size:11px">P0 · 5%</div></div></div>
+        <div class="task"><span class="bar" style="background:var(--blue)"></span><div class="body"><div class="t" style="font-size:12px">设计系统</div><div class="m" style="font-size:11px">P1 · 45%</div></div></div>
+      </div>
+      <div style="background:rgba(200,224,96,.06);border:2px dashed var(--brand);border-radius:16px;padding:12px;min-height:140px">
+        <div style="display:flex;align-items:center;gap:8px;padding:0 4px 10px;margin-bottom:10px;font-weight:600;font-size:12px;color:var(--brand);border-bottom:1px solid var(--border)"><span style="width:8px;height:8px;border-radius:50%;background:var(--green)"></span>已完成 <span style="margin-left:auto;background:var(--track);border-radius:999px;padding:2px 10px;font-size:11px;font-weight:600">1</span></div>
+        <div class="task"><span class="bar" style="background:var(--green)"></span><div class="body"><div class="t" style="font-size:12px">复习引擎</div><div class="m" style="font-size:11px">P2</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">19 · 知识板块 / PARA 分布列表项</div>
+    <div class="sec-desc">领域标签 + 笔记数 + 迷你进度条；点击弹出该类文档列表（带搜索框，见 §13）</div>
+    <div class="card">
+      <div style="padding:10px 0;border-bottom:1px dashed var(--border);display:flex;align-items:center;gap:12px">
+        <span style="width:28px;height:28px;border-radius:8px;background:rgba(167,139,250,.15);display:flex;align-items:center;justify-content:center">📚</span>
+        <div style="flex:1"><div style="font-size:13px;font-weight:600">Projects · 项目</div><div style="font-size:11px;color:var(--text3)">42 篇笔记</div></div>
+        <div style="width:100px"><div class="track" style="height:6px"><div class="fill" style="width:60%"></div></div></div>
+      </div>
+      <div style="padding:10px 0;border-bottom:1px dashed var(--border);display:flex;align-items:center;gap:12px">
+        <span style="width:28px;height:28px;border-radius:8px;background:rgba(96,165,250,.15);display:flex;align-items:center;justify-content:center">📦</span>
+        <div style="flex:1"><div style="font-size:13px;font-weight:600">Areas · 领域</div><div style="font-size:11px;color:var(--text3)">68 篇笔记</div></div>
+        <div style="width:100px"><div class="track" style="height:6px"><div class="fill" style="width:82%;background:var(--blue)"></div></div></div>
+      </div>
+      <div style="padding:10px 0;border-bottom:1px dashed var(--border);display:flex;align-items:center;gap:12px">
+        <span style="width:28px;height:28px;border-radius:8px;background:rgba(34,197,94,.15);display:flex;align-items:center;justify-content:center">🗄</span>
+        <div style="flex:1"><div style="font-size:13px;font-weight:600">Resources · 资源</div><div style="font-size:11px;color:var(--text3)">113 篇笔记</div></div>
+        <div style="width:100px"><div class="track" style="height:6px"><div class="fill" style="width:100%;background:var(--green)"></div></div></div>
+      </div>
+      <div style="padding:10px 0;display:flex;align-items:center;gap:12px">
+        <span style="width:28px;height:28px;border-radius:8px;background:rgba(251,191,36,.15);display:flex;align-items:center;justify-content:center">📥</span>
+        <div style="flex:1"><div style="font-size:13px;font-weight:600">Archive · 归档</div><div style="font-size:11px;color:var(--text3)">15 篇笔记</div></div>
+        <div style="width:100px"><div class="track" style="height:6px"><div class="fill" style="width:20%;background:var(--amber)"></div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">20 · 习惯打卡行 & 连续 streak</div>
+    <div class="sec-desc">图标 + 名称 + 连续打卡徽章 + 周日圆点；未打卡为空心圆</div>
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px dashed var(--border)">
+        <span style="width:32px;height:32px;border-radius:10px;background:var(--bg2);display:flex;align-items:center;justify-content:center">📖</span>
+        <div style="flex:1"><div style="font-size:13px;font-weight:600">阅读 30 分钟</div><div style="font-size:11px;color:var(--amber)">🔥 连续打卡 12 天</div></div>
+        <div class="week" style="width:200px"><div class="d done"><div class="dot" style="width:20px;height:20px;font-size:9px">✓</div></div><div class="d done"><div class="dot" style="width:20px;height:20px;font-size:9px">✓</div></div><div class="d today"><div class="dot" style="width:20px;height:20px;font-size:9px">今</div></div><div class="d"><div class="dot" style="width:20px;height:20px">○</div></div></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 0">
+        <span style="width:32px;height:32px;border-radius:10px;background:var(--bg2);display:flex;align-items:center;justify-content:center">🏃</span>
+        <div style="flex:1"><div style="font-size:13px;font-weight:600">跑步 5km</div><div style="font-size:11px;color:var(--text3)">○ 未打卡</div></div>
+        <div class="week" style="width:200px"><div class="d done"><div class="dot" style="width:20px;height:20px;font-size:9px">✓</div></div><div class="d"><div class="dot" style="width:20px;height:20px">○</div></div><div class="d"><div class="dot" style="width:20px;height:20px">○</div></div><div class="d"><div class="dot" style="width:20px;height:20px">○</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">21 · 活跃度热力图色阶 & 看板标题栏</div>
+    <div class="sec-desc">GitHub 式 52 周网格；单元格 10×10px、圆角 2px；色阶用鲜绿系（#bbf7d0→#16a34a），不与品牌黄绿混；今日 outline 1px；未来日 opacity .3</div>
+    <div class="grid g-2" style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <div style="font-weight:700;font-size:14px">活跃度热力图</div>
+          <div class="seg" style="align-self:auto"><button class="on">月</button><button>年</button></div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(7,10px);gap:3px;margin-bottom:12px;justify-content:flex-start">
+          <div style="width:10px;height:10px;border-radius:2px;background:var(--track);"></div>
+          <div style="width:10px;height:10px;border-radius:2px;background:#bbf7d0;"></div>
+          <div style="width:10px;height:10px;border-radius:2px;background:#86efac;"></div>
+          <div style="width:10px;height:10px;border-radius:2px;background:#4ade80;"></div>
+          <div style="width:10px;height:10px;border-radius:2px;background:#16a34a;"></div>
+          <div style="width:10px;height:10px;border-radius:2px;background:var(--track);"></div>
+          <div style="width:10px;height:10px;border-radius:2px;background:#86efac;"></div>
+          <div style="width:10px;height:10px;border-radius:2px;background:var(--track);"></div>
+          <div style="width:10px;height:10px;border-radius:2px;background:#22c55e;"></div>
+          <div style="width:10px;height:10px;border-radius:2px;background:#c8e060;outline:1px solid var(--brand);outline-offset:0;"></div>
+          <div style="width:10px;height:10px;border-radius:2px;background:#bbf7d0;"></div>
+          <div style="width:10px;height:10px;border-radius:2px;background:var(--track);"></div>
+          <div style="width:10px;height:10px;border-radius:2px;background:var(--track);"></div>
+          <div style="width:10px;height:10px;border-radius:2px;background:#4ade80;"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--text3);justify-content:flex-end">少 <div style="width:10px;height:10px;border-radius:2px;background:var(--track)"></div><div style="width:10px;height:10px;border-radius:2px;background:#bbf7d0"></div><div style="width:10px;height:10px;border-radius:2px;background:#86efac"></div><div style="width:10px;height:10px;border-radius:2px;background:#4ade80"></div><div style="width:10px;height:10px;border-radius:2px;background:#16a34a"></div> 多</div>
+      </div>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;border-bottom:1px solid var(--border);margin-bottom:14px">
+          <div><div style="font-weight:800;font-size:16px">📚 知识库看板</div><div style="font-size:11px;color:var(--text3)">本周新增 36 篇 · 待处理断链 21</div></div>
+          <div class="icon-btn">＋</div>
+        </div>
+        <div style="font-size:12px;color:var(--text2)">标题栏 = 板块标题 + 副标题指标 + 右侧新建入口；切换看板用顶部 Tab，不在卡片内重复放。</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">22 · 设置弹窗样例</div>
+    <div class="sec-desc">复习参数（队列上限 15 / 窗口 30 天）、每日一签滑动开关等低频设置集中在此；已废弃"新版/旧版复习样式"切换，统一走新版渲染</div>
+    <div class="modal">
+      <div class="mh">仪表盘设置 <span style="cursor:pointer;color:var(--text3)">✕</span></div>
+      <div class="mb" style="display:flex;flex-direction:column;gap:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:13px;font-weight:600">每日复习队列上限</div><div style="font-size:11px;color:var(--text3)">当日最多复习多少张卡片</div></div><span style="font-size:13px;color:var(--text2)">15 条</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:13px;font-weight:600">新笔记自动纳入窗口</div><div style="font-size:11px;color:var(--text3)">最近 7~90 天内新建的笔记会自动进入复习队列</div></div><span style="font-size:13px;color:var(--text2)">30 天</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:13px;font-weight:600">每日一签（抽签式）</div><div style="font-size:11px;color:var(--text3)">当天锁定，点击抽签才出签</div></div><label class="switch"><input type="checkbox" checked><span class="slider"></span></label></div>
+      </div>
+      <div class="mf"><button class="btn btn-ghost" style="padding:8px 16px;font-size:13px">取消</button><button class="btn btn-primary" style="padding:8px 16px;font-size:13px">应用</button></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">23 · 文档列表弹窗（空笔记 / 断链）</div>
+    <div class="sec-desc">标题带"共 N 篇" + 内嵌搜索框 + 列表项（名称+badge）+ 分割线 + 底部计数与关闭同行；上下留白各 14px</div>
+    <div class="doclist" style="max-width:440px;margin:0 auto">
+      <div class="dh">📄 空笔记（共 14 篇）<span class="x">✕</span></div>
+      <div class="srch">
+        <div class="search" style="max-width:none">🔍 搜索笔记名称或路径…</div>
+      </div>
+      <div class="di"><span>99-Meta-元配置.md</span><span class="b">空笔记</span></div>
+      <div class="di"><span>10-日记.md</span><span class="b">空笔记</span></div>
+      <div class="di"><span>04-Archives-归档.md</span><span class="b">空笔记</span></div>
+      <div class="dd"></div>
+      <div class="df"><span>14 / 14 篇</span><span style="cursor:pointer">关闭</span></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">24 · 输入框 / 搜索框参数规范</div>
+    <div class="sec-desc">所有搜索入口与输入框统一：36px 高、12px 圆角、1px 细边框、图标内嵌、去 Obsidian 默认内阴影</div>
+    <div class="card" style="overflow-x:auto">
+      <table class="spec">
+        <thead><tr><th>属性</th><th>暗色值</th><th>浅色值</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td>高度</td><td><code>36px</code></td><td><code>36px</code></td><td>与按钮对齐</td></tr>
+          <tr><td>圆角</td><td><code>12px</code></td><td><code>12px</code></td><td>--input-radius</td></tr>
+          <tr><td>边框</td><td><code>1px rgba(255,255,255,.12)</code></td><td><code>1px rgba(0,0,0,.12)</code></td><td>必须去内阴影</td></tr>
+          <tr><td>背景</td><td><code>rgba(255,255,255,.06)</code></td><td><code>rgba(0,0,0,.04)</code></td><td>—</td></tr>
+          <tr><td>字号</td><td><code>13px</code></td><td><code>13px</code></td><td>—</td></tr>
+          <tr><td>Focus</td><td colspan="2"><code>1px 细绿描边，无发光</code></td><td>暗 rgba(168,192,64,.7) / 浅 #96b030</td></tr>
+        </tbody>
+      </table>
+      <div class="rule" style="margin-top:12px"><span class="tag">结构</span><p>搜索图标<b>内嵌输入框内部</b>（左 padding 36px 让位），emoji 重心下移 2px；禁止图标放在框外。</p></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">25 · CSS 变量速查（双主题）</div>
+    <div class="sec-desc">开发直接照此表取色；新组件不得另造色值</div>
+    <div class="card" style="overflow-x:auto">
+      <table class="spec">
+        <thead><tr><th>变量</th><th>暗色</th><th>浅色</th><th>用途</th></tr></thead>
+        <tbody>
+          <tr><td><code>--bg</code></td><td><code>#0f0f13</code></td><td><code>#f5f5f0</code></td><td>页面背景</td></tr>
+          <tr><td><code>--card</code></td><td><code>rgba(28,28,34,.75)</code></td><td><code>rgba(255,255,255,.85)</code></td><td>卡片毛玻璃</td></tr>
+          <tr><td><code>--brand</code></td><td><code>#c8e060</code></td><td><code>#c8e060</code></td><td>图形语言：图标/进度/选中底/边框</td></tr>
+          <tr><td><code>--brand-dark</code></td><td><code>#a8c040</code></td><td><code>#a8c040</code></td><td>hover、浅色文字、日期大字</td></tr>
+          <tr><td><code>--text</code></td><td><code>#f0f0f3</code></td><td><code>#1a1a1f</code></td><td>主文字</td></tr>
+          <tr><td><code>--text2</code></td><td><code>#a1a1aa</code></td><td><code>#52525b</code></td><td>次文字</td></tr>
+          <tr><td><code>--track</code></td><td><code>rgba(255,255,255,.08)</code></td><td><code>rgba(0,0,0,.08)</code></td><td>进度/分段底</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+<script>
+(function(){
+  var root=document.documentElement, btn=document.getElementById('themeBtn');
+  // 分组单选：导航 Tab / 分段 / 胶囊
+  document.querySelectorAll('.navbar .tabs,.seg,.pill-group').forEach(function(g){
+    g.addEventListener('click',function(e){
+      var t=e.target.closest('button,.tab'); if(!t||!g.contains(t))return;
+      g.querySelectorAll('button,.tab').forEach(function(x){x.classList.remove('on')});
+      t.classList.add('on');
+    });
+  });
+  function ring(light){var c=echarts.getInstanceByDom(document.getElementById('ringDemo'))||echarts.init(document.getElementById('ringDemo'));
+    c.setOption({series:[{type:'pie',radius:['62.6%','94%'],itemStyle:{borderRadius:6,borderWidth:3,borderColor:light?'rgba(255,255,255,.92)':'#19191e'},emphasis:{scale:true,scaleSize:3},label:{show:false},labelLine:{show:false},
+    data:[{value:68,itemStyle:{color:'#c8e060'}},{value:22,itemStyle:{color:'#fbbf24'}},{value:10,itemStyle:{color:'#f87171'}}]}]},true)}
+  function bar(light){var c=echarts.getInstanceByDom(document.getElementById('barDemo'))||echarts.init(document.getElementById('barDemo'));
+    c.setOption({grid:{left:30,right:10,top:16,bottom:24},xAxis:{type:'category',data:['一','二','三','四','五','六','日'],axisLine:{lineStyle:{color:light?'rgba(0,0,0,.2)':'rgba(255,255,255,.2)'}},axisLabel:{color:light?'#52525b':'#a1a1aa',fontSize:11}},
+    yAxis:{type:'value',splitLine:{lineStyle:{color:light?'rgba(0,0,0,.08)':'rgba(255,255,255,.06)'}},axisLabel:{color:light?'#71717a':'#71717a',fontSize:10}},
+    series:[{type:'bar',data:[4,7,3,9,6,12,5],barWidth:14,itemStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'#c8e060'},{offset:1,color:'#a8c040'}]},borderRadius:[4,4,0,0]}}]},true)}
+  ring(false);bar(false);
+  btn.addEventListener('click',function(){var l=root.getAttribute('data-theme')==='light';
+    if(l){root.removeAttribute('data-theme');btn.textContent='切换浅色'}else{root.setAttribute('data-theme','light');btn.textContent='切换深色'}
+    ring(!l);bar(!l);});
+  window.addEventListener('resize',function(){var a=echarts.getInstanceByDom(document.getElementById('ringDemo')),b=echarts.getInstanceByDom(document.getElementById('barDemo'));if(a)a.resize();if(b)b.resize()});
+})();
+</script>
+</body>
+</html>

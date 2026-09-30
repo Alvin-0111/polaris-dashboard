@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Talos Dashboard 产品功能文档</title>
+<style>
+:root{
+  --bg:#0f0f13; --bg2:#16161c; --card:rgba(28,28,34,.78); --card-solid:#1c1c22;
+  --text:#f0f0f3; --text2:#a1a1aa; --text3:#71717a; --border:rgba(255,255,255,.09);
+  --accent:#c8e060; --accent2:#a8c040; --purple:#a78bfa; --red:#f87171; --amber:#fbbf24;
+  --shadow:0 2px 8px rgba(0,0,0,.12),0 16px 40px -12px rgba(0,0,0,.2),0 40px 80px -32px rgba(0,0,0,.25);
+}
+[data-theme="light"]{
+  --bg:#f5f5f0; --bg2:#ecece4; --card:rgba(255,255,255,.9); --card-solid:#ffffff;
+  --text:#1a1a1f; --text2:#52525b; --text3:#71717a; --border:rgba(0,0,0,.1);
+  --shadow:0 2px 8px rgba(0,0,0,.04),0 16px 40px -12px rgba(0,0,0,.05);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  background:var(--bg); color:var(--text); font-size:15px; line-height:1.7; transition:background .3s,color .3s}
+a{color:var(--accent); text-decoration:none}
+a:hover{text-decoration:underline}
+.talos-top{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:12px;padding:0 20px;height:56px;
+  background:var(--card);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid var(--border)}
+.talos-top .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px;flex:1;min-width:0}
+.talos-top .brand .dot{width:10px;height:10px;border-radius:3px;background:var(--accent);flex-shrink:0}
+.talos-top .meta{font-size:12px;color:var(--text3);white-space:nowrap}
+.theme-btn{appearance:none;border:1px solid var(--border);background:var(--bg2);color:var(--text2);
+  border-radius:12px;padding:6px 12px;font-size:12px;cursor:pointer;font-family:inherit;transition:all .2s}
+.theme-btn:hover{border-color:var(--accent);color:var(--accent)}
+.layout{display:flex;max-width:1280px;margin:0 auto;gap:32px;padding:28px 24px 80px;align-items:flex-start}
+.toc{position:sticky;top:88px;width:240px;flex-shrink:0;max-height:calc(100vh - 120px);overflow:auto;
+  background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px 14px;box-shadow:var(--shadow)}
+.toc .toc-title{font-size:12px;font-weight:700;color:var(--text3);letter-spacing:.05em;margin-bottom:10px;text-transform:uppercase}
+.toc a{display:block;color:var(--text2);font-size:13px;line-height:1.5;padding:4px 8px;border-radius:8px;border-left:2px solid transparent}
+.toc a:hover{color:var(--accent);background:rgba(200,224,96,.07)}
+.toc a.t2{font-weight:600;color:var(--text)}
+.toc a.t3{padding-left:20px;font-size:12px}
+main{flex:1;min-width:0}
+.doc-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:36px 40px;box-shadow:var(--shadow)}
+.doc-title{font-size:30px;font-weight:800;line-height:1.25;margin-bottom:6px}
+.doc-sub{color:var(--text3);font-size:13px;margin-bottom:26px}
+.doc-sub .pill{display:inline-block;background:rgba(200,224,96,.15);color:var(--accent2);border-radius:999px;
+  padding:2px 10px;font-size:11px;font-weight:600;margin-right:6px}
+h1{font-size:26px;font-weight:800;margin:30px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+h2{font-size:21px;font-weight:700;margin:34px 0 12px;padding-left:12px;border-left:4px solid var(--accent);border-radius:2px}
+h3{font-size:17px;font-weight:700;margin:26px 0 10px;display:flex;align-items:center;gap:8px}
+h3::before{content:"";width:8px;height:8px;border-radius:3px;background:var(--accent);flex-shrink:0}
+h4{font-size:15px;font-weight:600;margin:20px 0 8px;color:var(--accent)}
+p{margin:10px 0}
+strong{font-weight:700}
+em{color:var(--text2)}
+code{background:rgba(200,224,96,.13);color:var(--accent);border-radius:6px;padding:1px 6px;font-size:13px;
+  font-family:"SF Mono",Menlo,Consolas,monospace}
+.codeblock{background:var(--bg2);border:1px solid var(--border);border-radius:14px;margin:14px 0;overflow:hidden}
+.codeblock .code-tag{font-size:11px;color:var(--text3);padding:6px 14px;border-bottom:1px solid var(--border);
+  background:rgba(255,255,255,.02);letter-spacing:.04em}
+.codeblock pre{padding:14px 18px;overflow-x:auto}
+.codeblock code{background:none;color:var(--text);padding:0;font-size:13px;line-height:1.65}
+.table-wrap{overflow-x:auto;margin:14px 0;border:1px solid var(--border);border-radius:14px}
+table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:520px}
+th{background:var(--bg2);color:var(--text2);font-weight:700;text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:9px 14px;border-bottom:1px solid var(--border);vertical-align:top}
+tbody tr:nth-child(even){background:rgba(255,255,255,.02)}
+[data-theme="light"] tbody tr:nth-child(even){background:rgba(0,0,0,.02)}
+tbody tr:last-child td{border-bottom:none}
+blockquote{margin:14px 0;padding:12px 18px;border-left:3px solid var(--purple);background:rgba(167,139,250,.07);
+  border-radius:0 12px 12px 0;color:var(--text2);font-size:14px}
+ul.lst,ol.lst{margin:10px 0;padding-left:26px}
+ul.lst li,ol.lst li{margin:5px 0}
+hr{border:none;border-top:1px solid var(--border);margin:24px 0}
+.back-top{position:fixed;right:24px;bottom:24px;width:42px;height:42px;border-radius:14px;background:var(--card-solid);
+  border:1px solid var(--border);color:var(--text2);font-size:18px;cursor:pointer;box-shadow:var(--shadow);z-index:40;transition:all .2s}
+.back-top:hover{border-color:var(--accent);color:var(--accent);transform:translateY(-2px)}
+@media(max-width:980px){
+  .layout{flex-direction:column;padding:16px 12px 60px}
+  .toc{position:static;width:100%;max-height:none;display:none}
+  .toc.open{display:block}
+  .toc-toggle{display:block;margin:10px 12px 0}
+  .doc-card{padding:22px 18px}
+  .doc-title{font-size:24px}
+  .talos-top .meta{display:none}
+}
+.toc-toggle{display:none;appearance:none;border:1px solid var(--border);background:var(--card);color:var(--text2);
+  border-radius:12px;padding:8px 14px;font-size:13px;cursor:pointer;font-family:inherit}
+</style>
+</head>
+<body>
+<div class="talos-top">
+  <div class="brand"><span class="dot"></span>Talos Dashboard 产品功能文档</div>
+  <span class="meta">产品经理 → UI / 开发 / 用户的完整产品说明 · 更新至 2026-09-18</span>
+  <button class="theme-btn" type="button">切换深浅色</button>
+</div>
+<button class="toc-toggle" type="button">目录导航</button>
+<div class="layout">
+  <nav class="toc" aria-label="目录"><div class="toc-title">目录导航</div><a class="" href="#sec-0a13fd04">Talos Dashboard 个人工作台 · 产品功能文档</a><a class="t2" href="#sec-55d37020">一、产品概述</a><a class="t3" href="#sec-fefe4d43">1.1 产品定位</a><a class="t3" href="#sec-b259648f">1.2 核心价值</a><a class="t3" href="#sec-66e5e293">1.3 目标用户</a><a class="t3" href="#sec-f6e27297">1.4 设计语言</a><a class="t2" href="#sec-4e87355a">二、打开方式与安装</a><a class="t3" href="#sec-ea1cae01">2.1 打开</a><a class="t3" href="#sec-138537f1">2.2 安装位置</a><a class="t2" href="#sec-5ce0cc8b">三、界面总览</a><a class="t2" href="#sec-bc261492">四、顶部导航栏</a><a class="t3" href="#sec-79da8afe">4.1 Logo（Talos）</a><a class="t3" href="#sec-60a1c243">4.2 看板切换 Tab</a><a class="t3" href="#sec-ead78d49">4.3 全局搜索（⌘K）</a><a class="t3" href="#sec-38074c70">4.4 操作按钮</a><a class="t2" href="#sec-2ecd6bb5">五、工作看板</a><a class="t3" href="#sec-0973a5a8">5.1 数据概览（4 张统计卡）</a><a class="t3" href="#sec-3e8c2e1c">5.2 焦点任务（今日焦点）</a><a class="t3" href="#sec-e32dec64">5.3 项目时间线（甘特图）</a><a class="t3" href="#sec-f69980e3">5.4 任务看板（可拖拽）</a><a class="t3" href="#sec-1d1e30ae">5.5 任务详情抽屉</a><a class="t3" href="#sec-8ad10fb3">5.6 新建任务（＋ 新建任务）</a><a class="t3" href="#sec-1d4da5e7">5.7 编辑 / 删除任务</a><a class="t2" href="#sec-66c24f0d">六、知识库看板</a><a class="t3" href="#sec-789c8554">6.1 统计卡（4 张，点击弹窗）</a><a class="t3" href="#sec-9260dc4e">6.2 笔记产出（柱状图）</a><a class="t3" href="#sec-0f3523df">6.3 领域分布（PARA 分布，横向条形图）</a><a class="t3" href="#sec-7a758429">6.4 活跃度热力图</a><a class="t3" href="#sec-e002fdb4">6.5 标签 Top10</a><a class="t3" href="#sec-310b3e0f">6.6 最近笔记 / 收藏笔记</a><a class="t2" href="#sec-4d0b289b">七、复习看板</a><a class="t3" href="#sec-890332a5">7.1 核心统计（4 张卡）</a><a class="t3" href="#sec-5f0b0db3">7.2 复习进度总览（环形分段图）</a><a class="t3" href="#sec-50b5b577">7.3 学科分布（领域分布）</a><a class="t3" href="#sec-b3e9518d">7.4 近 7 天学习趋势（柱状图）</a><a class="t3" href="#sec-5670938b">7.5 今日复习任务（队列）</a><a class="t3" href="#sec-526219f6">7.6 知识点掌握</a><a class="t3" href="#sec-9a33094a">7.7 错题本</a><a class="t3" href="#sec-7cf2e935">7.8 快速记录</a><a class="t3" href="#sec-719ad55c">7.9 新建复习（＋ 手动加入今日队列）</a><a class="t2" href="#sec-4391ea0c">八、右侧今日面板（固定显示）</a><a class="t3" href="#sec-56a4ee7a">8.1 日历卡片（日期 + 每日一句合并卡片）</a><a class="t3" href="#sec-f23dbc40">8.2 今日打卡</a><a class="t3" href="#sec-b93b73bd">8.3 今日待办</a><a class="t3" href="#sec-88e2373b">8.4 本周学习</a><a class="t2" href="#sec-564b939d">九、设置面板</a><a class="t3" href="#sec-774ea2f7">9.1 外观</a><a class="t3" href="#sec-84aee5f1">9.2 内容管理</a><a class="t3" href="#sec-174509ac">9.3 日历卡片（内容开关）</a><a class="t3" href="#sec-6184babb">9.4 复习引擎参数</a><a class="t2" href="#sec-6129b167">十、数据与持久化</a><a class="t3" href="#sec-fd736b04">10.1 存储位置</a><a class="t3" href="#sec-4aeb6bd2">10.2 字段说明</a><a class="t3" href="#sec-cf648734">10.3 数据原则</a><a class="t2" href="#sec-458af994">十一、设计规范摘要</a><a class="t3" href="#sec-1cdf0e0d">11.1 色彩（深色主题主色板）</a><a class="t3" href="#sec-9b4ac63c">11.2 圆角</a><a class="t3" href="#sec-f719b442">11.3 间距（4px 栅格）</a><a class="t3" href="#sec-5628fb43">11.4 按钮三态</a><a class="t3" href="#sec-d0a925c9">11.5 搜索框 / 输入框规范（全局统一）</a><a class="t3" href="#sec-3e2fcb69">11.6 主题适配原则</a><a class="t2" href="#sec-d9b590b1">十二、已知限制与注意事项</a><a class="t2" href="#sec-f40c561b">十三、迭代状态速览</a></nav>
+  <main>
+    <div class="doc-card">
+      <div class="doc-title">Talos Dashboard 产品功能文档</div>
+      <div class="doc-sub"><span class="pill">产品文档</span>产品经理 → UI / 开发 / 用户的完整产品说明 · 更新至 2026-09-18</div>
+<h1 id="sec-0a13fd04">Talos Dashboard 个人工作台 · 产品功能文档</h1>
+<blockquote>版本：v1.0（对应 2026-09-18 代码基线）<br>文档性质：面向 <strong>产品经理 / UI 设计师 / 前端开发 / 终端用户</strong> 的完整功能规格说明<br>说明：本文档描述的是 Obsidian 插件 <strong>talos-dashboard-obsidian</strong>（Talos-Dashboard 个人工作台仪表盘）的真实运行功能，所有"点击 → 跳转"均为插件内已实现的交互闭环。</blockquote>
+<hr>
+<h2 id="sec-55d37020">一、产品概述</h2>
+<h3 id="sec-fefe4d43">1.1 产品定位</h3>
+<p>一个运行在 Obsidian 内的<strong>个人知识管理工作台</strong>，将任务管理、笔记/知识库洞察、间隔重复复习、习惯打卡、日期信息整合进同一界面，数据与 Obsidian Vault <strong>双向实时同步</strong>。</p>
+<h3 id="sec-b259648f">1.2 核心价值</h3>
+<div class="table-wrap"><table><thead><tr><th>价值</th><th>说明</th></tr></thead><tbody><tr><td>一体化</td><td>工作（任务/时间线）、知识（笔记统计/热力图）、复习（间隔重复）三块在一个看板中切换，无需在多个插件间跳转</td></tr><tr><td>数据真实</td><td>所有统计来自 Vault 真实笔记与插件持久化数据（<code>data.json</code>），非演示数据</td></tr><tr><td>可交互</td><td>任务可拖拽改期/跨列、热力图可点选、复习可完成/跳过/标记错题、日历可展开</td></tr><tr><td>不污染笔记</td><td>任务、打卡、复习记录全部存插件 <code>data.json</code>，<strong>不写回笔记 frontmatter</strong></td></tr><tr><td>双主题</td><td>深色 / 浅色完整适配，组件级两套样式</td></tr></tbody></table></div>
+<h3 id="sec-66e5e293">1.3 目标用户</h3>
+<p>Obsidian 重度用户，有任务追踪、知识库沉淀、规律复习、习惯养成需求；期望在 Obsidian 内获得"仪表盘"式的一屏总览。</p>
+<h3 id="sec-f6e27297">1.4 设计语言</h3>
+<p>参考 CRM Dashboard 风格：淡黄绿主色 + 淡紫辅助色 + 大圆角 + 柔和阴影；完整规范见 <code>DESIGN-SYSTEM.md</code>（深色/浅色双模式）。</p>
+<hr>
+<h2 id="sec-4e87355a">二、打开方式与安装</h2>
+<h3 id="sec-ea1cae01">2.1 打开</h3>
+<ul class="lst">
+<li>点击 Obsidian 左侧 Ribbon 栏的 <strong>layout-dashboard 图标</strong>（Talos Dashboard）。</li>
+<li>或命令面板（⌘P）执行「打开 Talos Dashboard」。</li>
+<h3 id="sec-138537f1">2.2 安装位置</h3>
+<li>Vault 路径：<code>/Users/xiaoshuai/Documents/Obsidian Vault/</code></li>
+<li>插件目录：<code>.obsidian/plugins/talos-dashboard-obsidian/</code>（manifest id：<code>talos-dashboard-obsidian</code>）</li>
+<li>构建：<code>cd /Users/xiaoshuai/Desktop/talos-dashboard-plugin && npm run build</code></li>
+<li>部署：<code>cp dist/main.js "…/talos-dashboard-obsidian/main.js"</code></li>
+<li><strong>代码修改后需完全重启 Obsidian（Cmd+Q）</strong>，插件才会加载新代码。</li>
+<hr>
+<h2 id="sec-5ce0cc8b">三、界面总览</h2>
+<div class="codeblock"><div class="code-tag"></div><pre><code>┌──────────────────────────────────────────────────────────────────┐
+│ 顶部导航栏：Logo │ 工作·知识库·复习 Tab │ 全局搜索(⌘K) │ 📝 ⚙️ │
+├──────────────────────────────────────────┬───────────────────────┤
+│                                          │  右侧今日面板（固定）    │
+│  主内容区（按当前 Tab 切换）              │  1. 日历卡片           │
+│                                          │     (日期/农历/宜忌/    │
+│  工作看板                                │      一签/纪念日/每日一句)│
+│  · 数据概览(4卡) + 焦点任务              │  2. 今日打卡           │
+│  · 项目时间线(甘特图)                    │     (习惯+周势图+月历)  │
+│  · 任务看板(可拖拽)                      │  3. 今日待办           │
+│                                          │     (内联展开详情)     │
+│  知识库看板                              │  4. 本周学习           │
+│  · 统计卡(4) + 笔记产出 + 领域分布       │                       │
+│  · 活跃度热力图 + 标签Top10              │                       │
+│  · 最近笔记 + 收藏笔记                   │                       │
+│                                          │                       │
+│  复习看板                                │                       │
+│  · 统计卡(4) + 进度总览圆环              │                       │
+│  · 学科分布 + 近7天趋势                  │                       │
+│  · 今日复习队列 + 知识点掌握             │                       │
+│  · 错题本 + 快速记录                     │                       │
+├──────────────────────────────────────────┴───────────────────────┤
+│ 全局悬浮层：任务详情抽屉 / 各类弹窗(Modal) / Toast 提示            │
+└──────────────────────────────────────────────────────────────────┘</code></pre></div>
+<li><strong>顶部导航栏</strong>：Logo + 3 个看板 Tab + 全局搜索框（快捷键 ⌘K）+ 操作按钮（写日记 / 设置）。</li>
+<li><strong>主内容区</strong>：跟随当前看板 Tab 切换。</li>
+<li><strong>右侧今日面板</strong>：固定宽度，不随看板切换，始终可见。</li>
+<li><strong>弹窗体系</strong>：新建/编辑/设置/列表等均以 Modal 弹出，右上角 ✕ 或点击遮罩关闭。</li>
+<hr>
+<h2 id="sec-bc261492">四、顶部导航栏</h2>
+<h3 id="sec-79da8afe">4.1 Logo（Talos）</h3>
+<li>品牌标识：八角星 Logo（品牌黄绿 <code>#c8e060</code>）。</li>
+<li>纯展示，无跳转。</li>
+<h3 id="sec-60a1c243">4.2 看板切换 Tab</h3>
+<li>三个 Tab：<strong>💼 工作看板 / 📚 知识库看板 / 🎯 复习看板</strong>。</li>
+<li>点击切换主内容区，右侧今日面板保持不变；切换时 Toast 提示「已切换到 XX」。</li>
+<li><strong>复习角标</strong>：当日有到期复习时，「🎯 复习看板」Tab 右侧显示红色数字角标（今日待复习数，≥100 显示 99+）；无到期不显示；完成/跳过复习后切看板刷新。</li>
+<h3 id="sec-ead78d49">4.3 全局搜索（⌘K）</h3>
+<li><strong>位置</strong>：导航栏中部搜索框，占位文案「搜索笔记、任务、文档...」，右侧 ⌘K 快捷键提示。</li>
+<li><strong>交互</strong>：</li>
+</ul>
+<ul class="lst">
+<li>输入即搜（220ms 防抖），在搜索框下方展开<strong>连体下拉面板</strong>（Google 式：搜索框与结果面板为一体，输入时搜索框高度拉伸包容结果，底部圆角归零，结果区与输入区以浅色分割线分隔，分割线不与外框相连、两端留白）。</li>
+<li>结果按 <strong>📄 笔记 / 📋 任务 / 📚 复习</strong> 分组，每组标题显示命中条数；每组最多展示 6 条，超出部分不展开（无底部"查看全部"跳转的为纯截断展示）。</li>
+<li><strong>笔记项</strong>：主行 = 文件名（匹配词高亮），副行 = <strong>完整文件夹路径</strong>；长文件名做"窗口截断"，保证匹配词始终落在可视窗口内。</li>
+<li><strong>任务项</strong>：主行 = 任务标题，副行 = <code>状态 · 优先级 · 截止日期</code>（如 <code>进行中 · P0 · 08/18</code>）。</li>
+<li><strong>复习项</strong>：主行 = 学科名（或文件名），副行 = 笔记路径。</li>
+</ul>
+<ul class="lst">
+<li><strong>键盘导航</strong>：↑/↓ 在结果间移动高亮；Enter 打开当前高亮项；无高亮时 Enter 打开 Obsidian 全局搜索面板；Esc 关闭下拉。</li>
+<li><strong>跳转</strong>：点击笔记/复习项 → 打开对应笔记；点击任务项 → 打开任务详情抽屉。</li>
+<li><strong>相关度排序</strong>（笔记）：标题完全等同 > 标题前缀命中 > 标题包含（越靠前越相关）> 仅路径命中；<code>assets/附件/素材</code> 类附属笔记降权但保留。</li>
+<li><strong>底部兜底</strong>：无匹配时显示「未找到与「XX」相关的内容」。</li>
+<h3 id="sec-38074c70">4.4 操作按钮</h3>
+<li><strong>📝 写日记</strong>：调用 Obsidian 原生日记命令（<code>daily-notes:open-today</code>），打开今天的日记笔记（不存在则按原生日记配置创建）。与 Obsidian 原生日记<strong>完全同步</strong>，非插件自建日记体系。</li>
+<li><strong>⚙️ 设置</strong>：打开插件设置弹窗（详见「九、设置面板」）。</li>
+<hr>
+<h2 id="sec-2ecd6bb5">五、工作看板</h2>
+<h3 id="sec-0973a5a8">5.1 数据概览（4 张统计卡）</h3>
+<li><strong>展示</strong>：待办任务 / 进行中任务 / 已完成任务 / 逾期任务 四类卡片，数字实时从任务数据计算。</li>
+<li><strong>卡片结构</strong>：左侧语义色图标（⏳蓝 / 🚀绿 / ✅紫 / ⚠️红）+ 右侧大数字 + 标签 + 注释行（如「占全部任务 33%」「完成率 22%」「需尽快处理」）。</li>
+<li><strong>点击跳转</strong>：点击卡片 → 任务看板滚动定位并切换对应筛选列（如点「逾期任务」→ 看板切换到逾期视图）。</li>
+<li><strong>口径</strong>：逾期 = 未完成且截止日期早于今天（<code>isTaskOverdue</code> 动态计算，非静态字段）；「待定」截止日期不判逾期。</li>
+<h3 id="sec-3e8c2e1c">5.2 焦点任务（今日焦点）</h3>
+<li><strong>展示</strong>：自动挑选的"当前最该推进"的任务：逾期优先 > 优先级（P0>P1>P2）> 截止日期近 > 进行中优先。</li>
+<li><strong>卡片信息</strong>：状态徽标（已逾期/最高优先）、负责人、截止日期、任务标题、进度条（百分比）。</li>
+<li><strong>操作</strong>：</li>
+</ul>
+<ul class="lst">
+<li>「继续编辑」→ 打开任务关联的笔记（<code>notePath</code>）。</li>
+<li>「查看详情」/ 点击卡片 → 打开任务详情抽屉。</li>
+<li>无待办任务时显示空态提示。</li>
+<h3 id="sec-e32dec64">5.3 项目时间线（甘特图）</h3>
+</ul>
+<ul class="lst">
+<li><strong>展示</strong>：任务按时间轴分布的任务条；标题显示在任务条内；逾期任务自动标红。</li>
+<li><strong>视图切换</strong>：右上角 <strong>周 / 月 / 季 / 年</strong> 四档（对应任务条按天/月对齐）。</li>
+<li><strong>拖拽改期</strong>（核心交互）：</li>
+</ul>
+<ul class="lst">
+<li>按住任务条<strong>整体</strong>左右拖动 → 起止日期同步平移；</li>
+<li>拖任务条<strong>左/右边缘</strong>（光标变 ↔）→ 只调整开始 / 截止日期；</li>
+<li>拖动中鼠标旁实时跟随日期浮层（整体平移显示 <code>开始 ~ 截止</code>，拖边缘显示 <code>开始/截止 MM/DD</code>；拖到今天之前追加红色「⚠ 将逾期」提示，已完成任务除外）；</li>
+<li>松手按天对齐 → Toast「已更新日期」→ 任务看板 / 今日待办 / 焦点任务 / 统计卡全部联动刷新，并持久化到 <code>data.json</code>（重启不丢失）；</li>
+<li>硬约束：开始 ≤ 截止（拖边缘自动钳制）、不拖出当年。</li>
+</ul>
+<ul class="lst">
+<li><strong>点击任务条</strong> → 打开任务详情抽屉。</li>
+<h3 id="sec-f69980e3">5.4 任务看板（可拖拽）</h3>
+<li><strong>筛选</strong>：顶部 5 个状态筛选按钮 <strong>全部 / 待办 / 进行中 / 已完成 / 逾期</strong>（点击数据概览卡片会自动切到对应筛选）；右侧搜索框按关键词过滤任务。</li>
+<li><strong>列布局</strong>：按当前筛选显示列（默认待办 / 进行中 / 已完成三列），每列任务卡片含：优先级（P0/P1/P2）、日期（MM/DD）、任务标题、<strong>4 段分段式进度条</strong>（0% / 25% / 50% / 75% / 100% 点击精确选择）、左侧状态色条（进行中蓝 / 已完成绿 / 逾期红）。</li>
+<li><strong>跨列拖拽</strong>：把任务卡片拖到其他列 → 状态即时改变。</li>
+<li><strong>点击任务卡片</strong> → 打开任务详情抽屉。</li>
+<h3 id="sec-1d1e30ae">5.5 任务详情抽屉</h3>
+<li><strong>形态</strong>：从右侧滑出的抽屉，覆盖主内容区，右上角 ✕ / 点击遮罩关闭。</li>
+<li><strong>字段</strong>：状态徽标、优先级、开始日期、截止日期、负责人、进度、标题、描述、关联笔记。</li>
+<li><strong>可编辑</strong>：</li>
+</ul>
+<ul class="lst">
+<li>状态（待办 / 进行中 / 已完成）即时切换；</li>
+<li>优先级（P0 / P1 / P2 平铺分段，点击即选）；</li>
+<li>开始 / 截止日期（点击弹出<strong>日期选择器</strong>：当月日历网格、‹ › 翻月、「今天」快捷定位、「清除」置空；点外部关闭）；</li>
+<li>负责人（文本修改）；</li>
+</ul>
+<ul class="lst">
+<li><strong>「打开笔记」</strong>：有 <code>notePath</code> 时一键打开关联笔记。</li>
+<li><strong>「完成任务」</strong>：一键标记完成（进度 100%），移入已完成列，各面板联动。</li>
+<li><strong>「编辑任务」</strong>：打开编辑表单（见 5.7）。</li>
+<li><strong>联动</strong>：抽屉内任何修改即时落盘并刷新甘特图 / 看板 / 统计 / 今日待办 / 焦点。</li>
+<h3 id="sec-8ad10fb3">5.6 新建任务（＋ 新建任务）</h3>
+<li><strong>入口</strong>：工作看板右上角「＋ 新建任务」。</li>
+<li><strong>表单字段</strong>：</li>
+</ul>
+<ul class="lst">
+<li>任务标题（必填）；</li>
+<li>描述（选填）；</li>
+<li>优先级（P0/P1/P2 平铺分段，默认 P1）；</li>
+<li>开始日期（选填，日期点选）；</li>
+<li>截止日期（选填，日期点选；不填则存「待定」——甘特图按今天占位、不参与逾期判定）。</li>
+</ul>
+<ul class="lst">
+<li><strong>保存</strong>：创建成功 → Toast「任务「XX」创建成功」→ 任务 ID 自动递增（WXB-XXX）→ 看板 / 甘特图 / 今日待办 / 统计即时联动 → 落盘 <code>data.json</code>。</li>
+<h3 id="sec-1d4da5e7">5.7 编辑 / 删除任务</h3>
+<li><strong>入口</strong>：任务详情抽屉 →「编辑任务」。</li>
+<li><strong>可编辑</strong>：标题、开始日期、截止日期、负责人、关联笔记路径（<code>notePath</code> 支持输入如 <code>01-Projects-项目/任务笔记.md</code>）。</li>
+<li><strong>删除</strong>：编辑弹窗底部「🗑️ 删除任务」→ <code>confirm</code> 二次确认（不可恢复）→ 删除后全部视图联动刷新 + 落盘。</li>
+<li><strong>样式规范</strong>：所有表单输入框统一 UI 规范（圆角、边框、聚焦态，与搜索框一致）。</li>
+<hr>
+<h2 id="sec-66c24f0d">六、知识库看板</h2>
+<h3 id="sec-789c8554">6.1 统计卡（4 张，点击弹窗）</h3>
+<li><strong>展示</strong>：总笔记数 / 断链笔记 / 空笔记 / 本月新增，全部来自 Vault 实时统计（<code>getVaultStats()</code>，使用 Obsidian API）。</li>
+<li><strong>点击跳转（弹窗列表）</strong>：</li>
+</ul>
+<ul class="lst">
+<li><strong>总笔记</strong> → 「📚 全部笔记（共 N 篇，展示最近 100 篇）」；</li>
+<li><strong>断链笔记</strong> → 「🔗 断链笔记（N 篇文档 · 共 M 处断链）」；</li>
+<li><strong>空笔记</strong> → 「📄 空笔记（共 N 篇）」；</li>
+<li><strong>本月新增</strong> → 「✨ 本月新增（共 N 篇）」。</li>
+</ul>
+<ul class="lst">
+<li><strong>弹窗结构</strong>：标题 + <strong>搜索框</strong>（实时按名称/路径/副行过滤）+ 笔记列表（名称 + 副行：断链篇数/所在文件夹）+ 底部「过滤数 / 总数 篇」统计 + 「关闭」按钮。</li>
+<li><strong>跳转</strong>：点击列表项 → 关闭弹窗 → 打开对应笔记。</li>
+<li><strong>口径</strong>：</li>
+</ul>
+<ul class="lst">
+<li>断链 = 解析全部笔记的 wiki 链接（跳过外部 / 邮件 / www 链接）后目标不存在的链接数；单篇解析失败不影响整体。</li>
+<li>空笔记 = 内容为空的笔记。</li>
+<li>本月新增 = 本月创建（或修改）的笔记数，注释行显示与上月对比（如「较上月 -234 篇」）。</li>
+<h3 id="sec-9260dc4e">6.2 笔记产出（柱状图）</h3>
+</ul>
+<ul class="lst">
+<li><strong>展示</strong>：按时间统计的笔记产出量。</li>
+<li><strong>操作</strong>：右上角 <strong>年 / 月 / 周</strong> 视图切换。</li>
+<h3 id="sec-0f3523df">6.3 领域分布（PARA 分布，横向条形图）</h3>
+<li><strong>展示</strong>：按 PARA 一级文件夹（Projects / Areas / Resources / 其他…）聚合的笔记数量与占比横向条。</li>
+<li><strong>实时统计</strong>：基于 Vault 真实文件夹结构，自动适配任意库结构（可复用）。</li>
+<h3 id="sec-7a758429">6.4 活跃度热力图</h3>
+<li><strong>展示</strong>：Vault 每日活跃度（当天有笔记的天数按强度着色），支持 <strong>年 / 月 / 周</strong> 多档视图切换。</li>
+<li><strong>月视图</strong>：整月日历网格（7 列），日期格显示日期数字，活跃度着色。</li>
+<li><strong>年视图</strong>：全年按月分块（适配窄卡片：按网格密度自适应，如一行 3~4 个月），支持展开查看。</li>
+<li><strong>周视图</strong>：以周为单位展示近 90 天活跃分布。</li>
+<li><strong>今日标识</strong>：今日日期带品牌绿外框（细描边，非粗框）。</li>
+<li><strong>统计行</strong>：连续活跃天数、累计活跃次数、最活跃天数等。</li>
+<li><strong>点击某一天</strong> → 右侧展开「当日日志」详情面板，按文件夹分组展示当天产生的内容。</li>
+<li><strong>「📝 生成日报」</strong>：当日日志面板内一键生成结构化日报并保存到日记文件夹。</li>
+<h3 id="sec-e002fdb4">6.5 标签 Top10</h3>
+<li><strong>展示</strong>：Vault 中使用频率最高的 10 个标签（点击可展开查看全部标签）。</li>
+<li><strong>跳转</strong>：点击标签 → 打开 Obsidian 标签面板（右侧边栏）。</li>
+<h3 id="sec-310b3e0f">6.6 最近笔记 / 收藏笔记</h3>
+<li><strong>最近笔记</strong>：Vault 真实最近修改笔记列表（相对时间，如「3分钟前」），点击直接打开。</li>
+<li><strong>收藏笔记</strong>：</li>
+</ul>
+<ul class="lst">
+<li>兼容新版书签插件与旧版星标插件；</li>
+<li>点击跳转打开；<strong>取消收藏</strong>有确认对话框防误操作；</li>
+<li>收藏刷新按钮带动效。</li>
+<hr>
+<h2 id="sec-4d0b289b">七、复习看板</h2>
+<blockquote>复习引擎为<strong>规则型间隔重复</strong>（非 AI 黑盒），数据全部真实：候选池 = Vault 中 Projects / Areas / Resources 三文件夹下的笔记（排除 YYYY-MM-DD 日记名笔记）。</blockquote>
+<h3 id="sec-890332a5">7.1 核心统计（4 张卡）</h3>
+</ul>
+<ul class="lst">
+<li><strong>展示</strong>：今日完成率 / 本周学习天数 / 累计学习时长 / 逾期复习数。</li>
+<li><strong>口径</strong>：</li>
+</ul>
+<ul class="lst">
+<li>今日完成率 = 今日已完成 ÷（已完成 + 待复习）；</li>
+<li>本周学习天数 = 本周（周一起）有复习记录的天数；</li>
+<li>累计时长 = 复习总条数 × 单条估算时长（默认 5 分钟，设置中可调）；</li>
+<li>逾期复习 = 队列中已过期的条目数（不含今日到期）；不为 0 时卡片有警示样式。</li>
+<h3 id="sec-5f0b0db3">7.2 复习进度总览（环形分段图）</h3>
+</ul>
+<ul class="lst">
+<li><strong>展示</strong>：ECharts 环形分段图，分段：<strong>已完成（品牌黄绿）/ 待复习（琥珀）/ 逾期（红）</strong>。</li>
+<li><strong>样式</strong>：环宽、断口间距、端头平行圆角均可按设计规范设定；鼠标悬停扇区有高亮反馈与信息提示；中心显示完成度。</li>
+<li><strong>下方</strong>：今日已完成 / 待复习明细。</li>
+<h3 id="sec-50b5b577">7.3 学科分布（领域分布）</h3>
+<li><strong>展示</strong>：候选池笔记按<strong>直接父文件夹</strong>聚合的 Top 学科 + 其他，横向进度条；每行显示学科名、数量、占比。</li>
+<li><strong>层级展开</strong>：学科可展开/折叠子文件夹（适配任意库结构，可复用）；有到期的学科，标题行标注红色到期数。</li>
+<li><strong>点击学科/子文件夹</strong> → 弹出该文件夹下笔记列表（带搜索框），点击项打开笔记。</li>
+<h3 id="sec-b3e9518d">7.4 近 7 天学习趋势（柱状图）</h3>
+<li><strong>展示</strong>：近 7 天每日实际复习条数柱状图，底部汇总「近 7 天共复习 X 条 · 今日 Y 条」。</li>
+<h3 id="sec-5670938b">7.5 今日复习任务（队列）</h3>
+<li><strong>展示</strong>：当天待复习的真实笔记列表，每条：笔记名 + 学科（直接父文件夹）+ <strong>原因徽标</strong> + 右侧「🤔 不熟」「跳过」按钮。</li>
+<li><strong>原因徽标</strong>：逾期红 / 今日到期黄 / 新笔记首轮蓝 / 任务关联绿 / 习惯加急紫 / 错题红。</li>
+<li><strong>排序</strong>：错题置顶 > 逾期天数多 > 原因权重（错题 > 逾期 > 到期 > 首轮 > 任务关联 > 习惯加急）；队列上限默认 15 条（设置可调 5~30）。</li>
+<li><strong>操作</strong>：</li>
+</ul>
+<ul class="lst">
+<li>点左侧圆圈 ✓ → 标记完成，进入遗忘阶梯（下次到期按 <strong>1→3→7→14→30 天</strong> 推进），统计卡 / 进度圆环 / 趋势实时联动；第 5 轮走完视为<strong>已掌握</strong>；</li>
+<li>点「🤔 不熟」→ 记错次数 +1、明天强制再复习（不推进阶梯、不计入完成会话），错题进入错题本；</li>
+<li>点「跳过」→ 该笔记不再自动推荐（记录保留，可后续重新纳入）；</li>
+<li>点任务行 → 直接打开对应笔记。</li>
+</ul>
+<ul class="lst">
+<li><strong>空态</strong>：「今天没有到期的复习 🎉」。</li>
+<h3 id="sec-526219f6">7.6 知识点掌握</h3>
+<li><strong>展示</strong>：已掌握数 / 复习中数 / 掌握率，附阶梯说明「走完 1→3→7→14→30 天五轮阶梯即视为已掌握」。</li>
+<h3 id="sec-9a33094a">7.7 错题本</h3>
+<li><strong>入口</strong>：复习看板底部「📕 查看错题本」（有错题时按钮显示红字数量）。</li>
+<li><strong>弹窗</strong>：列出全部错题（标题 / 学科 / 错 N 次 / 上次记错日期 / 状态徽标），支持「打开」笔记、「移出」错题本（清零错题记录重新入池）；移出后角标同步刷新。</li>
+<li><strong>空态</strong>：「还没有错题 🎉」+ 使用说明。</li>
+<h3 id="sec-7cf2e935">7.8 快速记录</h3>
+<li><strong>操作</strong>：点击「快速记录」→ 直接创建一条笔记到 <code>00-Inbox-收集箱/</code> 并打开，用于随手记想法。</li>
+<h3 id="sec-719ad55c">7.9 新建复习（＋ 手动加入今日队列）</h3>
+<li><strong>入口</strong>：复习看板右上角「＋ 新建复习」。</li>
+<li><strong>流程</strong>：弹出「＋ 加入今日复习」窗口 → 搜索框按标题/路径模糊匹配 Vault 笔记（默认前缀 30 条）→ 每条带状态徽标（🟢 新笔记 / 🟡 学习中显示下次日期 / ⚪ 已跳过 / ✅ 已掌握）→ 选中后确认按钮启用并显示状态说明：</li>
+</ul>
+<ul class="lst">
+<li>新笔记 → 加入后作为「首轮」立即进入今日队列；</li>
+<li>学习中 → 重置为今天到期并显示上次/下次/复习次数；</li>
+<li>已跳过 → 解除跳过并立即复习；</li>
+<li>已掌握 → 重置五轮阶梯数据后立即复习。</li>
+</ul>
+<ul class="lst">
+<li><strong>落盘</strong>：确认后写入 <code>data.json</code>（reviewRecords），队列即时刷新（新加入项置顶），统计卡 / 学科分布角标联动。</li>
+<hr>
+<h2 id="sec-4391ea0c">八、右侧今日面板（固定显示）</h2>
+<h3 id="sec-56a4ee7a">8.1 日历卡片（日期 + 每日一句合并卡片）</h3>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+<p>从上到下信息块（各块可在设置中开关）：</p>
+<ol class="lst">
+<li><strong>日期 + 星期</strong>：<code>9月18日</code> 大字（品牌色/深色按主题适配），右侧<strong>星期标签</strong>（黄绿底 + 深色文字的小徽标，深浅模式通用）。</li>
+<li><strong>农历行</strong>：可选「干支 + 生肖年」（如 <code>丙午马年</code>）+ 农历月日 + 节日/节气（如 <code>中秋节</code>），可配置显示。</li>
+<li><strong>每日宜忌</strong>（默认开）：<code>宜 XX</code>（绿徽标）/ <code>忌 XX</code>（红徽标），取自农历黄历，最多各 3 项。</li>
+<li><strong>每日一签</strong>（默认关，可开）：未抽时显示「🎋 抽今日一签」入口 → 点击打开<strong>抽签弹窗</strong>（摇签揭晓 → 显示签号/签文 → 「解签」按钮展开解签内容）→ 关闭后卡片显示当日签文；<strong>每日限抽一次，当日锁定，次日自动重置</strong>（持久化）。</li>
+<li><strong>纪念日/生日倒计时</strong>：<code>🔔 距中秋节还有 7 天</code> 等（设置中可管理生日/纪念日，支持农历）。</li>
+<li><strong>每日一句</strong>：居中斜体语录 + 出处作者（如 <code>— 作者</code>）；<strong>点击语录文本</strong> → 打开「每日一句文案管理」弹窗（增删改 / 保存 / 重置为内置 30 条；自定义库优先按日期轮换，持久化到 <code>data.json</code> 的 <code>dailyQuotes</code>）。</li>
+<h3 id="sec-f23dbc40">8.2 今日打卡</h3>
+</ol>
+<ul class="lst">
+<li><strong>标题行</strong>：<code>✅ 今日打卡</code> + 右侧两个按钮：<strong>📅 查看完整月历</strong>、<strong>＋ 添加新习惯</strong>。</li>
+<li><strong>习惯列表</strong>：每个习惯一行：勾选圈（打卡后填充习惯色并显示 ✓）+ 图标 + 名称 + <code>🔥连续天数</code>；点击整行切换今日打卡（再点取消）；无习惯时显示空态「暂无习惯，点击➕添加」。</li>
+<li><strong>周势图（本周日期条）</strong>：本周（可翻上/下周）7 天 <code>一~日</code> + 日期数字，今天高亮；点击某天 → 查看当天打卡详情（<code>X月X日 周X · 完成 N/M</code>，再点取消选中）；今日显示今日打卡进度。</li>
+<li><strong>完整月历（就地展开）</strong>：点击 📅 → 在周势图位置<strong>就地展开</strong>完整月历（非弹窗）：可 ‹ › 翻月、有打卡的日期高亮、点击任意日期查看当天打卡详情、支持左右切换前一天/后一天；再点 📅 或点击展开区域外部收起。</li>
+<li><strong>习惯管理</strong>：设置 → 内容管理 → 打卡习惯（或打卡区添加按钮），支持：</li>
+</ul>
+<ul class="lst">
+<li>添加：自定义名称 / 图标（emoji）/ 颜色；</li>
+<li>编辑：修改名称 / 图标 / 颜色；</li>
+<li><strong>归档</strong>（默认操作）：习惯不再显示但数据保留，可随时恢复；</li>
+<li><strong>彻底删除</strong>（次级操作）：二次确认，数据不可恢复。</li>
+</ul>
+<ul class="lst">
+<li><strong>数据</strong>：打卡记录与习惯列表持久化 <code>data.json</code>（checkinRecords / habits），重启不丢。</li>
+<h3 id="sec-b93b73bd">8.3 今日待办</h3>
+<li><strong>展示</strong>：今日任务清单（含已逾期任务，红字标出），每条：勾选圈 + 标题 + 日期 + 逾期/优先级徽标。</li>
+<li><strong>操作</strong>：</li>
+</ul>
+<ul class="lst">
+<li>点勾选圈 → 直接标记完成/取消；</li>
+<li>点击任务行 → <strong>卡片内就地展开详情</strong>（非抽屉）：显示状态 / 优先级 / 开始日期 / 截止日期 / 负责人 / 进度 / 关联笔记，支持编辑与打开笔记；再点收起或点外部收起。</li>
+</ul>
+<ul class="lst">
+<li><strong>联动</strong>：完成/修改后任务看板、甘特图、统计卡同步刷新。</li>
+<h3 id="sec-88e2373b">8.4 本周学习</h3>
+<li><strong>展示</strong>：本周 PARA 文件夹下的真实学习笔记，按文件夹分组（如 Resources / Projects），每条显示笔记名 + 学习进度百分比。</li>
+<li><strong>跳转</strong>：点击笔记 → 直接打开对应笔记。</li>
+<hr>
+<h2 id="sec-564b939d">九、设置面板</h2>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ol>
+<p>入口：导航栏 ⚙️。弹窗式（与其他弹窗一致：标题 + 内容分区 + 底部「取消 / 应用」）。</p>
+<h3 id="sec-774ea2f7">9.1 外观</h3>
+<div class="table-wrap"><table><thead><tr><th>设置</th><th>范围</th><th>默认</th><th>说明</th></tr></thead><tbody><tr><td>卡片透明度</td><td>10% ~ 100%</td><td>75%</td><td>拖拽滑块即时预览，松手落盘</td></tr><tr><td>毛玻璃模糊强度</td><td>0 ~ 40px</td><td>20px</td><td>即时预览，松手落盘</td></tr><tr><td>主题模式</td><td>深色 / 浅色</td><td>深色</td><td>开关切换，<strong>全局组件同步重渲染</strong>（ECharts 圆环、进度条、柱状图等均按新主题重绘），持久化</td></tr></tbody></table></div>
+<h3 id="sec-84aee5f1">9.2 内容管理</h3>
+<ul class="lst">
+<li><strong>📝 每日一句文案</strong> → 「管理」按钮 → 打开每日一句管理弹窗（增删改 / 保存 / 重置内置）。</li>
+<li><strong>🔔 生日 / 纪念日</strong> → 「管理」按钮 → 打开纪念日管理弹窗（添加 / 删除，支持农历日期；在日历卡片显示倒计时）。</li>
+<li><strong>🏃 打卡习惯</strong> → 「管理」按钮 → 打开习惯管理弹窗（添加 / 编辑 / 归档 / 恢复 / 删除）。</li>
+<h3 id="sec-174509ac">9.3 日历卡片（内容开关）</h3>
+<li><strong>干支年与生肖</strong>（如「丙午马年」）：开关；</li>
+<li><strong>每日宜忌</strong>：开关（默认开）；</li>
+<li><strong>每日一签</strong>（抽签式）：开关（默认关），开启后卡片出现抽签入口，每日限抽一次。</li>
+<h3 id="sec-6184babb">9.4 复习引擎参数</h3>
+<div class="table-wrap"><table><thead><tr><th>参数</th><th>范围</th><th>默认</th><th>说明</th></tr></thead><tbody><tr><td>新笔记自动纳入窗口</td><td>7 ~ 90 天</td><td>30 天</td><td>最近 N 天内新建的笔记自动进入复习队列</td></tr><tr><td>每日复习队列上限</td><td>5 ~ 30 条</td><td>15 条</td><td>防止堆积</td></tr><tr><td>单条复习估算时长</td><td>1 ~ 30 分钟</td><td>5 分钟</td><td>用于估算每日复习总耗时</td></tr></tbody></table></div>
+<li>滑块拖动实时显示数值；点「应用」持久化到 <code>data.json</code>（reviewConfig）并重渲染主看板 / 右侧面板。</li>
+<li>旧数据无 <code>reviewConfig</code> 字段时自动用默认值兜底，无需迁移。</li>
+<hr>
+<h2 id="sec-6129b167">十、数据与持久化</h2>
+<h3 id="sec-fd736b04">10.1 存储位置</h3>
+</ul>
+<p>插件数据统一存放在插件目录 <code>data.json</code>（Obsidian 插件原生持久化）。</p>
+<h3 id="sec-4aeb6bd2">10.2 字段说明</h3>
+<div class="table-wrap"><table><thead><tr><th>字段</th><th>内容</th><th>写入方</th></tr></thead><tbody><tr><td><code>workTasks</code></td><td>任务列表（ID/标题/状态/优先级/进度/起止日期/负责人/关联笔记）</td><td>新建/编辑/拖拽/完成/删除</td></tr><tr><td><code>checkinRecords</code></td><td>打卡记录：日期 → 习惯ID → 是否完成</td><td>打卡点击</td></tr><tr><td><code>habits</code></td><td>习惯列表（名称/图标/颜色/归档）</td><td>习惯管理</td></tr><tr><td><code>pomodoroSessions</code></td><td>番茄钟专注记录（代码保留）</td><td>—</td></tr><tr><td><code>reviewRecords</code></td><td>复习记录：按笔记路径关联（学科/阶段/上次/下次/次数/跳过/状态/错题）</td><td>完成/跳过/不熟/新建复习</td></tr><tr><td><code>reviewSessions</code></td><td>每日复习会话计数（日期 → 当日条数）</td><td>完成复习</td></tr><tr><td><code>reviewConfig</code></td><td>复习引擎参数（窗口/上限/时长）</td><td>设置面板</td></tr><tr><td><code>dailyQuotes</code></td><td>自定义每日一句文案库</td><td>每日一句管理</td></tr><tr><td><code>milestones</code></td><td>生日/纪念日（名称/月/日/是否农历）</td><td>纪念日管理</td></tr><tr><td><code>theme</code></td><td>主题（dark/light）</td><td>设置面板</td></tr><tr><td><code>cardOpacity</code> / <code>cardBlur</code></td><td>卡片透明度/毛玻璃强度</td><td>设置面板</td></tr><tr><td><code>dateCard</code></td><td>日历卡片内容开关（干支/宜忌/每日一签）</td><td>设置面板</td></tr><tr><td><code>dailySignRecord</code></td><td>每日一签抽签记录（日期 → 签号，当天锁定）</td><td>抽签</td></tr></tbody></table></div>
+<h3 id="sec-cf648734">10.3 数据原则</h3>
+<ul class="lst">
+<li><strong>任务/打卡/复习数据全部真实持久化</strong>，重启不丢；</li>
+<li>复习记录<strong>不写回笔记 frontmatter</strong>，不污染笔记正文；</li>
+<li>知识库统计基于 Vault 实时计算（Obsidian API），无需手动维护；</li>
+<li>数据迁移：旧版打卡格式（boolean/数字强度）自动迁移到多习惯格式。</li>
+<hr>
+<h2 id="sec-458af994">十一、设计规范摘要</h2>
+<blockquote>完整规范见 <code>DESIGN-SYSTEM.md</code>。以下为关键约定。</blockquote>
+<h3 id="sec-1cdf0e0d">11.1 色彩（深色主题主色板）</h3>
+<li>主色（品牌绿）：<code>#c8e060</code>（黄绿）；深档品牌绿：<code>#a8c040</code> 左右</li>
+<li>辅助色：淡紫 <code>#a78bfa</code>；语义：进行中蓝 / 完成绿 / 逾期红</li>
+<li>背景：<code>#0f0f13</code>（带蓝灰相深色）；卡片：半透明 + 毛玻璃</li>
+<li>浅色模式：背景近白，品牌绿降饱和（如柔和浅绿），保证对比度、不刺眼</li>
+<h3 id="sec-9b4ac63c">11.2 圆角</h3>
+<li>大卡片 / 主要按钮：16px；图标按钮 / 输入框：12px；分段控件 / 小标签：8px；胶囊：999px</li>
+<h3 id="sec-f719b442">11.3 间距（4px 栅格）</h3>
+<li>大卡片间距：16px；卡片内边距：16px；卡片内模块间距：12px；小元素间距：8px</li>
+<h3 id="sec-5628fb43">11.4 按钮三态</h3>
+<li>主要按钮：品牌绿底 + <strong>深色文字</strong>（非白色）；hover 加深 + 光晕</li>
+<li>次要按钮：透明 + 浅边框；hover 变绿边框</li>
+<li>图标按钮：淡灰底；hover 变绿</li>
+<li>危险按钮：红底/红边（删除等）</li>
+<h3 id="sec-d0a925c9">11.5 搜索框 / 输入框规范（全局统一）</h3>
+<li>统一圆角、边框、内边距；聚焦态：<strong>细品牌绿描边（1~2px，暗色 70% 不透明度 / 浅色用深绿）+ 柔光发光</strong>；所有弹窗内输入框同规范。</li>
+<h3 id="sec-3e2fcb69">11.6 主题适配原则</h3>
+<li>同一组件深色/浅色各一套样式；切换主题时全局重渲染（图表/进度条/热力图同步换色）；卡片阴影、投影在浅色模式弱化。</li>
+<hr>
+<h2 id="sec-d9b590b1">十二、已知限制与注意事项</h2>
+</ul>
+<ol class="lst">
+<li><strong>生效方式</strong>：修改代码后必须 <code>npm run build</code> + 部署 + <strong>完全重启 Obsidian（Cmd+Q）</strong>；只重载插件可能有缓存，代码改动不生效。</li>
+<li><strong>插件识别</strong>：插件目录下可能有多个 dashboard 类插件，确认启用的是「Talos-Dashboard 个人工作台仪表盘」（manifest id：<code>talos-dashboard-obsidian</code>）。</li>
+<li><strong>任务数据源</strong>：任务目前全部为 UI 手动维护（创建/拖拽/改状态），不支持自动解析笔记待办语法（<code>source</code> 字段已预留，后续按需接入）。</li>
+<li><strong>卡片组件化</strong>（拖拽调序/调宽）：已确认后期再做，当前为固定布局。</li>
+<li><strong>自动化限制</strong>：部分拖拽手势（如跨列拖拽、甘特图拖边缘）依赖鼠标按住拖放，自动化测试环境无法完全模拟，需人工复核。</li>
+<li><strong>每日一签</strong>：仅当天有效，次日自动重置；不提供补签。</li>
+<li><strong>Obsidian 原生设置</strong>：插件 ⚙️ 打开的是插件自己的设置；Obsidian 原生设置请用 ⌘,。</li>
+<hr>
+<h2 id="sec-f40c561b">十三、迭代状态速览</h2>
+<div class="table-wrap"><table><thead><tr><th>模块</th><th>状态</th></tr></thead><tbody><tr><td>三看板架构（工作/知识库/复习）</td><td>✅ 完成</td></tr><tr><td>任务体系（看板/甘特图/抽屉/新建编辑删除/拖拽）</td><td>✅ 完成</td></tr><tr><td>复习引擎（间隔重复/队列/错题本/新建复习/参数配置/角标）</td><td>✅ 完成</td></tr><tr><td>知识库洞察（统计/产出/热力图/领域分布/标签/最近/收藏/断链）</td><td>✅ 完成</td></tr><tr><td>右侧面板（日历卡片/打卡/待办/本周学习）</td><td>✅ 完成</td></tr><tr><td>全局搜索（连体下拉/分组/高亮/键盘导航）</td><td>✅ 完成</td></tr><tr><td>设置面板（外观/内容管理/日历开关/复习参数）</td><td>✅ 完成</td></tr><tr><td>深浅双主题</td><td>✅ 完成</td></tr><tr><td>卡片组件化（拖拽调序/调宽）</td><td>⏳ 后置</td></tr><tr><td>笔记待办解析引擎</td><td>⏳ 预留（source 字段）</td></tr><tr><td>复习周报</td><td>🧭 待评估</td></tr></tbody></table></div>
+</ol>
+</ul>
+    </div>
+  </main>
+</div>
+<script>
+(function(){
+  var t=document.querySelector('.talos-top');
+  var btn=document.querySelector('.theme-btn');
+  var root=document.documentElement;
+  var saved=null;
+  try{saved=localStorage.getItem('talos-doc-theme')}catch(e){}
+  if(saved==='light')root.setAttribute('data-theme','light');
+  btn.addEventListener('click',function(){
+    var cur=root.getAttribute('data-theme')==='light';
+    if(cur){root.removeAttribute('data-theme');try{localStorage.setItem('talos-doc-theme','dark')}catch(e){}}
+    else{root.setAttribute('data-theme','light');try{localStorage.setItem('talos-doc-theme','light')}catch(e){}}
+  });
+  var tocBtn=document.querySelector('.toc-toggle');
+  var toc=document.querySelector('.toc');
+  if(tocBtn&&toc)tocBtn.addEventListener('click',function(){toc.classList.toggle('open')});
+  var bt=document.createElement('button');
+  bt.className='back-top';bt.textContent='↑';bt.setAttribute('aria-label','回到顶部');
+  bt.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'})});
+  document.body.appendChild(bt);
+})();
+</script>
+</body>
+</html>

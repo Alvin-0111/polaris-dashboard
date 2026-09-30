@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>架构对比：现有 vs 优化后</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #0a0a0f;
+    color: #e4e4e7;
+    padding: 40px;
+    min-height: 100vh;
+  }
+  h1 {
+    text-align: center;
+    font-size: 24px;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, #c8e060, #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .subtitle {
+    text-align: center;
+    color: #71717a;
+    font-size: 14px;
+    margin-bottom: 40px;
+  }
+  .compare-wrap {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  .panel {
+    background: #14141c;
+    border-radius: 20px;
+    padding: 24px;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .panel-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .panel-title .tag {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-weight: 500;
+  }
+  .tag-old { background: rgba(248,113,113,0.15); color: #f87171; }
+  .tag-new { background: rgba(200,224,96,0.15); color: #c8e060; }
+  .panel-desc {
+    font-size: 12px;
+    color: #71717a;
+    margin-bottom: 20px;
+    line-height: 1.6;
+  }
+
+  /* 模拟界面 */
+  .mock-app {
+    background: #0f0f13;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.08);
+    aspect-ratio: 16/10;
+    display: flex;
+    flex-direction: column;
+  }
+  .mock-topnav {
+    height: 36px;
+    background: rgba(255,255,255,0.03);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .mock-logo {
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    background: linear-gradient(135deg, #c8e060, #a78bfa);
+    margin-right: 4px;
+  }
+  .mock-tab {
+    font-size: 9px;
+    padding: 3px 8px;
+    border-radius: 5px;
+    color: #71717a;
+  }
+  .mock-tab.active {
+    background: rgba(200,224,96,0.15);
+    color: #c8e060;
+  }
+  .mock-search {
+    flex: 1;
+    height: 20px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 5px;
+    margin: 0 6px;
+  }
+  .mock-icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;
+    background: rgba(255,255,255,0.05);
+  }
+
+  .mock-body {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+  .mock-main {
+    flex: 1;
+    padding: 8px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .mock-right {
+    width: 110px;
+    background: rgba(255,255,255,0.02);
+    border-left: 1px solid rgba(255,255,255,0.06);
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow: hidden;
+  }
+
+  .mock-card {
+    background: rgba(255,255,255,0.04);
+    border-radius: 8px;
+    padding: 6px;
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+  .mock-card-title {
+    font-size: 8px;
+    color: #a1a1aa;
+    margin-bottom: 4px;
+    font-weight: 600;
+  }
+  .mock-card-content {
+    display: flex;
+    gap: 4px;
+  }
+  .mock-stat {
+    flex: 1;
+    height: 28px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 5px;
+  }
+  .mock-bar {
+    height: 16px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 4px;
+    margin-bottom: 3px;
+  }
+  .mock-bar:last-child { margin-bottom: 0; }
+
+  /* 右侧面板元素 */
+  .mock-date-box {
+    background: rgba(200,224,96,0.08);
+    border: 1px solid rgba(200,224,96,0.2);
+    border-radius: 8px;
+    padding: 8px;
+    text-align: center;
+  }
+  .mock-date-big {
+    font-size: 16px;
+    font-weight: 700;
+    color: #c8e060;
+  }
+  .mock-date-sub {
+    font-size: 8px;
+    color: #71717a;
+    margin-top: 2px;
+  }
+  .mock-date-quote {
+    font-size: 7px;
+    color: #a1a1aa;
+    font-style: italic;
+    margin-top: 4px;
+    line-height: 1.4;
+  }
+
+  .mock-date-mini {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 6px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .mock-date-mini-left {
+    font-size: 9px;
+    color: #a1a1aa;
+  }
+  .mock-date-mini-left strong {
+    color: #e4e4e7;
+    font-size: 10px;
+  }
+  .mock-date-mini-right {
+    font-size: 8px;
+    color: #71717a;
+  }
+
+  .mock-checkin {
+    background: rgba(255,255,255,0.04);
+    border-radius: 8px;
+    padding: 6px;
+  }
+  .mock-checkin-title {
+    font-size: 8px;
+    color: #a1a1aa;
+    margin-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .mock-habit {
+    height: 14px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 4px;
+    margin-bottom: 3px;
+  }
+  .mock-habit:last-child { margin-bottom: 0; }
+
+  .mock-week-cal {
+    background: rgba(255,255,255,0.03);
+    border-radius: 6px;
+    padding: 4px;
+  }
+  .mock-week-cal-title {
+    font-size: 7px;
+    color: #71717a;
+    text-align: center;
+    margin-bottom: 3px;
+  }
+  .mock-week-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+  }
+  .mock-week-cell {
+    aspect-ratio: 1;
+    background: rgba(255,255,255,0.04);
+    border-radius: 2px;
+  }
+  .mock-week-cell.done { background: rgba(200,224,96,0.3); }
+
+  /* 标注 */
+  .annotation {
+    position: relative;
+  }
+  .anno-mark {
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #f87171;
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+  }
+  .anno-mark.green { background: #c8e060; color: #0f0f13; }
+
+  .anno-list {
+    margin-top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .anno-item {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    font-size: 11px;
+    line-height: 1.5;
+  }
+  .anno-num {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #f87171;
+    color: white;
+    font-size: 9px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .anno-num.green { background: #c8e060; color: #0f0f13; }
+  .anno-text { color: #a1a1aa; }
+  .anno-text strong { color: #e4e4e7; }
+
+  /* 弹出层示意 */
+  .popover-demo {
+    margin-top: 16px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 10px;
+    padding: 12px;
+    border: 1px dashed rgba(200,224,96,0.3);
+  }
+  .popover-demo-title {
+    font-size: 11px;
+    color: #c8e060;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .popover-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 6px;
+    font-size: 11px;
+    color: #a1a1aa;
+    cursor: pointer;
+    margin-bottom: 8px;
+  }
+  .popover-box {
+    background: #1a1a24;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 10px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  }
+  .popover-cal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 11px;
+    color: #e4e4e7;
+    font-weight: 600;
+  }
+  .popover-cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 3px;
+  }
+  .popover-cal-cell {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    color: #71717a;
+    border-radius: 4px;
+  }
+  .popover-cal-cell.has-mark { background: rgba(200,224,96,0.15); color: #c8e060; }
+  .popover-cal-cell.today { outline: 1px solid #c8e060; }
+
+  .summary-box {
+    margin-top: 30px;
+    max-width: 1400px;
+    margin-left: auto;
+    margin-right: auto;
+    background: linear-gradient(135deg, rgba(200,224,96,0.08), rgba(167,139,250,0.08));
+    border: 1px solid rgba(200,224,96,0.2);
+    border-radius: 16px;
+    padding: 24px;
+  }
+  .summary-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: #c8e060;
+  }
+  .summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .summary-col h4 {
+    font-size: 12px;
+    margin-bottom: 8px;
+    color: #e4e4e7;
+  }
+  .summary-col ul {
+    list-style: none;
+    font-size: 11px;
+    color: #a1a1aa;
+    line-height: 1.8;
+  }
+  .summary-col li::before {
+    content: "•";
+    color: #c8e060;
+    margin-right: 6px;
+  }
+</style>
+</head>
+<body>
+
+<h1>架构对比：现有样式 vs 优化后样式</h1>
+<p class="subtitle">去掉日历一级看板，日期信息降级为精简信息条，完整月历改为点击弹出</p>
+
+<div class="compare-wrap">
+
+  <!-- 左侧：现有样式 -->
+  <div class="panel">
+    <div class="panel-title">
+      现有架构
+      <span class="tag tag-old">4看板</span>
+    </div>
+    <div class="panel-desc">
+      顶部4个Tab：工作 / 知识库 / 复习 / 日历<br>
+      日历看板内容单薄，右侧面板塞了太多内容
+    </div>
+
+    <div class="mock-app annotation">
+      <!-- 顶部导航 -->
+      <div class="mock-topnav">
+        <div class="mock-logo"></div>
+        <div class="mock-tab active">工作</div>
+        <div class="mock-tab">知识库</div>
+        <div class="mock-tab">复习</div>
+        <div class="mock-tab" style="color:#f87171;">日历</div>
+        <div class="mock-search"></div>
+        <div class="mock-icon"></div>
+        <div class="mock-icon"></div>
+      </div>
+
+      <div class="mock-body">
+        <!-- 主内容区 -->
+        <div class="mock-main">
+          <div class="mock-card">
+            <div class="mock-card-title">📊 数据概览</div>
+            <div class="mock-card-content">
+              <div class="mock-stat"></div>
+              <div class="mock-stat"></div>
+              <div class="mock-stat"></div>
+              <div class="mock-stat"></div>
+            </div>
+          </div>
+          <div class="mock-card" style="flex:1;">
+            <div class="mock-card-title">📋 任务看板</div>
+            <div class="mock-bar"></div>
+            <div class="mock-bar"></div>
+            <div class="mock-bar"></div>
+          </div>
+        </div>
+
+        <!-- 右侧面板 -->
+        <div class="mock-right">
+          <!-- 日期信息（大卡片，占主要位置） -->
+          <div class="mock-date-box">
+            <div class="anno-mark" style="top:-6px;right:-6px;">1</div>
+            <div class="mock-date-big">9月7日</div>
+            <div class="mock-date-sub">周日 · 农历八月</div>
+            <div class="mock-date-quote">"千里之行，始于足下"</div>
+          </div>
+
+          <!-- 打卡 -->
+          <div class="mock-checkin">
+            <div class="mock-checkin-title">
+              <span>✅ 今日打卡</span>
+              <span style="color:#c8e060;">3/5</span>
+            </div>
+            <div class="mock-habit"></div>
+            <div class="mock-habit"></div>
+            <div class="mock-habit"></div>
+          </div>
+
+          <!-- 本周日历 -->
+          <div class="mock-week-cal">
+            <div class="anno-mark" style="top:-6px;right:-6px;">2</div>
+            <div class="mock-week-cal-title">📆 本周</div>
+            <div class="mock-week-grid">
+              <div class="mock-week-cell"></div>
+              <div class="mock-week-cell done"></div>
+              <div class="mock-week-cell done"></div>
+              <div class="mock-week-cell"></div>
+              <div class="mock-week-cell"></div>
+              <div class="mock-week-cell"></div>
+              <div class="mock-week-cell"></div>
+            </div>
+          </div>
+
+          <!-- 待办 -->
+          <div class="mock-checkin" style="flex:1;">
+            <div class="mock-checkin-title"><span>📝 今日待办</span></div>
+            <div class="mock-bar"></div>
+            <div class="mock-bar"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="anno-list">
+      <div class="anno-item">
+        <div class="anno-num">1</div>
+        <div class="anno-text"><strong>日期信息占主要位置</strong>：大卡片展示日期+农历+每日一句，但用户其实已经知道今天几号，视觉浪费</div>
+      </div>
+      <div class="anno-item">
+        <div class="anno-num">2</div>
+        <div class="anno-text"><strong>本周日历重复</strong>：右侧有周历，日历看板有月历，打卡详情还有历史日历，三处重复</div>
+      </div>
+      <div class="anno-item">
+        <div class="anno-num" style="background:#f87171;">!</div>
+        <div class="anno-text"><strong>日历看板太空</strong>：只有一个日历+农历，不配和工作/知识库并列一级导航</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 右侧：优化后样式 -->
+  <div class="panel">
+    <div class="panel-title">
+      优化后架构
+      <span class="tag tag-new">3看板</span>
+    </div>
+    <div class="panel-desc">
+      顶部3个Tab：工作 / 知识库 / 复习<br>
+      日期信息精简为一行，完整月历点击弹出，右侧更紧凑
+    </div>
+
+    <div class="mock-app annotation">
+      <!-- 顶部导航 -->
+      <div class="mock-topnav">
+        <div class="mock-logo"></div>
+        <div class="mock-tab active">工作</div>
+        <div class="mock-tab">知识库</div>
+        <div class="mock-tab">复习</div>
+        <div class="mock-search"></div>
+        <div class="mock-icon"></div>
+        <div class="mock-icon"></div>
+      </div>
+
+      <div class="mock-body">
+        <!-- 主内容区 -->
+        <div class="mock-main">
+          <div class="mock-card">
+            <div class="mock-card-title">📊 数据概览</div>
+            <div class="mock-card-content">
+              <div class="mock-stat"></div>
+              <div class="mock-stat"></div>
+              <div class="mock-stat"></div>
+              <div class="mock-stat"></div>
+            </div>
+          </div>
+          <div class="mock-card" style="flex:1;">
+            <div class="mock-card-title">📋 任务看板</div>
+            <div class="mock-bar"></div>
+            <div class="mock-bar"></div>
+            <div class="mock-bar"></div>
+          </div>
+        </div>
+
+        <!-- 右侧面板 -->
+        <div class="mock-right">
+          <!-- 精简日期信息条 -->
+          <div class="mock-date-mini">
+            <div class="anno-mark green" style="top:-6px;right:-6px;">1</div>
+            <div class="mock-date-mini-left">
+              <strong>9月7日</strong> 周日
+            </div>
+            <div class="mock-date-mini-right">八月 ›</div>
+          </div>
+
+          <!-- 打卡（更紧凑） -->
+          <div class="mock-checkin">
+            <div class="mock-checkin-title">
+              <span>✅ 今日打卡</span>
+              <span style="color:#c8e060;">3/5</span>
+            </div>
+            <div class="mock-habit"></div>
+            <div class="mock-habit"></div>
+            <div class="mock-habit"></div>
+            <div class="mock-habit"></div>
+            <div class="mock-habit"></div>
+          </div>
+
+          <!-- 待办 -->
+          <div class="mock-checkin">
+            <div class="mock-checkin-title"><span>📝 今日待办</span></div>
+            <div class="mock-bar"></div>
+            <div class="mock-bar"></div>
+            <div class="mock-bar"></div>
+          </div>
+
+          <!-- 本周学习 -->
+          <div class="mock-checkin" style="flex:1;">
+            <div class="mock-checkin-title"><span>📖 本周学习</span></div>
+            <div class="mock-bar"></div>
+            <div class="mock-bar"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="anno-list">
+      <div class="anno-item">
+        <div class="anno-num green">1</div>
+        <div class="anno-text"><strong>日期信息精简为一行</strong>：只显示"9月7日 周日 · 八月"，不占主要视觉，点击右侧箭头弹出完整月历</div>
+      </div>
+      <div class="anno-item">
+        <div class="anno-num green">2</div>
+        <div class="anno-text"><strong>右侧更紧凑</strong>：去掉了周历和大日期卡片，打卡+待办+学习都能完整展示，不用滚动</div>
+      </div>
+      <div class="anno-item">
+        <div class="anno-num green">✓</div>
+        <div class="anno-text"><strong>日历功能全保留</strong>：月历、农历、节日、每日一句、标记、历史打卡都在，只是从"一级看板"变成"点击弹出"</div>
+      </div>
+    </div>
+
+    <!-- 弹出层示意 -->
+    <div class="popover-demo">
+      <div class="popover-demo-title">💡 点击日期信息条后弹出完整月历</div>
+      <div class="popover-trigger">
+        📅 9月7日 周日 · 八月 ›
+      </div>
+      <div class="popover-box">
+        <div class="popover-cal-header">
+          <span>‹</span>
+          <span>2026年9月</span>
+          <span>›</span>
+        </div>
+        <div class="popover-cal-grid">
+          <div class="popover-cal-cell">日</div>
+          <div class="popover-cal-cell">一</div>
+          <div class="popover-cal-cell">二</div>
+          <div class="popover-cal-cell">三</div>
+          <div class="popover-cal-cell">四</div>
+          <div class="popover-cal-cell">五</div>
+          <div class="popover-cal-cell">六</div>
+          <div class="popover-cal-cell"></div>
+          <div class="popover-cal-cell">1</div>
+          <div class="popover-cal-cell">2</div>
+          <div class="popover-cal-cell has-mark">3</div>
+          <div class="popover-cal-cell">4</div>
+          <div class="popover-cal-cell has-mark">5</div>
+          <div class="popover-cal-cell">6</div>
+          <div class="popover-cal-cell today">7</div>
+          <div class="popover-cal-cell">8</div>
+          <div class="popover-cal-cell">9</div>
+          <div class="popover-cal-cell">10</div>
+          <div class="popover-cal-cell">11</div>
+          <div class="popover-cal-cell">12</div>
+          <div class="popover-cal-cell">13</div>
+        </div>
+        <div style="margin-top:8px;font-size:9px;color:#71717a;text-align:center;">
+          高亮 = 有打卡/任务/笔记 · 点击日期查看详情
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 总结 -->
+<div class="summary-box">
+  <div class="summary-title">📋 优化总结</div>
+  <div class="summary-grid">
+    <div class="summary-col">
+      <h4>去掉的</h4>
+      <ul>
+        <li>顶部"日历"一级Tab（内容太单薄）</li>
+        <li>右侧大日期卡片（用户已经知道今天几号）</li>
+        <li>右侧本周日历（和月历功能重复）</li>
+      </ul>
+    </div>
+    <div class="summary-col">
+      <h4>保留的（换了位置）</h4>
+      <ul>
+        <li>日期+农历+节日 → 精简为右侧顶部一行</li>
+        <li>完整月历+标记 → 点击日期行弹出</li>
+        <li>每日一句 → 月历弹出层底部展示</li>
+        <li>历史打卡查看 → 月历点击日期查看</li>
+      </ul>
+    </div>
+    <div class="summary-col">
+      <h4>增强的</h4>
+      <ul>
+        <li>复习看板：增加学习统计、错题本入口、学习日历</li>
+        <li>右侧面板：打卡+待办+学习完整展示，不用滚动</li>
+        <li>顶部导航：3个Tab更清晰，决策成本更低</li>
+      </ul>
+    </div>
+    <div class="summary-col">
+      <h4>核心收益</h4>
+      <ul>
+        <li>信息密度匹配：3个看板都是"有内容的"</li>
+        <li>日历无处不在：每次打开都能看到日期，但不抢视觉</li>
+        <li>右侧更实用：今日相关信息集中，一目了然</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

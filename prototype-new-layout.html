@@ -1,0 +1,1427 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Talos Dashboard - 新架构原型</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: #0f0f13;
+    color: #f0f0f3;
+    font-size: 14px;
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  /* ========== 顶部导航栏 ========== */
+  .top-nav {
+    height: 56px;
+    background: rgba(28, 28, 34, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 20px;
+    position: relative;
+    z-index: 100;
+  }
+
+  .logo-area {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .logo-icon {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .logo-icon svg { width: 100%; height: 100%; }
+  .logo-name {
+    font-size: 17px;
+    font-weight: 700;
+  }
+
+  /* 看板导航 Tab */
+  .board-tabs {
+    display: flex;
+    gap: 4px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 10px;
+    padding: 3px;
+    flex-shrink: 0;
+  }
+  .board-tab {
+    padding: 7px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #a1a1aa;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border: none;
+    background: transparent;
+    font-family: inherit;
+  }
+  .board-tab:hover { color: #f0f0f3; background: rgba(255, 255, 255, 0.04); }
+  .board-tab.active {
+    background: rgba(200, 224, 96, 0.15);
+    color: #c8e060;
+    font-weight: 600;
+  }
+
+  /* 全局搜索 */
+  .search-area {
+    flex: 1;
+    max-width: 480px;
+    margin: 0 auto;
+    position: relative;
+  }
+  .search-input {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 9px 14px 9px 38px;
+    color: #f0f0f3;
+    font-size: 13px;
+    outline: none;
+    transition: all 0.2s ease;
+    font-family: inherit;
+  }
+  .search-input::placeholder { color: #71717a; }
+  .search-input:focus {
+    border-color: #c8e060;
+    background: rgba(255, 255, 255, 0.06);
+    box-shadow: 0 0 0 3px rgba(200, 224, 96, 0.1);
+  }
+  .search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 14px;
+    color: #71717a;
+  }
+  .search-kbd {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 11px;
+    color: #71717a;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 5px;
+    padding: 2px 6px;
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  /* 右侧操作区 */
+  .top-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .quick-btn {
+    padding: 8px 14px;
+    background: #c8e060;
+    color: #0f0f13;
+    border: none;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .quick-btn:hover {
+    background: #a8c040;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(200, 224, 96, 0.3);
+  }
+  .icon-btn {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: #a1a1aa;
+    font-size: 16px;
+  }
+  .icon-btn:hover {
+    border-color: rgba(200, 224, 96, 0.4);
+    background: rgba(200, 224, 96, 0.08);
+    color: #c8e060;
+  }
+  .avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #c8e060, #a78bfa);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: #0f0f13;
+    cursor: pointer;
+    font-size: 14px;
+  }
+
+  /* ========== 主内容区 ========== */
+  .main-container {
+    display: flex;
+    height: calc(100vh - 56px);
+  }
+
+  /* 中间主内容 */
+  .content-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+  }
+  .content-area::-webkit-scrollbar { width: 6px; }
+  .content-area::-webkit-scrollbar-track { background: transparent; }
+  .content-area::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+  }
+  .page-title {
+    font-size: 24px;
+    font-weight: 700;
+  }
+  .page-subtitle {
+    font-size: 13px;
+    color: #71717a;
+    margin-top: 4px;
+  }
+
+  /* 数据概览 */
+  .stats-overview {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  .stat-card {
+    background: rgba(28, 28, 34, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 16px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+  .stat-card:hover {
+    border-color: rgba(200, 224, 96, 0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(200, 224, 96, 0.1);
+  }
+  .stat-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+  .stat-icon.green { background: rgba(200, 224, 96, 0.15); color: #c8e060; }
+  .stat-icon.blue { background: rgba(96, 165, 250, 0.15); color: #60a5fa; }
+  .stat-icon.purple { background: rgba(167, 139, 250, 0.15); color: #a78bfa; }
+  .stat-icon.red { background: rgba(248, 113, 113, 0.15); color: #f87171; }
+  .stat-info { flex: 1; min-width: 0; }
+  .stat-num {
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1.1;
+    margin-bottom: 2px;
+  }
+  .stat-label {
+    font-size: 12px;
+    color: #a1a1aa;
+  }
+  .stat-trend {
+    font-size: 11px;
+    margin-top: 2px;
+  }
+  .stat-trend.up { color: #c8e060; }
+  .stat-trend.down { color: #f87171; }
+
+  /* 玻璃卡片 */
+  .glass-card {
+    background: rgba(28, 28, 34, 0.75);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2), 0 8px 24px -6px rgba(0,0,0,0.3), 0 24px 48px -20px rgba(0,0,0,0.4);
+    transition: all 0.2s ease;
+  }
+
+  /* 焦点任务 */
+  .focus-card {
+    margin-bottom: 20px;
+    cursor: pointer;
+  }
+  .focus-card:hover {
+    border-color: rgba(200, 224, 96, 0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2), 0 8px 24px -6px rgba(0,0,0,0.3), 0 24px 48px -20px rgba(0,0,0,0.4), 0 0 20px rgba(200,224,96,0.15);
+  }
+  .focus-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(200, 224, 96, 0.15);
+    color: #c8e060;
+    font-size: 12px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    margin-bottom: 16px;
+    font-weight: 600;
+  }
+  .focus-title {
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    line-height: 1.3;
+  }
+  .focus-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: #a1a1aa;
+    margin-bottom: 20px;
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-weight: 600;
+  }
+  .badge-purple { background: rgba(192,132,252,0.18); color: #c084fc; }
+  .badge-yellow { background: rgba(251,191,36,0.18); color: #fbbf24; }
+  .badge-green { background: rgba(200,224,96,0.18); color: #c8e060; }
+  .badge-red { background: rgba(248,113,113,0.18); color: #f87171; }
+  .badge-blue { background: rgba(96,165,250,0.18); color: #60a5fa; }
+
+  .focus-progress-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  .progress-track {
+    flex: 1;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #c8e060, #a8c040);
+    border-radius: 999px;
+    transition: width 0.3s ease;
+  }
+  .progress-text {
+    font-size: 13px;
+    color: #a1a1aa;
+    min-width: 40px;
+    text-align: right;
+    font-weight: 600;
+  }
+  .focus-actions { display: flex; gap: 12px; }
+  .btn-primary {
+    background: #c8e060;
+    color: #0f0f13;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+  }
+  .btn-primary:hover { background: #a8c040; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(200,224,96,0.3); }
+  .btn-secondary {
+    background: transparent;
+    color: #f0f0f3;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+    font-weight: 500;
+  }
+  .btn-secondary:hover { background: rgba(255,255,255,0.06); border-color: rgba(200,224,96,0.5); color: #c8e060; }
+
+  /* 两列布局 */
+  .mid-grid {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+
+  .module-title {
+    font-size: 17px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  /* 甘特图 */
+  .gantt-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .gantt-view-toggle {
+    display: flex;
+    gap: 2px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    padding: 3px;
+  }
+  .gantt-view-btn {
+    border: none;
+    background: transparent;
+    color: #a1a1aa;
+    font-size: 12px;
+    padding: 5px 12px;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-family: inherit;
+    font-weight: 500;
+  }
+  .gantt-view-btn.active { background: rgba(200,224,96,0.15); color: #c8e060; font-weight: 600; }
+  .gantt-plot { position: relative; padding-top: 24px; }
+  .gantt-grid {
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    column-gap: 12px;
+    row-gap: 12px;
+    align-items: center;
+  }
+  .gantt-row-label { font-size: 12px; color: #a1a1aa; white-space: nowrap; font-weight: 500; }
+  .gantt-scale { position: relative; height: 18px; font-size: 11px; color: #71717a; }
+  .gantt-tick { position: absolute; transform: translateX(-50%); top: 0; }
+  .gantt-row-track {
+    position: relative;
+    height: 24px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .gantt-bar {
+    position: absolute;
+    top: 2px;
+    height: 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #0f0f13;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .gantt-bar:hover { transform: scaleY(1.08); opacity: 1; }
+
+  /* 任务看板 */
+  .kanban-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .kanban-columns {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .kanban-column {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 16px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 160px;
+  }
+  .kanban-col-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #a1a1aa;
+    padding: 0 4px 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    font-weight: 600;
+  }
+  .kanban-col-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .kanban-col-count {
+    margin-left: auto;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .task-card {
+    background: rgba(28, 28, 34, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .task-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(200, 224, 96, 0.5);
+    box-shadow: 0 4px 12px rgba(200, 224, 96, 0.15);
+  }
+  .task-card-top { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+  .task-priority {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 999px;
+    font-weight: 600;
+  }
+  .task-due { margin-left: auto; font-size: 10px; color: #71717a; white-space: nowrap; }
+  .task-title { font-size: 13px; line-height: 1.5; margin-bottom: 10px; font-weight: 500; }
+  .task-progress-row { display: flex; align-items: center; gap: 8px; }
+
+  /* ========== 右侧今日面板 ========== */
+  .today-panel {
+    width: 320px;
+    flex-shrink: 0;
+    border-left: 1px solid rgba(255, 255, 255, 0.06);
+    overflow-y: auto;
+    padding: 20px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    background: rgba(28, 28, 34, 0.3);
+  }
+  .today-panel::-webkit-scrollbar { width: 4px; }
+  .today-panel::-webkit-scrollbar-track { background: transparent; }
+  .today-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+
+  .panel-section {
+    background: rgba(28, 28, 34, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 16px;
+    padding: 16px;
+  }
+  .panel-title {
+    font-size: 14px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .panel-title .actions { display: flex; gap: 4px; }
+  .panel-action-btn {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    color: #71717a;
+    font-size: 14px;
+    transition: all 0.15s ease;
+  }
+  .panel-action-btn:hover { background: rgba(255,255,255,0.06); color: #c8e060; }
+
+  /* 打卡模块 */
+  .checkin-progress {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .checkin-progress-text { font-size: 12px; color: #a1a1aa; }
+  .checkin-progress-text b { color: #c8e060; font-size: 16px; }
+  .habit-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+  .habit-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .habit-item:hover { background: rgba(255,255,255,0.04); }
+  .habit-check {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: transparent;
+    transition: all 0.2s ease;
+  }
+  .habit-item.checked .habit-check {
+    background: #c8e060;
+    border-color: #c8e060;
+    color: #0f0f13;
+    font-weight: 700;
+  }
+  .habit-name { flex: 1; font-size: 13px; }
+  .habit-item.checked .habit-name { text-decoration: line-through; color: #71717a; }
+  .habit-streak { font-size: 11px; color: #71717a; }
+
+  .week-calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .week-day {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    font-size: 10px;
+    color: #71717a;
+  }
+  .week-day .day-cell {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    font-size: 11px;
+    color: #a1a1aa;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .week-day .day-cell:hover { border-color: rgba(200,224,96,0.5); background: rgba(200,224,96,0.08); }
+  .week-day.checked .day-cell {
+    background: rgba(200,224,96,0.2);
+    border-color: rgba(200,224,96,0.5);
+    color: #c8e060;
+    font-weight: 600;
+  }
+  .week-day.today .day-cell {
+    box-shadow: 0 0 0 2px rgba(200,224,96,0.3);
+    border-color: #c8e060;
+    color: #c8e060;
+    font-weight: 700;
+  }
+
+  /* 今日待办 */
+  .todo-list { display: flex; flex-direction: column; gap: 4px; }
+  .todo-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .todo-item:hover { background: rgba(255,255,255,0.04); }
+  .todo-check {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.25);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .todo-item.completed .todo-check {
+    background: #c8e060;
+    border-color: #c8e060;
+    color: #0f0f13;
+    font-weight: 700;
+  }
+  .todo-info { flex: 1; min-width: 0; }
+  .todo-text { font-size: 13px; }
+  .todo-item.completed .todo-text { text-decoration: line-through; color: #71717a; }
+  .todo-meta { font-size: 10px; color: #71717a; margin-top: 2px; }
+  .todo-priority { width: 4px; height: 20px; border-radius: 2px; flex-shrink: 0; }
+
+  /* 本周学习 */
+  .learning-list { display: flex; flex-direction: column; gap: 10px; }
+  .learning-item {
+    padding: 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    background: rgba(255,255,255,0.02);
+  }
+  .learning-item:hover { background: rgba(200,224,96,0.06); }
+  .learning-top {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    margin-bottom: 6px;
+  }
+  .learning-name { color: #a1a1aa; }
+  .learning-pct { color: #a1a1aa; font-weight: 600; }
+  .learning-pct.done { color: #c8e060; }
+  .learning-title { font-size: 13px; font-weight: 500; margin-bottom: 6px; }
+
+  /* 农历信息 */
+  .lunar-info {
+    text-align: center;
+    padding: 12px;
+    background: rgba(167, 139, 250, 0.08);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    border-radius: 12px;
+  }
+  .lunar-date { font-size: 15px; font-weight: 700; color: #a78bfa; margin-bottom: 4px; }
+  .lunar-festival { font-size: 11px; color: #a1a1aa; }
+  .daily-quote {
+    font-size: 12px;
+    color: #a1a1aa;
+    text-align: center;
+    line-height: 1.7;
+    padding: 12px 8px;
+    font-style: italic;
+  }
+
+  /* ========== 任务详情抽屉 ========== */
+  .drawer-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    z-index: 200;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+  }
+  .drawer-overlay.open { opacity: 1; visibility: visible; }
+  .drawer {
+    position: fixed;
+    top: 0;
+    right: -400px;
+    width: 400px;
+    height: 100vh;
+    background: rgba(28, 28, 34, 0.95);
+    backdrop-filter: blur(24px);
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    z-index: 201;
+    transition: right 0.3s ease;
+    overflow-y: auto;
+    padding: 24px;
+    box-shadow: -8px 0 40px rgba(0,0,0,0.4);
+  }
+  .drawer.open { right: 0; }
+  .drawer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+  }
+  .drawer-title { font-size: 18px; font-weight: 700; }
+  .drawer-close {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,0.06);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    color: #a1a1aa;
+    font-size: 16px;
+    transition: all 0.15s ease;
+  }
+  .drawer-close:hover { background: rgba(248,113,113,0.15); color: #f87171; }
+
+  .detail-task-id {
+    font-size: 11px;
+    color: #71717a;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+  .detail-task-title {
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.4;
+    margin-bottom: 16px;
+  }
+  .detail-badge-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+  .detail-progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #a1a1aa;
+    margin-bottom: 8px;
+    font-weight: 500;
+  }
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 20px 0;
+  }
+  .detail-grid-item {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    padding: 12px;
+  }
+  .detail-grid-label { font-size: 10px; color: #71717a; margin-bottom: 4px; }
+  .detail-grid-value { font-size: 13px; font-weight: 500; }
+
+  .detail-edit-list {
+    margin: 20px 0;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .detail-edit-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    gap: 12px;
+  }
+  .detail-edit-row:last-child { border-bottom: none; }
+  .detail-edit-row-label {
+    font-size: 12px;
+    color: #a1a1aa;
+    flex-shrink: 0;
+    min-width: 60px;
+    font-weight: 500;
+  }
+  .status-segmented {
+    display: flex;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 2px;
+    gap: 2px;
+  }
+  .status-seg {
+    border: none;
+    background: transparent;
+    color: #a1a1aa;
+    font-size: 11px;
+    padding: 5px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+    font-weight: 500;
+  }
+  .status-seg.active { background: #c8e060; color: #0f0f13; font-weight: 700; }
+
+  .detail-actions { display: flex; gap: 10px; margin-top: 24px; }
+  .detail-actions .btn-primary, .detail-actions .btn-secondary { flex: 1; padding: 12px 0; }
+
+  /* 原型提示 */
+  .prototype-hint {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(200, 224, 96, 0.15);
+    border: 1px solid rgba(200, 224, 96, 0.4);
+    color: #c8e060;
+    padding: 10px 20px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    z-index: 300;
+    backdrop-filter: blur(10px);
+  }
+</style>
+</head>
+<body>
+
+<!-- 顶部导航栏 -->
+<nav class="top-nav">
+  <div class="logo-area">
+    <div class="logo-icon">
+      <svg viewBox="0 0 100 100" fill="none">
+        <rect x="41" y="8" width="18" height="84" rx="4" fill="#c8e060"/>
+        <rect x="41" y="8" width="18" height="84" rx="4" fill="#c8e060" transform="rotate(45 50 50)"/>
+        <rect x="41" y="8" width="18" height="84" rx="4" fill="#c8e060" transform="rotate(90 50 50)"/>
+        <rect x="41" y="8" width="18" height="84" rx="4" fill="#c8e060" transform="rotate(135 50 50)"/>
+      </svg>
+    </div>
+    <div class="logo-name">Talos</div>
+  </div>
+
+  <div class="board-tabs">
+    <button class="board-tab active">📋 工作</button>
+    <button class="board-tab">📚 知识库</button>
+    <button class="board-tab">🔄 复习</button>
+    <button class="board-tab">📅 日历</button>
+  </div>
+
+  <div class="search-area">
+    <span class="search-icon">🔍</span>
+    <input type="text" class="search-input" placeholder="搜索笔记、任务、文档...">
+    <span class="search-kbd">⌘K</span>
+  </div>
+
+  <div class="top-actions">
+    <button class="quick-btn">＋ 新建</button>
+    <button class="icon-btn" title="写日记">📝</button>
+    <button class="icon-btn" title="设置">⚙️</button>
+    <button class="icon-btn" title="主题">🌙</button>
+    <div class="avatar" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);">👤</div>
+  </div>
+</nav>
+
+<!-- 主内容区 -->
+<div class="main-container">
+  <!-- 中间主内容 -->
+  <main class="content-area">
+    <div class="page-header">
+      <div>
+        <div class="page-title">工作看板</div>
+        <div class="page-subtitle">今天是 2026年9月6日 周日 · 你有 3 个待办任务，2 个习惯待打卡</div>
+      </div>
+    </div>
+
+    <!-- 数据概览 -->
+    <div class="stats-overview">
+      <div class="stat-card">
+        <div class="stat-icon green">📋</div>
+        <div class="stat-info">
+          <div class="stat-num">7</div>
+          <div class="stat-label">进行中任务</div>
+          <div class="stat-trend up">↑ 比上周多 2 个</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon blue">⏳</div>
+        <div class="stat-info">
+          <div class="stat-num">4</div>
+          <div class="stat-label">待办任务</div>
+          <div class="stat-trend down">↓ 比昨天少 1 个</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon purple">✅</div>
+        <div class="stat-info">
+          <div class="stat-num">23</div>
+          <div class="stat-label">已完成任务</div>
+          <div class="stat-trend up">↑ 本周完成 12 个</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon red">⚠️</div>
+        <div class="stat-info">
+          <div class="stat-num">1</div>
+          <div class="stat-label">逾期任务</div>
+          <div class="stat-trend down">需要尽快处理</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 焦点任务 -->
+    <div class="glass-card focus-card" onclick="openDrawer()">
+      <div class="focus-badge">🎯 今日焦点</div>
+      <div class="focus-title">完成 Talos Dashboard 架构重构方案</div>
+      <div class="focus-meta">
+        <span class="badge badge-purple">P0 高优先级</span>
+        <span class="badge badge-yellow">进行中</span>
+        <span>📅 截止：今天 18:00</span>
+        <span>👤 负责人：我</span>
+      </div>
+      <div class="focus-progress-row">
+        <div class="progress-track">
+          <div class="progress-fill" style="width: 60%"></div>
+        </div>
+        <div class="progress-text">60%</div>
+      </div>
+      <div class="focus-actions">
+        <button class="btn-primary">继续编辑</button>
+        <button class="btn-secondary">查看详情</button>
+      </div>
+    </div>
+
+    <!-- 甘特图 + 任务看板 -->
+    <div class="mid-grid">
+      <!-- 甘特图 -->
+      <div class="glass-card">
+        <div class="gantt-header">
+          <div class="module-title">📊 项目时间线</div>
+          <div class="gantt-view-toggle">
+            <button class="gantt-view-btn active">月</button>
+            <button class="gantt-view-btn">周</button>
+          </div>
+        </div>
+        <div class="gantt-plot">
+          <div class="gantt-grid">
+            <div class="gantt-row-label"></div>
+            <div class="gantt-scale">
+              <span class="gantt-tick" style="left: 0%">8/31</span>
+              <span class="gantt-tick" style="left: 25%">9/7</span>
+              <span class="gantt-tick" style="left: 50%">9/14</span>
+              <span class="gantt-tick" style="left: 75%">9/21</span>
+              <span class="gantt-tick" style="left: 100%">9/28</span>
+            </div>
+
+            <div class="gantt-row-label">架构重构</div>
+            <div class="gantt-row-track">
+              <div class="gantt-bar" style="left: 10%; width: 35%; background: linear-gradient(90deg, #c8e060, #a8c040);" onclick="openDrawer()">UI 优化 60%</div>
+            </div>
+
+            <div class="gantt-row-label">知识库对接</div>
+            <div class="gantt-row-track">
+              <div class="gantt-bar" style="left: 30%; width: 25%; background: linear-gradient(90deg, #a78bfa, #8b6fe0);">数据对接 40%</div>
+            </div>
+
+            <div class="gantt-row-label">复习系统</div>
+            <div class="gantt-row-track">
+              <div class="gantt-bar" style="left: 50%; width: 20%; background: linear-gradient(90deg, #60a5fa, #4080e0);">间隔重复 30%</div>
+            </div>
+
+            <div class="gantt-row-label">日历看板</div>
+            <div class="gantt-row-track">
+              <div class="gantt-bar" style="left: 65%; width: 25%; background: linear-gradient(90deg, #fbbf24, #f0a010);">农历集成 80%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 任务看板 -->
+      <div class="glass-card">
+        <div class="kanban-header">
+          <div class="module-title">📋 任务看板</div>
+          <button class="btn-primary" style="padding: 6px 12px; font-size: 12px;">＋ 新建</button>
+        </div>
+        <div class="kanban-columns">
+          <div class="kanban-column">
+            <div class="kanban-col-header">
+              <span class="kanban-col-dot" style="background: #9ca3af;"></span>
+              待办
+              <span class="kanban-col-count">2</span>
+            </div>
+            <div class="task-card" onclick="openDrawer()">
+              <div class="task-card-top">
+                <span class="task-priority" style="background: rgba(192,132,252,0.2); color: #c084fc;">P0</span>
+                <span class="task-due">明天</span>
+              </div>
+              <div class="task-title">完成产品需求文档撰写</div>
+              <div class="task-progress-row">
+                <div class="progress-track" style="height: 6px;">
+                  <div class="progress-fill" style="width: 0%"></div>
+                </div>
+                <span style="font-size: 10px; color: #71717a;">0%</span>
+              </div>
+            </div>
+            <div class="task-card" onclick="openDrawer()">
+              <div class="task-card-top">
+                <span class="task-priority" style="background: rgba(251,191,36,0.2); color: #fbbf24;">P1</span>
+                <span class="task-due">9/10</span>
+              </div>
+              <div class="task-title">竞品分析报告整理</div>
+              <div class="task-progress-row">
+                <div class="progress-track" style="height: 6px;">
+                  <div class="progress-fill" style="width: 0%"></div>
+                </div>
+                <span style="font-size: 10px; color: #71717a;">0%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="kanban-column">
+            <div class="kanban-col-header">
+              <span class="kanban-col-dot" style="background: #60a5fa;"></span>
+              进行中
+              <span class="kanban-col-count">2</span>
+            </div>
+            <div class="task-card" onclick="openDrawer()">
+              <div class="task-card-top">
+                <span class="task-priority" style="background: rgba(192,132,252,0.2); color: #c084fc;">P0</span>
+                <span class="task-due">今天</span>
+              </div>
+              <div class="task-title">完成 Talos Dashboard 架构重构方案</div>
+              <div class="task-progress-row">
+                <div class="progress-track" style="height: 6px;">
+                  <div class="progress-fill" style="width: 60%"></div>
+                </div>
+                <span style="font-size: 10px; color: #c8e060; font-weight: 600;">60%</span>
+              </div>
+            </div>
+            <div class="task-card" onclick="openDrawer()">
+              <div class="task-card-top">
+                <span class="task-priority" style="background: rgba(251,191,36,0.2); color: #fbbf24;">P1</span>
+                <span class="task-due">9/8</span>
+              </div>
+              <div class="task-title">UI 样式整体优化</div>
+              <div class="task-progress-row">
+                <div class="progress-track" style="height: 6px;">
+                  <div class="progress-fill" style="width: 40%"></div>
+                </div>
+                <span style="font-size: 10px; color: #c8e060; font-weight: 600;">40%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="kanban-column">
+            <div class="kanban-col-header">
+              <span class="kanban-col-dot" style="background: #c8e060;"></span>
+              已完成
+              <span class="kanban-col-count">3</span>
+            </div>
+            <div class="task-card" style="opacity: 0.6;" onclick="openDrawer()">
+              <div class="task-card-top">
+                <span class="task-priority" style="background: rgba(200,224,96,0.2); color: #c8e060;">P1</span>
+                <span class="task-due">9/5</span>
+              </div>
+              <div class="task-title" style="text-decoration: line-through;">多习惯打卡系统开发</div>
+              <div class="task-progress-row">
+                <div class="progress-track" style="height: 6px;">
+                  <div class="progress-fill" style="width: 100%"></div>
+                </div>
+                <span style="font-size: 10px; color: #c8e060; font-weight: 600;">100%</span>
+              </div>
+            </div>
+            <div class="task-card" style="opacity: 0.6;" onclick="openDrawer()">
+              <div class="task-card-top">
+                <span class="task-priority" style="background: rgba(96,165,250,0.2); color: #60a5fa;">P2</span>
+                <span class="task-due">9/4</span>
+              </div>
+              <div class="task-title" style="text-decoration: line-through;">本周学习真实数据对接</div>
+              <div class="task-progress-row">
+                <div class="progress-track" style="height: 6px;">
+                  <div class="progress-fill" style="width: 100%"></div>
+                </div>
+                <span style="font-size: 10px; color: #c8e060; font-weight: 600;">100%</span>
+              </div>
+            </div>
+            <div class="task-card" style="opacity: 0.6;" onclick="openDrawer()">
+              <div class="task-card-top">
+                <span class="task-priority" style="background: rgba(156,163,175,0.2); color: #9ca3af;">P2</span>
+                <span class="task-due">9/3</span>
+              </div>
+              <div class="task-title" style="text-decoration: line-through;">番茄时钟功能开发</div>
+              <div class="task-progress-row">
+                <div class="progress-track" style="height: 6px;">
+                  <div class="progress-fill" style="width: 100%"></div>
+                </div>
+                <span style="font-size: 10px; color: #c8e060; font-weight: 600;">100%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 右侧今日面板 -->
+  <aside class="today-panel">
+    <!-- 今日打卡 -->
+    <div class="panel-section">
+      <div class="panel-title">
+        ✅ 今日打卡
+        <div class="actions">
+          <button class="panel-action-btn" title="添加习惯">＋</button>
+          <button class="panel-action-btn" title="管理习惯">⚙️</button>
+        </div>
+      </div>
+      <div class="checkin-progress">
+        <span class="checkin-progress-text">已完成 <b>3</b>/5 个习惯</span>
+        <span style="font-size: 11px; color: #c8e060;">🔥 连续 7 天</span>
+      </div>
+      <div class="habit-list">
+        <div class="habit-item checked" onclick="this.classList.toggle('checked')">
+          <div class="habit-check">✓</div>
+          <span class="habit-name">💧 喝水 8 杯</span>
+          <span class="habit-streak">12天</span>
+        </div>
+        <div class="habit-item checked" onclick="this.classList.toggle('checked')">
+          <div class="habit-check">✓</div>
+          <span class="habit-name">🏃 健身 30 分钟</span>
+          <span class="habit-streak">5天</span>
+        </div>
+        <div class="habit-item checked" onclick="this.classList.toggle('checked')">
+          <div class="habit-check">✓</div>
+          <span class="habit-name">📖 阅读 30 分钟</span>
+          <span class="habit-streak">7天</span>
+        </div>
+        <div class="habit-item" onclick="this.classList.toggle('checked')">
+          <div class="habit-check">✓</div>
+          <span class="habit-name">🌙 早睡 23:00 前</span>
+          <span class="habit-streak">3天</span>
+        </div>
+        <div class="habit-item" onclick="this.classList.toggle('checked')">
+          <div class="habit-check">✓</div>
+          <span class="habit-name">🧘 冥想 10 分钟</span>
+          <span class="habit-streak">2天</span>
+        </div>
+      </div>
+      <div class="week-calendar">
+        <div class="week-day checked"><span>一</span><div class="day-cell">1</div></div>
+        <div class="week-day checked"><span>二</span><div class="day-cell">2</div></div>
+        <div class="week-day checked"><span>三</span><div class="day-cell">3</div></div>
+        <div class="week-day checked"><span>四</span><div class="day-cell">4</div></div>
+        <div class="week-day checked"><span>五</span><div class="day-cell">5</div></div>
+        <div class="week-day today"><span>六</span><div class="day-cell">6</div></div>
+        <div class="week-day"><span>日</span><div class="day-cell">7</div></div>
+      </div>
+    </div>
+
+    <!-- 今日待办 -->
+    <div class="panel-section">
+      <div class="panel-title">
+        📝 今日待办
+        <div class="actions">
+          <button class="panel-action-btn" title="新建任务">＋</button>
+        </div>
+      </div>
+      <div class="todo-list">
+        <div class="todo-item" onclick="openDrawer()">
+          <div class="todo-priority" style="background: #c084fc;"></div>
+          <div class="todo-check" onclick="event.stopPropagation(); this.parentElement.classList.toggle('completed')">✓</div>
+          <div class="todo-info">
+            <div class="todo-text">完成架构重构方案</div>
+            <div class="todo-meta">截止 18:00 · P0</div>
+          </div>
+        </div>
+        <div class="todo-item" onclick="openDrawer()">
+          <div class="todo-priority" style="background: #fbbf24;"></div>
+          <div class="todo-check" onclick="event.stopPropagation(); this.parentElement.classList.toggle('completed')">✓</div>
+          <div class="todo-info">
+            <div class="todo-text">UI 样式整体优化</div>
+            <div class="todo-meta">截止 20:00 · P1</div>
+          </div>
+        </div>
+        <div class="todo-item completed" onclick="openDrawer()">
+          <div class="todo-priority" style="background: #9ca3af;"></div>
+          <div class="todo-check" onclick="event.stopPropagation(); this.parentElement.classList.toggle('completed')">✓</div>
+          <div class="todo-info">
+            <div class="todo-text">写日记</div>
+            <div class="todo-meta">已完成 · 09:30</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 本周学习 -->
+    <div class="panel-section">
+      <div class="panel-title">
+        📚 本周学习
+        <div class="actions">
+          <button class="panel-action-btn" title="查看全部">→</button>
+        </div>
+      </div>
+      <div class="learning-list">
+        <div class="learning-item">
+          <div class="learning-top">
+            <span class="learning-name">设计知识库</span>
+            <span class="learning-pct done">100%</span>
+          </div>
+          <div class="learning-title">⛽️ UI100Day 设计打卡</div>
+          <div class="progress-track" style="height: 4px;">
+            <div class="progress-fill" style="width: 100%"></div>
+          </div>
+        </div>
+        <div class="learning-item">
+          <div class="learning-top">
+            <span class="learning-name">项目文档</span>
+            <span class="learning-pct">60%</span>
+          </div>
+          <div class="learning-title">📊 竞品分析报告</div>
+          <div class="progress-track" style="height: 4px;">
+            <div class="progress-fill" style="width: 60%"></div>
+          </div>
+        </div>
+        <div class="learning-item">
+          <div class="learning-top">
+            <span class="learning-name">技术学习</span>
+            <span class="learning-pct">30%</span>
+          </div>
+          <div class="learning-title">💻 Obsidian 插件开发指南</div>
+          <div class="progress-track" style="height: 4px;">
+            <div class="progress-fill" style="width: 30%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 农历 + 每日一句 -->
+    <div class="panel-section">
+      <div class="lunar-info">
+        <div class="lunar-date">八月初六 · 丙午年 丙申月 壬午日</div>
+        <div class="lunar-festival">🌙 距中秋节还有 8 天</div>
+      </div>
+      <div class="daily-quote">
+        "设计不是让它看起来好看，而是让它用起来好用。"
+        <br>— Dieter Rams
+      </div>
+    </div>
+  </aside>
+</div>
+
+<!-- 任务详情抽屉 -->
+<div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-header">
+    <div class="drawer-title">任务详情</div>
+    <button class="drawer-close" onclick="closeDrawer()">✕</button>
+  </div>
+
+  <div class="detail-task-id">TASK-001</div>
+  <div class="detail-task-title">完成 Talos Dashboard 架构重构方案</div>
+
+  <div class="detail-badge-row">
+    <span class="badge badge-purple">P0 高优先级</span>
+    <span class="badge badge-blue">进行中</span>
+    <span class="badge badge-green">🔥 今日焦点</span>
+  </div>
+
+  <div class="detail-progress-label">
+    <span>任务进度</span>
+    <span style="color: #c8e060; font-weight: 700;">60%</span>
+  </div>
+  <div class="progress-track">
+    <div class="progress-fill" style="width: 60%"></div>
+  </div>
+
+  <div class="detail-grid">
+    <div class="detail-grid-item">
+      <div class="detail-grid-label">截止日期</div>
+      <div class="detail-grid-value">今天 18:00</div>
+    </div>
+    <div class="detail-grid-item">
+      <div class="detail-grid-label">负责人</div>
+      <div class="detail-grid-value">我</div>
+    </div>
+    <div class="detail-grid-item">
+      <div class="detail-grid-label">创建时间</div>
+      <div class="detail-grid-value">9/5 14:30</div>
+    </div>
+    <div class="detail-grid-item">
+      <div class="detail-grid-label">关联文档</div>
+      <div class="detail-grid-value" style="color: #c8e060; cursor: pointer;">架构重构方案.md</div>
+    </div>
+  </div>
+
+  <div class="detail-edit-list">
+    <div class="detail-edit-row">
+      <span class="detail-edit-row-label">状态</span>
+      <div class="status-segmented">
+        <button class="status-seg">待办</button>
+        <button class="status-seg active">进行中</button>
+        <button class="status-seg">已完成</button>
+      </div>
+    </div>
+    <div class="detail-edit-row">
+      <span class="detail-edit-row-label">优先级</span>
+      <div class="status-segmented">
+        <button class="status-seg active">P0</button>
+        <button class="status-seg">P1</button>
+        <button class="status-seg">P2</button>
+      </div>
+    </div>
+    <div class="detail-edit-row">
+      <span class="detail-edit-row-label">截止时间</span>
+      <span style="font-size: 12px; color: #71717a;">今天 18:00（不可修改）</span>
+    </div>
+  </div>
+
+  <div class="detail-actions">
+    <button class="btn-primary">✓ 完成任务</button>
+    <button class="btn-secondary">📝 编辑笔记</button>
+  </div>
+</div>
+
+<div class="prototype-hint">💡 这是新架构原型 · 点击任务卡片可打开详情抽屉 · 点击习惯/待办可勾选完成</div>
+
+<script>
+  function openDrawer() {
+    document.getElementById('drawer').classList.add('open');
+    document.getElementById('drawerOverlay').classList.add('open');
+  }
+  function closeDrawer() {
+    document.getElementById('drawer').classList.remove('open');
+    document.getElementById('drawerOverlay').classList.remove('open');
+  }
+
+  // 看板 Tab 切换
+  document.querySelectorAll('.board-tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+      document.querySelectorAll('.board-tab').forEach(t => t.classList.remove('active'));
+      this.classList.add('active');
+    });
+  });
+
+  // 甘特图视图切换
+  document.querySelectorAll('.gantt-view-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.gantt-view-btn').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+    });
+  });
+</script>
+
+</body>
+</html>

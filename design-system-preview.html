@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Talos Dashboard · 设计规范 v3 预览</title>
+<style>
+  :root {
+    --brand-green: #c8e060;
+    --brand-green-dark: #a8c040;
+    --brand-green-deep: #96b030;
+    --brand-purple: #a78bfa;
+    --danger-red: #f87171;
+    --success: #22c55e;
+    --info-blue: #60a5fa;
+    --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px; --radius-full: 999px;
+    --fs-caption: 12px; --fs-body: 14px; --fs-title: 20px; --fs-stat: 32px;
+  }
+  /* ===== 暗色主题 ===== */
+  .theme-scope[data-theme="dark"] {
+    --bg: #0f0f13;
+    --card: rgba(28,28,34,0.8);
+    --border: rgba(255,255,255,0.08);
+    --divider: rgba(255,255,255,0.06);
+    --text-primary: #f0f0f3;
+    --text-secondary: #a1a1aa;
+    --text-muted: #71717a;
+    --text-brand: var(--brand-green);           /* 暗色：品牌色文字 = 品牌绿 */
+    --hover-bg: rgba(255,255,255,0.04);
+    --toggle-bg: rgba(255,255,255,0.04);
+    --progress-track: rgba(255,255,255,0.06);
+    --input-bg: rgba(255,255,255,0.04);
+    --shadow: 0 1px 2px rgba(0,0,0,0.2), 0 8px 24px -6px rgba(0,0,0,0.3), 0 24px 48px -20px rgba(0,0,0,0.4);
+    --code-bg: rgba(255,255,255,0.05);
+  }
+  /* ===== 浅色主题 ===== */
+  .theme-scope[data-theme="light"] {
+    --bg: #f5f5f0;
+    --card: rgba(255,255,255,0.92);
+    --border: rgba(0,0,0,0.06);
+    --divider: rgba(0,0,0,0.04);
+    --text-primary: #1a1a1f;
+    --text-secondary: #52525b;
+    --text-muted: #71717a;
+    --text-brand: #1a1a1f;                      /* 浅色：品牌色文字 = 文字主色（绿色单轨制） */
+    --hover-bg: rgba(0,0,0,0.05);
+    --toggle-bg: rgba(0,0,0,0.05);
+    --progress-track: rgba(0,0,0,0.07);
+    --input-bg: rgba(0,0,0,0.04);
+    --shadow: 0 1px 2px rgba(0,0,0,0.04), 0 8px 24px -6px rgba(0,0,0,0.06), 0 24px 48px -20px rgba(0,0,0,0.08);
+    --code-bg: rgba(0,0,0,0.04);
+    /* 浅色专属：装饰色块 alpha 提高，避免与米白背景融合（暗色 0.15 在暗底可见，浅色需要更深） */
+    --tint-green: rgba(200,224,96,0.28);
+    --tint-purple: rgba(167,139,250,0.25);
+    --tint-blue: rgba(96,165,250,0.25);
+    --tint-red: rgba(248,113,113,0.25);
+    --tint-neutral: rgba(161,161,170,0.22);
+    --stat-card-bg: rgba(255,255,255,0.75);
+    --stat-card-border: rgba(0,0,0,0.1);
+  }
+  /* 暗色主题补充装饰色块变量 */
+  .theme-scope[data-theme="dark"] {
+    --tint-green: rgba(200,224,96,0.15);
+    --tint-purple: rgba(167,139,250,0.15);
+    --tint-blue: rgba(96,165,250,0.15);
+    --tint-red: rgba(248,113,113,0.15);
+    --tint-neutral: rgba(161,161,170,0.15);
+    --stat-card-bg: rgba(255,255,255,0.05);
+    --stat-card-border: var(--border);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: var(--bg); color: var(--text-primary);
+    font-size: var(--fs-body); line-height: 1.5;
+    transition: background 0.3s ease, color 0.3s ease;
+    padding: 32px 24px 80px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+
+  /* ===== 顶部栏 ===== */
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 28px; flex-wrap: wrap; }
+  .topbar h1 { font-size: 24px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+  .topbar h1 .logo {
+    width: 28px; height: 28px; border-radius: 8px;
+    background: var(--brand-green); color: #0f0f13;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 15px; font-weight: 700;
+  }
+  .topbar .meta { font-size: var(--fs-caption); color: var(--text-muted); }
+  .theme-switch {
+    display: inline-flex; gap: 2px; background: var(--toggle-bg);
+    border-radius: var(--radius-md); padding: 3px; border: 1px solid var(--border);
+  }
+  .theme-switch button {
+    border: none; background: transparent; color: var(--text-secondary);
+    font-family: inherit; font-size: var(--fs-caption); font-weight: 500;
+    padding: 6px 16px; border-radius: var(--radius-sm); cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .theme-switch button.active { background: var(--brand-green); color: #0f0f13; font-weight: 600; }
+
+  /* ===== 区块 ===== */
+  .section { margin-bottom: 36px; }
+  .section-title { font-size: var(--fs-title); font-weight: 600; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+  .section-desc { font-size: var(--fs-caption); color: var(--text-secondary); margin-bottom: 16px; }
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); padding: 20px;
+    box-shadow: var(--shadow);
+  }
+  .grid { display: grid; gap: 16px; }
+  .grid-2 { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+  .grid-4 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+
+  /* ===== 色彩 token 卡 ===== */
+  .token-card { padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--input-bg); }
+  .token-swatch { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .swatch { width: 44px; height: 44px; border-radius: var(--radius-sm); flex-shrink: 0; border: 1px solid rgba(128,128,128,0.2); }
+  .token-name { font-weight: 600; font-size: var(--fs-body); }
+  .token-hex { font-size: var(--fs-caption); color: var(--text-muted); font-family: ui-monospace, Menlo, monospace; }
+  .token-use { font-size: var(--fs-caption); color: var(--text-secondary); margin-top: 6px; line-height: 1.55; }
+
+  /* 规则强调条 */
+  .rule-bar {
+    display: flex; gap: 12px; align-items: flex-start;
+    background: var(--input-bg); border: 1px solid var(--border);
+    border-left: 3px solid var(--brand-green);
+    border-radius: var(--radius-md); padding: 14px 16px; margin-top: 14px;
+  }
+  .rule-bar .tag { flex-shrink: 0; font-size: 11px; font-weight: 700; color: #0f0f13; background: var(--brand-green); padding: 2px 8px; border-radius: 6px; }
+  .rule-bar p { font-size: var(--fs-caption); color: var(--text-secondary); }
+  .rule-bar code { background: var(--code-bg); padding: 1px 6px; border-radius: 4px; font-family: ui-monospace, Menlo, monospace; font-size: 11px; }
+
+  /* ===== 组件演示 ===== */
+  .demo-area { display: flex; flex-direction: column; gap: 20px; }
+
+  /* 顶部导航 Tab（真实控件：选中态=绿底深字，暗浅一致） */
+  .top-nav {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--toggle-bg); border: 1px solid var(--border);
+    border-radius: var(--radius-md); padding: 3px; width: fit-content;
+  }
+  .board-tab {
+    border: none; background: transparent; color: var(--text-secondary);
+    font-family: inherit; font-size: var(--fs-caption); font-weight: 500;
+    padding: 7px 14px; border-radius: var(--radius-sm); cursor: pointer;
+    transition: all 0.15s ease; display: flex; align-items: center; gap: 5px;
+  }
+  .board-tab:hover { color: var(--text-primary); background: var(--hover-bg); }
+  .board-tab.active { background: var(--brand-green); color: #0f0f13; font-weight: 600; }
+
+  /* 分段控件（周/月/季/年） */
+  .seg-group {
+    display: flex; gap: 2px; background: var(--toggle-bg);
+    border: 1px solid var(--border); border-radius: var(--radius-md); padding: 3px; width: fit-content;
+  }
+  .seg-btn {
+    border: none; background: transparent; color: var(--text-secondary);
+    font-family: inherit; font-size: var(--fs-caption); font-weight: 500;
+    padding: 6px 14px; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.15s ease;
+  }
+  .seg-btn:hover { color: var(--text-primary); background: var(--hover-bg); }
+  .seg-btn.active { background: var(--brand-green); color: #0f0f13; font-weight: 600; }
+
+  /* 筛选胶囊（全部/待办/进行中/已完成/逾期） */
+  .pill-group { display: flex; gap: 6px; flex-wrap: wrap; }
+  .filter-tab {
+    background: transparent; border: 1px solid var(--border); color: var(--text-secondary);
+    font-family: inherit; font-size: var(--fs-caption); font-weight: 500;
+    padding: 5px 14px; border-radius: var(--radius-full); cursor: pointer; transition: all 0.15s ease;
+  }
+  .filter-tab:hover { background: var(--hover-bg); border-color: var(--text-muted); color: var(--text-primary); }
+  .filter-tab.active { background: var(--brand-green); border-color: var(--brand-green); color: #0f0f13; font-weight: 600; }
+
+  /* 按钮 */
+  .btn {
+    border: none; font-family: inherit; font-size: var(--fs-body); font-weight: 600;
+    padding: 10px 20px; border-radius: var(--radius-lg); cursor: pointer; transition: all 0.15s ease;
+  }
+  .btn-primary { background: var(--brand-green); color: #0f0f13; }
+  .btn-primary:hover { background: var(--brand-green-dark); box-shadow: 0 0 20px rgba(200,224,96,0.25); }
+  .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--text-secondary); }
+  .btn-secondary:hover { background: var(--hover-bg); border-color: rgba(200,224,96,0.5); color: var(--text-primary); }
+  .btn-row { display: flex; gap: 12px; flex-wrap: wrap; }
+
+  /* 数据概览卡片（绿色图标 + text-brand 数字） */
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+  .stat-card {
+    background: var(--stat-card-bg); border: 1px solid var(--stat-card-border);
+    border-radius: var(--radius-md); padding: 14px 16px;
+    display: flex; align-items: center; gap: 12px;
+    box-shadow: var(--shadow);
+  }
+  .stat-icon { width: 40px; height: 40px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+  .stat-icon.green { background: var(--tint-green); }
+  .stat-icon.purple { background: var(--tint-purple); }
+  .stat-icon.blue { background: var(--tint-blue); }
+  .stat-icon.red { background: var(--tint-red); }
+  .stat-num { font-size: var(--fs-stat); font-weight: 700; line-height: 1.1; color: var(--text-brand); }
+  .stat-label { font-size: var(--fs-caption); color: var(--text-secondary); margin-top: 2px; }
+  .stat-note { font-size: 11px; color: var(--text-muted); }
+
+  /* 进度条 */
+  .progress-track { background: var(--progress-track); border-radius: var(--radius-full); height: 8px; overflow: hidden; }
+  .progress-fill {
+    background: linear-gradient(90deg, #c8e060, #a8c040);
+    border-radius: var(--radius-full); height: 100%;
+    display: flex; align-items: center; justify-content: flex-end;
+  }
+  .progress-fill span { font-size: 10px; font-weight: 700; color: #0f0f13; padding-right: 8px; }
+
+  /* 徽章 */
+  .badge { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-caption); padding: 4px 12px; border-radius: 6px; font-weight: 600; }
+  .badge.green { background: var(--tint-green); color: var(--text-brand); }
+  .badge.red { background: var(--tint-red); color: var(--danger-red); }
+  .badge.orange { background: rgba(251,191,36,0.15); color: #fbbf24; }
+
+  /* 对比框：同一组元素，暗浅两主题（背景用实色页面底，固定各自主题，不受顶部切换影响） */
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .compare-box { border-radius: var(--radius-md); padding: 14px; }
+  .compare-box[data-theme="dark"] { background: #0f0f13; border: 1px solid rgba(255,255,255,0.08); }
+  .compare-box[data-theme="light"] { background: #f5f5f0; border: 1px solid rgba(0,0,0,0.12); }
+  .compare-box .cap { font-size: 11px; color: var(--text-muted); margin-bottom: 10px; font-weight: 600; }
+
+  table.spec { width: 100%; border-collapse: collapse; font-size: var(--fs-caption); }
+  table.spec th, table.spec td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--divider); }
+  table.spec th { color: var(--text-secondary); font-weight: 600; }
+  table.spec code { background: var(--code-bg); padding: 1px 6px; border-radius: 4px; font-family: ui-monospace, Menlo, monospace; }
+
+  /* 搜索框规范演示 */
+  .search-demo { display: flex; flex-direction: column; gap: 12px; }
+  .search-wrap { position: relative; width: 100%; }
+  .search-wrap .search-ico {
+    position: absolute; left: 12px; top: 50%;
+    transform: translateY(calc(-50% + 2px)); /* emoji 重心微调 */
+    font-size: 13px; pointer-events: none; z-index: 2; line-height: 1;
+  }
+  .search-input-spec {
+    width: 100%; height: 36px; padding: 0 12px 0 36px;
+    font-size: 13px; font-family: inherit;
+    border-radius: 12px; border: 1px solid;
+    box-shadow: none !important; outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .theme-scope[data-theme="dark"] .search-input-spec { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.15); color: #f0f0f3; }
+  .theme-scope[data-theme="light"] .search-input-spec { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.12); color: #1a1a1f; }
+  .search-input-spec::placeholder { color: var(--text-muted); opacity: 0.75; }
+  .theme-scope[data-theme="light"] .search-input-spec::placeholder { color: rgba(0,0,0,0.4); }
+  .search-input-spec:focus { border-color: rgba(168,192,64,0.7) !important; box-shadow: none !important; outline: none; }
+  .theme-scope[data-theme="light"] .search-input-spec:focus { border-color: #96b030 !important; }
+
+  /* 弹窗列表搜索框示例 */
+  .modal-demo {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); box-shadow: var(--shadow); overflow: hidden;
+  }
+  .modal-demo .m-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px 0; }
+  .modal-demo .m-title { font-size: 15px; font-weight: 600; }
+  .modal-demo .m-close {
+    border: none; background: transparent; color: var(--text-muted);
+    font-size: 16px; cursor: pointer; font-family: inherit; line-height: 1;
+  }
+  .modal-demo .m-list { padding: 8px 16px 2px; }
+  .modal-demo .m-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; font-size: 13px; }
+  .modal-demo .m-badge { font-size: 11px; color: var(--text-muted); flex-shrink: 0; }
+  .modal-demo .m-divider { border-top: 1px solid var(--divider); margin: 2px 16px 0; }
+  .modal-demo .m-foot { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px 14px; }
+  .modal-demo .m-count { font-size: 11px; color: var(--text-muted); }
+  .modal-demo .m-btn {
+    border: 1px solid var(--border); background: transparent; color: var(--text-secondary);
+    font-family: inherit; font-size: 12px; font-weight: 500;
+    padding: 6px 16px; border-radius: 12px; cursor: pointer; transition: all 0.15s ease;
+  }
+  .modal-demo .m-btn:hover { background: var(--hover-bg); border-color: rgba(200,224,96,0.5); color: var(--text-primary); }
+
+  .footnote { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--divider); font-size: 11px; color: var(--text-muted); }
+</style>
+</head>
+<body class="theme-scope" data-theme="dark">
+<div class="wrap">
+
+  <div class="topbar">
+    <div>
+      <h1><span class="logo">T</span> Talos Dashboard 设计规范 <span style="font-size:14px;color:var(--text-muted);font-weight:400">v3 · 2026-09-16</span></h1>
+      <div class="meta">绿色单轨制 · 切换控件选中态统一 · 搜索框使用规范 v1</div>
+    </div>
+    <div class="theme-switch" id="themeSwitch">
+      <button data-theme="dark" class="active">暗色模式</button>
+      <button data-theme="light">浅色模式</button>
+    </div>
+  </div>
+
+  <!-- ============ 一、核心规则 ============ -->
+  <div class="section">
+    <div class="section-title">📌 一、核心规则（本次更新）</div>
+    <div class="section-desc">两条规则解决"两档绿并存"与"切换样式不统一"两个问题。</div>
+    <div class="card" style="display:flex;flex-direction:column;gap:12px;">
+      <div class="rule-bar">
+        <span class="tag">规则 1</span>
+        <p><strong>绿色单轨制</strong>：一个屏幕上只出现一种品牌绿 <code>#c8e060</code>。品牌绿只属于<strong>图形语言</strong>（图标、进度条、按钮/选中态底色、边框、强调），<strong>不用于文字语言</strong>。</p>
+      </div>
+      <div class="rule-bar">
+        <span class="tag">规则 2</span>
+        <p><strong>切换控件选中态统一</strong>：所有"切换/筛选/分段"控件（导航 Tab、时间线、看板筛选）选中态 = <strong>品牌绿实底 + 深色文字 <code>#0f0f13</code></strong>，暗色/浅色完全一致，禁止"绿字浅绿底"变体。</p>
+      </div>
+      <div class="rule-bar">
+        <span class="tag">规则 3</span>
+        <p><strong>品牌色文字变量</strong>：需要"读"的文字/数字用 <code>--text-brand</code>。暗色 = <code>#c8e060</code>（暗底对比度足够）；浅色 = <code>#1a1a1f</code> 文字主色（浅底绿字对比度不足，回落中性深色，可读且不引入第二档绿）。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 二、色彩规范 ============ -->
+  <div class="section">
+    <div class="section-title">🎨 二、色彩规范（绿色单轨制）</div>
+    <div class="section-desc">上下对照：暗色 / 浅色下，同一变量不同取值。</div>
+    <div class="grid grid-4">
+      <div class="token-card">
+        <div class="token-swatch"><div class="swatch" style="background:#c8e060"></div><div><div class="token-name">品牌绿 <code>--brand-green</code></div><div class="token-hex">#c8e060</div></div></div>
+        <div class="token-use">图标、进度条填充、按钮/选中态底色、边框、强调。暗色 = 浅色，<strong>永远不变</strong>。</div>
+      </div>
+      <div class="token-card">
+        <div class="token-swatch"><div class="swatch" style="background:#a8c040"></div><div><div class="token-name">主色深档 <code>--brand-green-dark</code></div><div class="token-hex">#a8c040</div></div></div>
+        <div class="token-use">仅用于按钮 hover 背景、进度条渐变的深端。<strong>禁止</strong>用于浅色文字。</div>
+      </div>
+      <div class="token-card">
+        <div class="token-swatch"><div class="swatch" style="background:var(--text-brand)"></div><div><div class="token-name">品牌色文字 <code>--text-brand</code></div><div class="token-hex"><span data-sw="textBrandHex">暗色 #c8e060</span></div></div></div>
+        <div class="token-use">统计数字、百分比、标签文字、日期数字。暗色绿字 / 浅色文字主色（切换主题看上方色块变化）。</div>
+      </div>
+      <div class="token-card">
+        <div class="token-swatch"><div class="swatch" style="background:var(--bg)"></div><div><div class="token-name">主题背景 <code>--bg-primary</code></div><div class="token-hex"><span data-sw="bgHex">暗色 #0f0f13</span></div></div></div>
+        <div class="token-use">暗色 #0f0f13（蓝灰相）/ 浅色 #f5f5f0（米白暖相）。</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 三、绿色单轨制演示 ============ -->
+  <div class="section">
+    <div class="section-title">🖼️ 三、绿色单轨制 · 同一组元素双主题对照</div>
+    <div class="section-desc">下方是同一组件（数据概览卡片），在暗色 / 浅色下的实际表现：图标永远是品牌绿，数字用 <code>--text-brand</code>。</div>
+    <div class="compare-grid">
+      <div class="compare-box theme-scope" data-theme="dark">
+        <div class="cap">暗色模式（固定主题）</div>
+        <div class="stat-grid" style="grid-template-columns:1fr 1fr;gap:10px;">
+          <div class="stat-card" style="display:block;text-align:center;padding:14px 8px;"><div style="display:flex;justify-content:center;margin-bottom:8px;"><span class="stat-icon green">📚</span></div><div class="stat-num" style="font-size:26px;">1725</div><div class="stat-label">总笔记</div><div class="stat-note">图标绿 · 数字绿字</div></div>
+          <div class="stat-card" style="display:block;text-align:center;padding:14px 8px;"><div style="display:flex;justify-content:center;margin-bottom:8px;"><span class="stat-icon green">📄</span></div><div class="stat-num" style="font-size:26px;">23</div><div class="stat-label">本月新增</div><div class="stat-note">较上月 -232 篇</div></div>
+        </div>
+      </div>
+      <div class="compare-box theme-scope" data-theme="light">
+        <div class="cap">浅色模式（固定主题）</div>
+        <div class="stat-grid" style="grid-template-columns:1fr 1fr;gap:10px;">
+          <div class="stat-card" style="display:block;text-align:center;padding:14px 8px;"><div style="display:flex;justify-content:center;margin-bottom:8px;"><span class="stat-icon green">📚</span></div><div class="stat-num" style="font-size:26px;">1725</div><div class="stat-label">总笔记</div><div class="stat-note">图标绿 · 数字深色文字</div></div>
+          <div class="stat-card" style="display:block;text-align:center;padding:14px 8px;"><div style="display:flex;justify-content:center;margin-bottom:8px;"><span class="stat-icon green">📄</span></div><div class="stat-num" style="font-size:26px;">23</div><div class="stat-label">本月新增</div><div class="stat-note">较上月 -232 篇</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="rule-bar" style="margin-top:12px;">
+      <span class="tag">为什么</span>
+      <p>浅色下如果数字用 <code>#a8c040</code>"深一档绿"，会和图标浅绿形成"两绿并存"，看起来像两种颜色（你上一版反馈的问题）；改成文字主色后同屏只有一种绿，数字对比度从 ~2.9:1 提升到 ~16:1。</p>
+    </div>
+  </div>
+
+  <!-- ============ 四、切换控件选中态 ============ -->
+  <div class="section">
+    <div class="section-title">🔘 四、切换控件 · 选中态统一为"绿底深字"</div>
+    <div class="section-desc">顶部导航 Tab、时间线分段、看板筛选胶囊——三种控件，同一种选中态，暗浅一致。可以点击体验。</div>
+    <div class="card">
+      <div class="demo-area">
+
+        <div>
+          <div class="cap" style="font-size:12px;color:var(--text-secondary);font-weight:600;margin-bottom:8px;">① 顶部导航 Tab（工作看板 / 知识库看板 / 复习看板）</div>
+          <div class="top-nav" id="navTabs">
+            <button class="board-tab active" data-g="nav">💼 工作看板</button>
+            <button class="board-tab" data-g="nav">📚 知识库看板</button>
+            <button class="board-tab" data-g="nav">🎯 复习看板</button>
+          </div>
+        </div>
+
+        <div>
+          <div class="cap" style="font-size:12px;color:var(--text-secondary);font-weight:600;margin-bottom:8px;">② 项目时间线分段（周 / 月 / 季 / 年）</div>
+          <div class="seg-group" id="segGroup">
+            <button class="seg-btn" data-g="seg">周</button>
+            <button class="seg-btn active" data-g="seg">月</button>
+            <button class="seg-btn" data-g="seg">季</button>
+            <button class="seg-btn" data-g="seg">年</button>
+          </div>
+        </div>
+
+        <div>
+          <div class="cap" style="font-size:12px;color:var(--text-secondary);font-weight:600;margin-bottom:8px;">③ 任务看板筛选胶囊（全部 / 待办 / 进行中 / 已完成 / 逾期）</div>
+          <div class="pill-group" id="pillGroup">
+            <button class="filter-tab active" data-g="pill">全部</button>
+            <button class="filter-tab" data-g="pill">待办</button>
+            <button class="filter-tab" data-g="pill">进行中</button>
+            <button class="filter-tab" data-g="pill">已完成</button>
+            <button class="filter-tab" data-g="pill">逾期</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 五、搜索框使用规范 ============ -->
+  <div class="section">
+    <div class="section-title">🔍 五、搜索框使用规范（新增 v1）</div>
+    <div class="section-desc">所有搜索入口（顶部导航 / 弹窗列表 / 任务看板）统一此样式：36px 高、12px 圆角、1px 细边框、图标内嵌、无内阴影。</div>
+    <div class="card">
+      <div class="cap" style="font-size:12px;color:var(--text-secondary);font-weight:600;margin-bottom:12px;">① 默认态 · 图标内嵌输入框左侧（切换顶部主题查看深浅适配）</div>
+      <div class="search-demo">
+        <div class="search-wrap">
+          <span class="search-ico">🔍</span>
+          <input class="search-input-spec" type="text" placeholder="搜索笔记、任务、文档…">
+        </div>
+      </div>
+    </div>
+    <div class="compare-grid" style="margin-top:16px;">
+      <div class="compare-box theme-scope" data-theme="dark">
+        <div class="cap">暗色模式（固定主题）</div>
+        <div class="search-wrap">
+          <span class="search-ico">🔍</span>
+          <input class="search-input-spec" type="text" placeholder="搜索笔记名称或路径…">
+        </div>
+        <div class="search-wrap" style="margin-top:10px;">
+          <span class="search-ico">🔍</span>
+          <input class="search-input-spec focus-demo" type="text" placeholder="Focus 状态：细绿描边（无发光）">
+        </div>
+      </div>
+      <div class="compare-box theme-scope" data-theme="light">
+        <div class="cap">浅色模式（固定主题）</div>
+        <div class="search-wrap">
+          <span class="search-ico">🔍</span>
+          <input class="search-input-spec" type="text" placeholder="搜索笔记名称或路径…">
+        </div>
+        <div class="search-wrap" style="margin-top:10px;">
+          <span class="search-ico">🔍</span>
+          <input class="search-input-spec" type="text" placeholder="Focus 状态：细绿描边（无发光）">
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px;overflow-x:auto;">
+      <table class="spec">
+        <thead><tr><th>属性</th><th>暗色值</th><th>浅色值</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td>高度</td><td><code>36px</code></td><td><code>36px</code></td><td>与按钮高度一致</td></tr>
+          <tr><td>圆角</td><td><code>12px</code></td><td><code>12px</code></td><td><code>--radius-md</code></td></tr>
+          <tr><td>边框</td><td><code>1px rgba(255,255,255,0.15)</code></td><td><code>1px rgba(0,0,0,0.12)</code></td><td><strong>必须去除 Obsidian 默认内阴影</strong>，否则视觉上"边框变粗"</td></tr>
+          <tr><td>背景</td><td><code>rgba(255,255,255,0.04)</code></td><td><code>rgba(0,0,0,0.03)</code></td><td>—</td></tr>
+          <tr><td>字号</td><td><code>13px</code></td><td><code>13px</code></td><td>—</td></tr>
+          <tr><td>Placeholder</td><td><code>--text-muted</code> 75%</td><td><code>rgba(0,0,0,0.4)</code></td><td>—</td></tr>
+          <tr><td>Focus</td><td colspan="2"><code>1px 细绿描边：暗色 rgba(168,192,64,0.7) / 浅色 #96b030（无发光）</code></td><td>去除 outline；仅描边变色提示焦点，不抢视线</td></tr>
+        </tbody>
+      </table>
+      <div class="rule-bar" style="margin-top:12px;">
+        <span class="tag">结构</span>
+        <p>图标<strong>必须内嵌输入框内部</strong>（绝对定位 + 左侧内边距 36px 让位），禁止放在输入框外侧；emoji 图标允许整体下移 2px 修正视觉重心。</p>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <div class="cap" style="font-size:12px;color:var(--text-secondary);font-weight:600;margin-bottom:12px;">② 弹窗列表搜索框 · 配套布局（搜索 → 列表 → 分割线 → 计数 + 关闭）｜底部操作行垂直留白对称：距分割线 14px / 距卡片底 14px</div>
+      <div class="compare-grid">
+        <div class="compare-box theme-scope" data-theme="dark" style="padding:0;overflow:hidden;">
+          <div class="modal-demo">
+            <div class="m-head"><div class="m-title">📄 空笔记（共 14 篇）</div><button class="m-close">×</button></div>
+            <div style="padding:10px 16px 0;">
+              <div class="search-wrap">
+                <span class="search-ico">🔍</span>
+                <input class="search-input-spec" type="text" placeholder="搜索笔记名称或路径…">
+              </div>
+            </div>
+            <div class="m-list">
+              <div class="m-item"><span>99-Meta-元配置</span><span class="m-badge">空笔记</span></div>
+              <div class="m-item"><span>10-日记</span><span class="m-badge">空笔记</span></div>
+              <div class="m-item"><span>04-Archives-归档</span><span class="m-badge">空笔记</span></div>
+            </div>
+            <div class="m-divider"></div>
+            <div class="m-foot"><span class="m-count">14 / 14 篇</span><button class="m-btn">关闭</button></div>
+            <div style="height:14px;"></div>
+          </div>
+        </div>
+        <div class="compare-box theme-scope" data-theme="light" style="padding:0;overflow:hidden;">
+          <div class="modal-demo">
+            <div class="m-head"><div class="m-title">📄 空笔记（共 14 篇）</div><button class="m-close">×</button></div>
+            <div style="padding:10px 16px 0;">
+              <div class="search-wrap">
+                <span class="search-ico">🔍</span>
+                <input class="search-input-spec" type="text" placeholder="搜索笔记名称或路径…">
+              </div>
+            </div>
+            <div class="m-list">
+              <div class="m-item"><span>99-Meta-元配置</span><span class="m-badge">空笔记</span></div>
+              <div class="m-item"><span>10-日记</span><span class="m-badge">空笔记</span></div>
+              <div class="m-item"><span>04-Archives-归档</span><span class="m-badge">空笔记</span></div>
+            </div>
+            <div class="m-divider"></div>
+            <div class="m-foot"><span class="m-count">14 / 14 篇</span><button class="m-btn">关闭</button></div>
+            <div style="height:14px;"></div>
+          </div>
+        </div>
+      </div>
+      <p style="font-size:11px;color:var(--text-muted);margin-top:10px;">列表上限 38vh 滚动；计数在分割线下方与关闭按钮同行（计数 11px 弱化文字），底部留白 14px。</p>
+    </div>
+  </div>
+
+  <!-- ============ 六、其他组件 ============ -->
+  <div class="section">
+    <div class="section-title">🧩 六、配套组件</div>
+    <div class="section-desc">主/次按钮、进度条渐变、徽章——在双主题下保持一致。</div>
+    <div class="grid grid-2">
+      <div class="card">
+        <div class="cap" style="font-size:12px;color:var(--text-secondary);font-weight:600;margin-bottom:12px;">按钮</div>
+        <div class="btn-row">
+          <button class="btn btn-primary">新建任务</button>
+          <button class="btn btn-secondary">查看详情</button>
+          <button class="btn btn-primary" style="padding:8px 16px;border-radius:12px;">＋ 新建</button>
+        </div>
+        <p style="font-size:11px;color:var(--text-muted);margin-top:10px;">主按钮 = 品牌绿底深字；次按钮 hover 边框提亮为品牌绿（浅色下不再误用成功绿）。</p>
+      </div>
+      <div class="card">
+        <div class="cap" style="font-size:12px;color:var(--text-secondary);font-weight:600;margin-bottom:12px;">进度条（暗浅同款品牌绿渐变）</div>
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <div class="progress-track"><div class="progress-fill" style="width:75%"><span>75%</span></div></div>
+          <div class="progress-track"><div class="progress-fill" style="width:42%"><span>42%</span></div></div>
+          <div class="progress-track"><div class="progress-fill" style="width:100%"><span>100%</span></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <div class="cap" style="font-size:12px;color:var(--text-secondary);font-weight:600;margin-bottom:12px;">徽章（状态语义色与品牌绿并存是正常设计）</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <span class="badge green">已掌握</span>
+        <span class="badge red">已逾期</span>
+        <span class="badge orange">P1 优先</span>
+        <span class="badge green">完成率 33%</span>
+      </div>
+      <p style="font-size:11px;color:var(--text-muted);margin-top:10px;">品牌绿徽章文字走 <code>--text-brand</code>（浅色=深色文字）；红/橙等状态色是状态系统，不受单轨制约束。</p>
+    </div>
+  </div>
+
+  <!-- ============ 七、变量对照表 ============ -->
+  <div class="section">
+    <div class="section-title">📋 七、CSS 变量速查（双主题）</div>
+    <div class="card" style="overflow-x:auto;">
+      <table class="spec">
+        <thead><tr><th>变量</th><th>暗色值</th><th>浅色值</th><th>用途</th></tr></thead>
+        <tbody>
+          <tr><td><code>--brand-green</code></td><td><code>#c8e060</code></td><td><code>#c8e060</code></td><td>图形语言：图标/进度/按钮底/选中态/边框/强调（两主题一致）</td></tr>
+          <tr><td><code>--text-brand</code></td><td><code>#c8e060</code></td><td><code>#1a1a1f</code></td><td>品牌色文字：暗色绿字 / 浅色文字主色</td></tr>
+          <tr><td><code>--brand-green-dark</code></td><td><code>#a8c040</code></td><td><code>#a8c040</code></td><td>按钮 hover 底、进度渐变深端（禁用于浅色文字）</td></tr>
+          <tr><td><code>--bg-primary</code></td><td><code>#0f0f13</code></td><td><code>#f5f5f0</code></td><td>主题背景</td></tr>
+          <tr><td><code>--text-primary</code></td><td><code>#f0f0f3</code></td><td><code>#1a1a1f</code></td><td>主要文字</td></tr>
+          <tr><td><code>--text-secondary</code></td><td><code>#a1a1aa</code></td><td><code>#52525b</code></td><td>次要文字</td></tr>
+          <tr><td><code>--text-muted</code></td><td><code>#71717a</code></td><td><code>#71717a</code></td><td>弱化文字</td></tr>
+          <tr><td><code>--border-color</code></td><td><code>rgba(255,255,255,0.08)</code></td><td><code>rgba(0,0,0,0.06)</code></td><td>卡片边框/分割</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="footnote">
+    Talos Dashboard 设计系统规范 v3 · 与 <code>DESIGN-SYSTEM.md</code> 同步 · 切换主题查看双主题表现 · 组件可点击体验选中态
+  </div>
+</div>
+
+<script>
+  // 主题切换
+  var themeSwitch = document.getElementById("themeSwitch");
+  themeSwitch.addEventListener("click", function (e) {
+    var btn = e.target.closest("button");
+    if (!btn) return;
+    document.body.setAttribute("data-theme", btn.getAttribute("data-theme"));
+    themeSwitch.querySelectorAll("button").forEach(function (b) { b.classList.toggle("active", b === btn); });
+    // 更新 token 说明文字
+    var dark = btn.getAttribute("data-theme") === "dark";
+    var th = document.querySelectorAll("[data-sw]");
+    th.forEach(function (el) {
+      if (el.getAttribute("data-sw") === "textBrandHex") el.textContent = dark ? "暗色 #c8e060" : "浅色 #1a1a1f";
+      if (el.getAttribute("data-sw") === "bgHex") el.textContent = dark ? "暗色 #0f0f13" : "浅色 #f5f5f0";
+    });
+  });
+
+  // 分组单选（每组互斥）
+  function bindGroup(groupId) {
+    var g = document.getElementById(groupId);
+    g.addEventListener("click", function (e) {
+      var btn = e.target.closest("button");
+      if (!btn) return;
+      g.querySelectorAll("button").forEach(function (b) { b.classList.remove("active"); });
+      btn.classList.add("active");
+    });
+  }
+  bindGroup("navTabs");
+  bindGroup("segGroup");
+  bindGroup("pillGroup");
+
+  // 搜索框 focus 演示：暗色对照里的输入框自动聚焦，展示 Focus 态
+  var fd = document.querySelector(".focus-demo");
+  if (fd) fd.focus();
+</script>
+</body>
+</html>
+<!-- （注：内容由AI生成） -->

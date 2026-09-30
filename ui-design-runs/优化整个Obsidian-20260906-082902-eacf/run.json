@@ -1,0 +1,146 @@
+{
+  "version": 1,
+  "created": "2026-09-06T08:29:02",
+  "query": "优化整个 Obsidian 插件的 UI 样式，参考 CRM Dashboard 设计风格：淡黄绿色主色调、淡紫色辅助色、大圆角卡片、柔和阴影、清晰字阶、胶囊形标签、深浅双模式。插件是三栏布局个人工作台，包含左侧边栏、中间工作看板（统计/焦点任务/甘特图/任务看板）、右侧详情面板（打卡/今日待办/本周学习/任务详情）。",
+  "contract": {
+    "query": "优化整个 Obsidian 插件的 UI 样式，参考 CRM Dashboard 设计风格：淡黄绿色主色调、淡紫色辅助色、大圆角卡片、柔和阴影、清晰字阶、胶囊形标签、深浅双模式。插件是三栏布局个人工作台，包含左侧边栏、中间工作看板（统计/焦点任务/甘特图/任务看板）、右侧详情面板（打卡/今日待办/本周学习/任务详情）。",
+    "artifactClass": "web",
+    "surface": "web-console",
+    "provenance": "explicit",
+    "operation": "revise",
+    "handoff": [
+      "html",
+      "doc"
+    ],
+    "count": {
+      "unit": "模块",
+      "n": null,
+      "mode": "target",
+      "source": "载体默认"
+    },
+    "canvas": {
+      "w": 1440,
+      "h": 900,
+      "source": "载体默认"
+    },
+    "ledger": [
+      {
+        "kind": "必须",
+        "value": "左侧边栏、中间工作看板（统计/焦点任务/甘特图/",
+        "block": false
+      }
+    ],
+    "attachments": [],
+    "skeleton": "console",
+    "title": "优化整个 Obsidian 插件的 UI 样式 · 设计方案",
+    "workdir": "/Users/xiaoshuai/Desktop/talos-dashboard-plugin/ui-design-runs/优化整个Obsidian-20260906-082902-eacf",
+    "deliverables": {
+      "doc": {
+        "proposal": "doc/proposal.xml",
+        "canvases": [
+          "doc/canvas-a.html",
+          "doc/canvas-b.html"
+        ],
+        "cover": "doc/cover.html",
+        "coverImage": "shots/cover.jpg",
+        "required": true,
+        "note": "设计思路、设计想法、设计语言、为什么这么设计；窄栏排版画布，像一份印出来的专题"
+      },
+      "product": {
+        "path": "console/index.html",
+        "profile": "web-console",
+        "required": true,
+        "shape": null,
+        "h5Shape": null,
+        "note": "B 端控制台：表格 + 筛选 + 弹窗 + 空/异常状态，1440 与 1920 两档"
+      }
+    },
+    "assetPlan": [
+      {
+        "role": "hero-bg",
+        "how": "image_gen",
+        "slot": "full-bleed",
+        "why": "首屏满版氛围，文字压在上面"
+      },
+      {
+        "role": "icon-set",
+        "how": "svg",
+        "slot": "inline",
+        "why": "图标必须用 SVG——生图出不了透明底"
+      },
+      {
+        "role": "texture",
+        "how": "css",
+        "slot": "layer",
+        "why": "底纹用 CSS 画，不占素材预算"
+      },
+      {
+        "role": "data-visual",
+        "how": "svg",
+        "slot": "layer",
+        "why": "图表用 SVG 画——生图画不了精确数字"
+      },
+      {
+        "role": "number-plate",
+        "how": "css",
+        "slot": "layer",
+        "why": "巨数字版面用 CSS，字要能选中"
+      },
+      {
+        "role": "material-detail",
+        "how": "image_gen",
+        "slot": "full-bleed",
+        "why": "材质微距通栏"
+      },
+      {
+        "role": "scene-01",
+        "how": "image_gen",
+        "slot": "full-bleed",
+        "why": "使用场景，主体在画面里"
+      }
+    ],
+    "minVisualAssets": 8,
+    "frozen": "2026-09-06T08:29:02",
+    "hash": "7685583f8da83b29"
+  },
+  "style": {
+    "query": "优化整个 Obsidian 插件的 UI 样式，参考 CRM Dashboard 设计风格：淡黄绿色主色调、淡紫色辅助色、大圆角卡片、柔和阴影、清晰字阶、胶囊形标签、深浅双模式。插件是三栏布局个人工作台，包含左侧边栏、中间工作看板（统计/焦点任务/甘特图/任务看板）、右侧详情面板（打卡/今日待办/本周学习/任务详情）。",
+    "signature": {
+      "ground": null,
+      "typeVoice": null,
+      "imageWorld": null,
+      "layoutLogic": null,
+      "colorStrategy": null,
+      "motionVoice": null
+    },
+    "why": {
+      "ground": "平手：light / saturated 各命中 1 个线索 —— 由你按内容定",
+      "typeVoice": "query 没给这一维的信号 —— 由你按内容定",
+      "imageWorld": "query 没给这一维的信号 —— 由你按内容定",
+      "layoutLogic": "query 没给这一维的信号 —— 由你按内容定",
+      "colorStrategy": "query 没给这一维的信号 —— 由你按内容定",
+      "motionVoice": "query 没给这一维的信号 —— 由你按内容定"
+    },
+    "open": [
+      "ground",
+      "typeVoice",
+      "imageWorld",
+      "layoutLogic",
+      "colorStrategy",
+      "motionVoice"
+    ],
+    "divergence": {
+      "vsRecent": [],
+      "min": null,
+      "require": 3
+    }
+  },
+  "receipts": {
+    "shot": [],
+    "observe": [],
+    "check": [],
+    "publish": [],
+    "read": []
+  },
+  "delivery": null
+}

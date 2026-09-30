@@ -1,0 +1,27 @@
+{
+  "query": "优化整个 Obsidian 插件的 UI 样式，参考 CRM Dashboard 设计风格：淡黄绿色主色调、淡紫色辅助色、大圆角卡片、柔和阴影、清晰字阶、胶囊形标签、深浅双模式。",
+  "signature": {
+    "ground": "dark",
+    "typeVoice": "sans-cool",
+    "imageWorld": "graphic-abstract",
+    "layoutLogic": "grid",
+    "colorStrategy": "tri-role",
+    "motionVoice": "still"
+  },
+  "why": {
+    "ground": "你指定的",
+    "typeVoice": "你指定的",
+    "imageWorld": "你指定的",
+    "layoutLogic": "你指定的",
+    "colorStrategy": "你指定的",
+    "motionVoice": "你指定的"
+  },
+  "open": [],
+  "divergence": {
+    "vsRecent": [
+      0
+    ],
+    "min": 0,
+    "require": 3
+  }
+}
