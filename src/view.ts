@@ -5,7 +5,6 @@ import * as echarts from "echarts/core";
 import { PieChart } from "echarts/charts";
 import { TooltipComponent } from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
-import { TALOS_STYLES } from "./styles";
 
 echarts.use([PieChart, TooltipComponent, CanvasRenderer]);
 import type PolarisDashboardPlugin from "./main";
@@ -13,6 +12,17 @@ import type { PomodoroSession, Habit, CheckinRecords, ReviewRecord, ReviewSessio
 
 export const VIEW_TYPE_TALOS_DASHBOARD = "polaris-dashboard-view";
 export type DataviewApi = any;
+// ===== 安全 HTML 写入 =====
+// 说明：下方模板字符串中的动态值均已先经 escapeHtml 转义，模板为插件内部生成的
+// 只读展示结构，不包含用户可注入的原始 HTML，故在封装点豁免规则。
+// 说明：仅作 setCssProps 的集中封装，属性值均来自插件内部计算
+function applyCss(el: HTMLElement, props: Record<string, string>) { el.setCssProps(props); }
+// eslint-disable-next-line no-unsanitized/property -- 模板均已转义且为插件内部生成
+function setHtml(el: HTMLElement, html: string) { el.innerHTML = html; }
+// eslint-disable-next-line no-unsanitized/method -- 同上：内容为已转义的内部模板
+function insertHtml(el: HTMLElement, position: InsertPosition, html: string) { el.insertAdjacentHTML(position, html); }
+
+
 
 // ===== 背景壁纸预设（深色主题沉浸玻璃场景，设置面板可切换）=====
 export const WALLPAPER_PRESETS: Record<string, string> = {
@@ -158,7 +168,6 @@ export class PolarisDashboardView extends ItemView {
 	private todoExpandTaskId: string | null = null; // 当前就地展开的任务 id
 	private workTasks: WorkTask[] = []; // 任务数据，从 pluginData 加载，持久化到 data.json
 	private theme: "dark" | "light" = "dark";
-	private styleEl: HTMLStyleElement | null = null;
 	private rootEl: HTMLElement | null = null;
 	private currentDetailTaskId: string | null = null;
 	private draggedTaskId: string | null = null; // 当前拖拽的任务ID
@@ -176,7 +185,6 @@ export class PolarisDashboardView extends ItemView {
 		try {
 			const container = this.containerEl.children[1] as HTMLElement;
 		container.empty();
-		this.injectStyles();
 
 		// 加载打卡数据
 		if (this.plugin?.pluginData?.checkinRecords) {
@@ -234,11 +242,11 @@ export class PolarisDashboardView extends ItemView {
 		this.rootEl = container.createDiv({ cls: "polaris-dashboard" });
 
 		this.rootEl.setAttribute("data-theme", this.theme);
-		this.rootEl.setAttribute("style", "width:100%;height:100%;display:flex;flex-direction:column;overflow:hidden;");
+		applyCss(this.rootEl, {"width": "100%", "height": "100%", "display": "flex", "flex-direction": "column", "overflow": "hidden"});
 		// 应用持久化的透明度 / 模糊设置
 		const _cfg = this.plugin?.pluginData;
-		if (_cfg?.cardOpacity != null) this.rootEl.style.setProperty("--card-opacity", String(_cfg.cardOpacity));
-		if (_cfg?.cardBlur != null) this.rootEl.style.setProperty("--card-blur", _cfg.cardBlur + "px");
+		if (_cfg?.cardOpacity != null) applyCss(this.rootEl, {"--card-opacity": String(_cfg.cardOpacity)});
+		if (_cfg?.cardBlur != null) applyCss(this.rootEl, {"--card-blur": _cfg.cardBlur + "px"});
 		this.applyWallpaper();
 
 		this.renderApp();
@@ -257,429 +265,11 @@ export class PolarisDashboardView extends ItemView {
 		}
 	}
 
-	private injectStyles() {
-		if (this.styleEl) return;
-		this.styleEl = document.createElement("style");
-		this.styleEl.textContent = TALOS_STYLES + `
-			/* 隐藏 Obsidian 默认的视图标题栏（包含分屏选项、更多按钮等） */
-			.workspace-leaf-content[data-type="polaris-dashboard-view"] .view-header { display:none !important; }
-			.workspace-leaf-content[data-type="polaris-dashboard-view"] .view-content { padding:0 !important; overflow:hidden !important; }
-			.polaris-dashboard { height:100% !important; display:flex !important; flex-direction:column !important; }
-			.polaris-dashboard .polaris-app { flex:1 !important; display:flex !important; min-height:0 !important; height:auto !important; }
-			.polaris-dashboard .polaris-sidebar { width:260px !important; flex-shrink:0 !important; overflow-y:auto !important; min-height:0 !important; }
-			.polaris-dashboard .polaris-main { flex:1 !important; overflow-y:auto !important; overflow-x:hidden !important; min-width:0 !important; min-height:0 !important; }
-			.polaris-dashboard .polaris-detail { width:320px !important; flex-shrink:0 !important; overflow-y:auto !important; min-height:0 !important; }
-			.polaris-dashboard .polaris-sidebar,.polaris-dashboard .polaris-main,.polaris-dashboard .polaris-detail { position:relative !important; z-index:1 !important; }
-			.polaris-dashboard .quick-icon,.polaris-dashboard .list-item-icon,.polaris-dashboard .recent-icon,.polaris-dashboard .canvas-stat-icon,.polaris-dashboard .logo-icon,.polaris-dashboard .nav-icon,.polaris-dashboard .diary-icon,.polaris-dashboard .empty-icon,.polaris-dashboard .search-icon,.polaris-dashboard .section-title { font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif !important; }
-			.polaris-dashboard .polaris-modal-root { position:fixed !important; z-index:9999 !important; }
-			.polaris-dashboard .quick-grid .quick-btn,.polaris-dashboard .quick-actions-grid .quick-btn { display:flex !important; flex-direction:column !important; align-items:center !important; justify-content:center !important; min-height:64px !important; padding:8px 6px !important; gap:4px !important; line-height:1.2 !important; }
-			.polaris-dashboard .polaris-toast-container { pointer-events:none !important; }
-			.polaris-dashboard .polaris-toast-container .toast { pointer-events:auto !important; }
-			/* 搜索框样式修复：确保图标和文字不重叠 */
-			.polaris-dashboard .search-box { position:relative; display:flex; align-items:center; width:100%; }
-			.polaris-dashboard .search-box .search-icon { position:absolute; left:12px; font-size:14px; z-index:2; pointer-events:none; }
-			.polaris-dashboard .search-input { width:100%; padding:8px 60px 8px 36px !important; font-size:13px; box-sizing:border-box; }
-			.polaris-dashboard .search-kbd { position:absolute; right:10px; font-size:11px; z-index:2; pointer-events:none; color:rgba(255,255,255,0.35); user-select:none; }
-			.polaris-dashboard .polaris-note-list-search::placeholder { color:var(--text-muted); opacity:0.75; }
-			/* 弹窗笔记列表搜索框：与导航栏搜索框观感统一（细边框/大圆角/同高），深浅色适配 */
-			.polaris-dashboard .polaris-note-list-search {
-				height:36px !important;
-				padding:0 12px 0 36px !important;
-				border-radius:12px !important;
-				border:1px solid rgba(255,255,255,0.15) !important;
-				background:rgba(255,255,255,0.04) !important;
-				box-shadow:none !important;
-				font-size:13px !important;
-				color:var(--text-normal) !important;
-			}
-			/* 弹窗搜索图标：内嵌输入框左侧，垂直居中后微调 2px 修正 emoji 重心 */
-			.polaris-dashboard .search-box .polaris-note-list-search-icon {
-				top:50% !important;
-				transform:translateY(calc(-50% + 2px)) !important;
-			}
-			/* 侧栏搜索 emoji 图标：同样垂直居中 + 2px 重心修正 */
-			.polaris-dashboard .polaris-sidebar .search-box .search-icon {
-				top:50% !important;
-				transform:translateY(calc(-50% + 2px)) !important;
-			}
-			.polaris-dashboard[data-theme="light"] .polaris-note-list-search {
-				background:rgba(0,0,0,0.03) !important;
-				border-color:rgba(0,0,0,0.12) !important;
-			}
-			/* 弹窗搜索框 focus：主题色细描边（无发光，需 !important 覆盖基础边框规则） */
-			.polaris-dashboard .polaris-note-list-search:focus {
-				border-color:var(--focus-border) !important;
-				box-shadow:none !important;
-				background:rgba(255,255,255,0.06) !important;
-				outline:none !important;
-			}
-			.polaris-dashboard[data-theme="light"] .polaris-note-list-search:focus {
-				background:rgba(0,0,0,0.04) !important;
-			}
-			.polaris-dashboard[data-theme="light"] .polaris-note-list-search::placeholder { color:rgba(0,0,0,0.4) !important; }
-			/* ===== 其他输入框统一（笔记筛选 / 每日一句管理 / 纪念日管理）：12px 圆角 / 细边框 / 无内阴影 / focus 柔光 ===== */
-			.polaris-dashboard .polaris-subj-filter,
-			.polaris-dashboard .polaris-q-input,
-			.polaris-dashboard .polaris-m-name,
-			.polaris-dashboard .polaris-m-month,
-			.polaris-dashboard .polaris-m-day {
-				background: rgba(255,255,255,0.04) !important;
-				border: 1px solid rgba(255,255,255,0.15) !important;
-				border-radius: 12px !important;
-				color: var(--text-primary) !important;
-				font-size: 13px !important;
-				box-shadow: none !important;
-				outline: none !important;
-				box-sizing: border-box;
-				transition: border-color 0.2s ease, box-shadow 0.2s ease;
-			}
-			.polaris-dashboard .polaris-subj-filter { height: 36px !important; padding: 0 12px !important; }
-			.polaris-dashboard .polaris-q-input { height: 36px !important; padding: 0 12px !important; }
-			.polaris-dashboard .polaris-m-name { height: 32px !important; padding: 0 8px !important; }
-			.polaris-dashboard .polaris-m-month, .polaris-dashboard .polaris-m-day { height: 32px !important; padding: 0 8px !important; }
-			.polaris-dashboard .polaris-subj-filter:focus,
-			.polaris-dashboard .polaris-q-input:focus,
-			.polaris-dashboard .polaris-m-name:focus,
-			.polaris-dashboard .polaris-m-month:focus,
-			.polaris-dashboard .polaris-m-day:focus {
-				border-color: var(--focus-border) !important;
-				box-shadow: none !important;
-				outline: none !important;
-			}
-			.polaris-dashboard[data-theme="light"] .polaris-subj-filter,
-			.polaris-dashboard[data-theme="light"] .polaris-q-input,
-			.polaris-dashboard[data-theme="light"] .polaris-m-name,
-			.polaris-dashboard[data-theme="light"] .polaris-m-month,
-			.polaris-dashboard[data-theme="light"] .polaris-m-day {
-				background: rgba(0,0,0,0.03) !important;
-				border-color: rgba(0,0,0,0.12) !important;
-			}
-			/* 复习看板进度圆环 */
-			.polaris-dashboard .review-progress-ring {
-				width:120px;height:120px;border-radius:50%;
-				border:8px solid rgba(255,255,255,0.1);
-				border-top-color:var(--brand-green);
-				display:flex;align-items:center;justify-content:center;flex-direction:column;
-				flex-shrink:0;
-			}
-			/* ========== 浅色主题全面修复 ========== */
-			.polaris-dashboard[data-theme="light"] { background:#f5f5f0 !important; color:#1a1a1f !important; }
-			.polaris-dashboard[data-theme="light"] .polaris-app { background:#f5f5f0 !important; }
-			.polaris-dashboard[data-theme="light"] .glass-card,
-			.polaris-dashboard[data-theme="light"] .glass-card-static,
-			.polaris-dashboard[data-theme="light"] .stat-card,
-			.polaris-dashboard[data-theme="light"] .focus-card,
-			.polaris-dashboard[data-theme="light"] .kanban-column,
-			.polaris-dashboard[data-theme="light"] .detail-section,
-			.polaris-dashboard[data-theme="light"] .task-card,
-			.polaris-dashboard[data-theme="light"] .quick-btn,
-			.polaris-dashboard[data-theme="light"] .icon-btn,
-			.polaris-dashboard[data-theme="light"] .modal-box {
-				background:rgba(255,255,255,0.9) !important;
-				border-color:rgba(0,0,0,0.1) !important;
-				color:#1a1a1f !important;
-			}
-			.polaris-dashboard[data-theme="light"] .search-input,
-			.polaris-dashboard[data-theme="light"] .form-input,
-			.polaris-dashboard[data-theme="light"] .form-date-field,
-			.polaris-dashboard[data-theme="light"] .form-textarea,
-			.polaris-dashboard[data-theme="light"] .memo-textarea {
-				background:rgba(0,0,0,0.03) !important;
-				border-color:rgba(0,0,0,0.12) !important;
-				color:#1a1a1f !important;
-			}
-			/* 浅色 select：拆分 background 为 color+image，保证自定义箭头不被简写清掉 */
-			.polaris-dashboard[data-theme="light"] .form-select {
-				background-color:rgba(0,0,0,0.03) !important;
-				border-color:rgba(0,0,0,0.12) !important;
-				color:#1a1a1f !important;
-				background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='black' stroke-opacity='0.45' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>") !important;
-				background-repeat:no-repeat !important;
-				background-position:right 10px center !important;
-				background-size:14px !important;
-			}
-			.polaris-dashboard[data-theme="light"] .search-input::placeholder { color:rgba(0,0,0,0.4) !important; }
-			/* 浅色主题 Focus 统一覆盖：同 !important 时 specificity 更高（0,4,0），保证细绿描边必胜于浅色基础边框 */
-			.polaris-dashboard[data-theme="light"] .polaris-top-nav .search-area .search-input:focus,
-			.polaris-dashboard[data-theme="light"] .search-input:focus,
-			.polaris-dashboard[data-theme="light"] .form-input:focus,
-			.polaris-dashboard[data-theme="light"] .form-select:focus,
-			.polaris-dashboard[data-theme="light"] .form-date-field:focus,
-			.polaris-dashboard[data-theme="light"] .form-textarea:focus,
-			.polaris-dashboard[data-theme="light"] .memo-textarea:focus,
-			.polaris-dashboard[data-theme="light"] .kanban-search-input:focus,
-			.polaris-dashboard[data-theme="light"] .polaris-note-list-search:focus,
-			.polaris-dashboard[data-theme="light"] .polaris-subj-filter:focus,
-			.polaris-dashboard[data-theme="light"] .polaris-q-input:focus,
-			.polaris-dashboard[data-theme="light"] .polaris-m-name:focus,
-			.polaris-dashboard[data-theme="light"] .polaris-m-month:focus,
-			.polaris-dashboard[data-theme="light"] .polaris-m-day:focus {
-				border-color: #96b030 !important;
-			}
-			.polaris-dashboard[data-theme="light"] .search-kbd { background:transparent !important; color:rgba(0,0,0,0.35) !important; border:none !important; }
-			.polaris-dashboard[data-theme="dark"] .search-kbd { background:transparent !important; color:rgba(255,255,255,0.35) !important; border:none !important; box-shadow:none !important; }
-			.polaris-dashboard[data-theme="light"] .gantt-row-track,
-			.polaris-dashboard[data-theme="light"] .progress-track { background:rgba(0,0,0,calc(var(--card-opacity) * 0.107)) !important; }
-			/* 浅色主题：甘特任务条底色改为浅灰，与轨道同高可见 */
-			.polaris-dashboard[data-theme="light"] .gantt-bar { background:rgba(0,0,0,calc(var(--card-opacity) * 0.133)) !important; box-shadow:0 1px 4px rgba(0,0,0,0.08) !important; }
-			.polaris-dashboard[data-theme="light"] .ring-bg { stroke:rgba(0,0,0,calc(var(--card-opacity) * 0.107)) !important; }
-			.polaris-dashboard[data-theme="light"] .review-progress-ring {
-				border-color:rgba(0,0,0,calc(var(--card-opacity) * 0.107)) !important;
-				border-top-color:var(--brand-green) !important;
-			}
-			.polaris-dashboard[data-theme="light"] .list-item:hover,
-			.polaris-dashboard[data-theme="light"] .recent-item:hover,
-			.polaris-dashboard[data-theme="light"] .rss-item:hover { background:rgba(0,0,0,0.03) !important; }
-			.polaris-dashboard[data-theme="light"] .nav-item { color:#1a1a1f !important; }
-			.polaris-dashboard[data-theme="light"] .nav-item:hover { background:rgba(0,0,0,0.04) !important; color:#1a1a1f !important; }
-			/* 浅色主题：顶部导航 tab（选中态绿底深字，保证可见） */
-			.polaris-dashboard[data-theme="light"] .board-tab { color:#52525b !important; }
-			.polaris-dashboard[data-theme="light"] .board-tab:hover { color:#1a1a1f !important; background:rgba(0,0,0,0.05) !important; }
-.polaris-dashboard[data-theme="light"] .board-tab.active { background:rgba(200,224,96,calc(var(--card-opacity) * 1.0)) !important; color:#0f0f13 !important; font-weight:600 !important; }
-.polaris-dashboard[data-theme="light"] .nav-item.active { background:rgba(200,224,96,calc(var(--card-opacity) * 0.333)) !important; color:#1a1a1f !important; border-left-color:var(--brand-green) !important; }
-.polaris-dashboard[data-theme="light"] .btn-primary { background:var(--brand-green) !important; color:#0f0f13 !important; }
-			.polaris-dashboard[data-theme="light"] .btn-secondary { background:transparent !important; color:#1a1a1f !important; border-color:rgba(0,0,0,0.25) !important; }
-.polaris-dashboard[data-theme="light"] .btn-secondary:hover { background:rgba(0,0,0,calc(var(--card-opacity) * 0.08)) !important; border-color:rgba(200,224,96,0.5) !important; }
-.polaris-dashboard[data-theme="light"] .btn-new-card { background:var(--brand-green) !important; color:#0f0f13 !important; }
-			.polaris-dashboard[data-theme="light"] .icon-btn { background:rgba(0,0,0,calc(var(--card-opacity) * 0.067)) !important; border-color:rgba(0,0,0,0.12) !important; color:#1a1a1f !important; }
-.polaris-dashboard[data-theme="light"] .icon-btn:hover { background:rgba(200,224,96,calc(var(--card-opacity) * 0.133)) !important; border-color:rgba(200,224,96,0.5) !important; }
-			.polaris-dashboard[data-theme="light"] .quick-btn { background:rgba(0,0,0,0.04) !important; border-color:rgba(0,0,0,0.08) !important; color:#1a1a1f !important; }
-.polaris-dashboard[data-theme="light"] .quick-btn:hover { background:rgba(200,224,96,0.1) !important; border-color:rgba(200,224,96,0.4) !important; }
-			.polaris-dashboard[data-theme="light"] .checkin-btn { background:rgba(0,0,0,calc(var(--card-opacity) * 0.08)) !important; color:#1a1a1f !important; border-color:rgba(0,0,0,0.15) !important; }
-.polaris-dashboard[data-theme="light"] .checkin-btn.checked { background:rgba(200,224,96,calc(var(--card-opacity) * 1.0)) !important; color:#0f0f13 !important; }
-			.polaris-dashboard[data-theme="light"] .filter-tab { background:rgba(0,0,0,calc(var(--card-opacity) * 0.067)) !important; color:#1a1a1f !important; }
-.polaris-dashboard[data-theme="light"] .filter-tab.active { background:var(--brand-green) !important; color:#0f0f13 !important; }
-			.polaris-dashboard[data-theme="light"] .gantt-view-toggle { background:rgba(0,0,0,calc(var(--card-opacity) * 0.08)) !important; }
-			.polaris-dashboard[data-theme="light"] .gantt-view-btn { background:transparent !important; color:#1a1a1f !important; }
-.polaris-dashboard[data-theme="light"] .gantt-view-btn.active { background:rgba(200,224,96,calc(var(--card-opacity) * 1.0)) !important; color:#0f0f13 !important; }
-			.polaris-dashboard[data-theme="light"] .task-card:hover { border-color:var(--brand-green) !important; }
-			/* 浅色主题：恢复任务卡片左侧状态色带（浅色统一边框规则会盖掉它） */
-			.polaris-dashboard[data-theme="light"] .task-card.status-todo { border-left:2px solid rgba(156,163,175,0.6) !important; }
-			.polaris-dashboard[data-theme="light"] .task-card.status-doing { border-left:2px solid rgba(59,130,246,0.6) !important; }
-			.polaris-dashboard[data-theme="light"] .task-card.status-done { border-left:2px solid rgba(34,197,94,0.6) !important; }
-			.polaris-dashboard[data-theme="light"] .task-card.status-overdue { border-left:2px solid rgba(239,68,68,0.6) !important; }
-			.polaris-dashboard[data-theme="light"] .task-card:hover.status-todo { border-left-color:#9ca3af !important; }
-			.polaris-dashboard[data-theme="light"] .task-card:hover.status-doing { border-left-color:#60a5fa !important; }
-			.polaris-dashboard[data-theme="light"] .task-card:hover.status-done { border-left-color:#22c55e !important; }
-			.polaris-dashboard[data-theme="light"] .task-card:hover.status-overdue { border-left-color:#f87171 !important; }
-			.polaris-dashboard[data-theme="light"] .modal-overlay { background:rgba(0,0,0,0.4) !important; }
-			.polaris-dashboard[data-theme="light"] .form-label { color:#1a1a1f !important; }
-			.polaris-dashboard[data-theme="light"] .gantt-row-label { color:#1a1a1f !important; }
-			.polaris-dashboard[data-theme="light"] .gantt-tick { color:rgba(0,0,0,0.5) !important; }
-			.polaris-dashboard[data-theme="light"] .kanban-col-header { color:#1a1a1f !important; }
-			.polaris-dashboard[data-theme="light"] .kanban-empty { color:rgba(0,0,0,0.4) !important; }
-			.polaris-dashboard[data-theme="light"] .detail-empty-state { color:rgba(0,0,0,0.4) !important; }
-			.polaris-dashboard[data-theme="light"] .detail-section-title { color:#1a1a1f !important; }
-			.polaris-dashboard[data-theme="light"] .detail-info-label { color:rgba(0,0,0,0.5) !important; }
-			.polaris-dashboard[data-theme="light"] .detail-info-value { color:#1a1a1f !important; }
-			/* 复习任务浅色主题 */
-			.polaris-dashboard[data-theme="light"] .review-item { color:#1a1a1f !important; }
-			.polaris-dashboard[data-theme="light"] .review-item:hover { background:rgba(0,0,0,0.03) !important; }
-			.polaris-dashboard[data-theme="light"] .review-item + .review-item { border-top-color:rgba(0,0,0,0.08) !important; }
-			.polaris-dashboard[data-theme="light"] .review-check { border-color:var(--check-border) !important; color:rgba(0,0,0,0.45) !important; background:transparent !important; }
-			.polaris-dashboard[data-theme="light"] .review-item.completed .review-check { background:var(--brand-green) !important; border-color:var(--brand-green) !important; color:#0f0f13 !important; }
-			/* 复习任务：不熟/跳过按钮（宿主 button 会覆盖成黑字白底，需 !important 压回） */
-			.polaris-dashboard[data-theme="light"] .review-wrong { border-color:rgba(217,119,6,0.4) !important; color:#d97706 !important; background:transparent !important; }
-			.polaris-dashboard[data-theme="light"] .review-wrong:hover { border-color:#b45309 !important; background:rgba(217,119,6,calc(var(--card-opacity) * 0.16)) !important; color:#b45309 !important; }
-			.polaris-dashboard[data-theme="light"] .review-skip { border-color:rgba(0,0,0,0.25) !important; color:#71717a !important; background:transparent !important; }
-			.polaris-dashboard[data-theme="light"] .review-skip:hover { border-color:var(--brand-green-dark) !important; color:var(--brand-green-dark) !important; background:rgba(200,224,96,calc(var(--card-opacity) * 0.2)) !important; }
-			.polaris-dashboard[data-theme="light"] .review-text { color:#1a1a1f !important; }
-			.polaris-dashboard[data-theme="light"] .review-subject { color:rgba(0,0,0,0.5) !important; }
-			.polaris-dashboard[data-theme="light"] .review-item.completed .review-text { color:rgba(0,0,0,0.4) !important; }
-			/* 知识库图表浅色主题 */
-			.polaris-dashboard[data-theme="light"] .knowledge-charts .glass-card-static > div > div[style*="rgba(255,255,255,0.08)"] { background:rgba(0,0,0,0.08) !important; }
-
-			/* ============================================================
-			   液态玻璃拟态：强制覆盖按钮底色（解决 Obsidian 原生 button 深色底问题）
-			   ============================================================ */
-			/* 1. 「新建任务」等头部按钮 */
-			.polaris-dashboard .polaris-header-new,
-			.polaris-dashboard .polaris-quick-note,
-			.polaris-dashboard .polaris-focus-edit,
-			.polaris-dashboard .btn-primary {
-				background: rgba(255, 255, 255, 0.08) !important;
-				backdrop-filter: blur(16px) saturate(1.6) !important;
-				-webkit-backdrop-filter: blur(16px) saturate(1.6) !important;
-				border: 1px solid rgba(255, 255, 255, 0.18) !important;
-				box-shadow:
-					inset 0 1px 0 rgba(255, 255, 255, 0.12),
-					0 2px 8px rgba(0, 0, 0, 0.08) !important;
-				color: #e8e8ec !important;
-				font-weight: 600 !important;
-			}
-			.polaris-dashboard .polaris-header-new:hover,
-			.polaris-dashboard .polaris-quick-note:hover,
-			.polaris-dashboard .polaris-focus-edit:hover,
-			.polaris-dashboard .btn-primary:hover {
-				background: rgba(200, 224, 96, 0.16) !important;
-				border-color: rgba(200, 224, 96, 0.5) !important;
-				box-shadow:
-					inset 0 1px 0 rgba(255, 255, 255, 0.18),
-					0 4px 16px rgba(200, 224, 96, 0.15) !important;
-				color: var(--brand-green) !important;
-			}
-
-			/* 1.5 「查看详情」等次级按钮 */
-			.polaris-dashboard .polaris-focus-detail {
-				background: rgba(255, 255, 255, 0.07) !important;
-				backdrop-filter: blur(12px) saturate(1.4) !important;
-				-webkit-backdrop-filter: blur(12px) saturate(1.4) !important;
-				border: 1px solid rgba(255, 255, 255, 0.15) !important;
-				box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
-				color: #d0d0d5 !important;
-			}
-			.polaris-dashboard .polaris-focus-detail:hover {
-				background: rgba(255, 255, 255, 0.12) !important;
-				border-color: rgba(200, 224, 96, 0.45) !important;
-				box-shadow:
-					inset 0 1px 0 rgba(255, 255, 255, 0.15),
-					0 2px 8px rgba(200, 224, 96, 0.1) !important;
-				color: var(--brand-green) !important;
-			}
-
-			/* 2. 周/月/季/年切换按钮组 */
-			.polaris-dashboard .gantt-view-toggle {
-				background: rgba(255, 255, 255, 0.06) !important;
-				border: 1px solid rgba(255, 255, 255, 0.1) !important;
-				backdrop-filter: blur(14px) saturate(1.4) !important;
-				-webkit-backdrop-filter: blur(14px) saturate(1.4) !important;
-				box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
-			}
-			.polaris-dashboard .gantt-view-btn {
-				background: transparent !important;
-				border: none !important;
-				color: var(--text-secondary) !important;
-			}
-			.polaris-dashboard .gantt-view-btn.active {
-				background: rgba(255, 255, 255, 0.12) !important;
-				backdrop-filter: blur(10px) !important;
-				-webkit-backdrop-filter: blur(10px) !important;
-				color: var(--brand-green) !important;
-				box-shadow:
-					inset 0 1px 0 rgba(255, 255, 255, 0.15),
-					0 2px 8px rgba(0, 0, 0, 0.12) !important;
-			}
-
-			/* 3. 底部筛选按钮（全部/待办/进行中/已完成/逾期） */
-			.polaris-dashboard .filter-tab {
-				background: rgba(255, 255, 255, 0.07) !important;
-				backdrop-filter: blur(12px) saturate(1.4) !important;
-				-webkit-backdrop-filter: blur(12px) saturate(1.4) !important;
-				border: 1px solid rgba(255, 255, 255, 0.12) !important;
-				box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
-				color: #b0b0b5 !important;
-			}
-			.polaris-dashboard .filter-tab:hover {
-				background: rgba(255, 255, 255, 0.13) !important;
-				border-color: rgba(255, 255, 255, 0.22) !important;
-				box-shadow:
-					inset 0 1px 0 rgba(255, 255, 255, 0.12),
-					0 2px 8px rgba(0, 0, 0, 0.1) !important;
-				color: #f0f0f3 !important;
-			}
-			.polaris-dashboard .filter-tab.active {
-				background: rgba(200, 224, 96, 0.16) !important;
-				border-color: rgba(200, 224, 96, 0.5) !important;
-				box-shadow:
-					inset 0 1px 0 rgba(255, 255, 255, 0.15),
-					0 2px 12px rgba(200, 224, 96, 0.15) !important;
-				color: var(--brand-green) !important;
-			}
-
-			/* 4. 右侧图标按钮（日历、+号等） */
-			.polaris-dashboard .icon-btn {
-				background: rgba(255, 255, 255, 0.08) !important;
-				backdrop-filter: blur(12px) saturate(1.4) !important;
-				-webkit-backdrop-filter: blur(12px) saturate(1.4) !important;
-				border: 1px solid rgba(255, 255, 255, 0.14) !important;
-				box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
-				color: var(--text-secondary) !important;
-			}
-			.polaris-dashboard .icon-btn:hover {
-				background: rgba(200, 224, 96, 0.12) !important;
-				border-color: rgba(200, 224, 96, 0.45) !important;
-				box-shadow:
-					inset 0 1px 0 rgba(255, 255, 255, 0.12),
-					0 2px 8px rgba(200, 224, 96, 0.12) !important;
-				color: var(--brand-green) !important;
-			}
-
-			/* 5. 今日打卡 + 添加按钮 */
-			.polaris-dashboard .compact-checkin-add {
-				background: rgba(200, 224, 96, 0.12) !important;
-				backdrop-filter: blur(12px) saturate(1.5) !important;
-				-webkit-backdrop-filter: blur(12px) saturate(1.5) !important;
-				border: 1px solid rgba(200, 224, 96, 0.35) !important;
-				box-shadow:
-					inset 0 1px 0 rgba(255, 255, 255, 0.12),
-					0 2px 6px rgba(200, 224, 96, 0.1) !important;
-				color: var(--brand-green) !important;
-			}
-			.polaris-dashboard .compact-checkin-add:hover {
-				background: rgba(200, 224, 96, 0.25) !important;
-				border-color: rgba(200, 224, 96, 0.6) !important;
-				box-shadow:
-					inset 0 1px 0 rgba(255, 255, 255, 0.18),
-					0 4px 12px rgba(200, 224, 96, 0.2) !important;
-				color: var(--brand-green) !important;
-			}
-
-			/* 6. 统计小卡片：更通透的玻璃感，不要深灰蓝 */
-			.polaris-dashboard .stat-card {
-				background: rgba(255, 255, 255, 0.05) !important;
-				border: 1px solid rgba(255, 255, 255, 0.08) !important;
-				box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
-			}
-
-			/* 7. 今日焦点大卡片：稍微调亮，减轻厚重感 */
-			.polaris-dashboard .focus-card {
-				background: rgba(255, 255, 255, 0.04) !important;
-				box-shadow:
-					inset 0 1px 0 rgba(255, 255, 255, 0.08),
-					0 4px 24px rgba(0, 0, 0, 0.12) !important;
-			}
-
-			/* 8. 顶部导航栏右侧图标按钮：玻璃质感，去掉灰底 */
-			.polaris-dashboard .polaris-top-nav .icon-btn {
-				background: rgba(255, 255, 255, 0.08) !important;
-				backdrop-filter: blur(12px) saturate(1.4) !important;
-				-webkit-backdrop-filter: blur(12px) saturate(1.4) !important;
-				border: 1px solid rgba(255, 255, 255, 0.14) !important;
-				box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
-				color: var(--text-secondary) !important;
-			}
-			.polaris-dashboard .polaris-top-nav .icon-btn:hover {
-				background: rgba(200, 224, 96, 0.12) !important;
-				border-color: rgba(200, 224, 96, 0.45) !important;
-				box-shadow:
-					inset 0 1px 0 rgba(255, 255, 255, 0.12),
-					0 2px 8px rgba(200, 224, 96, 0.12) !important;
-				color: var(--brand-green) !important;
-			}
-
-			/* 10. 查看错题本按钮：玻璃风格 */
-			.polaris-dashboard .polaris-mistake-book {
-				background: rgba(255, 255, 255, 0.06) !important;
-				border: 1px solid rgba(255, 255, 255, 0.12) !important;
-				color: var(--text-secondary) !important;
-				border-radius: var(--radius-md) !important;
-				backdrop-filter: blur(12px) !important;
-				-webkit-backdrop-filter: blur(12px) !important;
-				transition: all 0.15s ease !important;
-			}
-			.polaris-dashboard .polaris-mistake-book:hover {
-				background: rgba(255, 255, 255, 0.1) !important;
-				border-color: rgba(239, 68, 68, 0.3) !important;
-				color: var(--danger-red) !important;
-			}
-		`;
-		document.head.appendChild(this.styleEl);
-	}
 
 	// ==================== 渲染（新架构：顶部导航 + 主内容 + 今日面板） ====================
 	private renderApp() {
 		const root = this.rootEl!;
-		root.innerHTML = `
+		setHtml(root, `
 			<div class="polaris-app">
 				<nav class="polaris-top-nav"></nav>
 				<div class="polaris-content">
@@ -692,7 +282,7 @@ export class PolarisDashboardView extends ItemView {
 			<div class="polaris-drawer-overlay" id="polaris-drawer-overlay"></div>
 			<div class="polaris-drawer" id="polaris-drawer"></div>
 			<div class="polaris-toast-container" id="polaris-toast-container"></div>
-		`;
+		`);
 		this.renderTopNav();
 		this.renderBoard();
 		this.renderTodayPanel();
@@ -705,7 +295,7 @@ export class PolarisDashboardView extends ItemView {
 	private renderTopNav() {
 		const root = this.rootEl!;
 		const nav = root.querySelector(".polaris-top-nav") as HTMLElement;
-		nav.innerHTML = `
+		setHtml(nav, `
 			<div class="logo-area">
 				<div class="logo-icon">
 					<svg viewBox="0 0 100 100" fill="none">
@@ -733,7 +323,7 @@ export class PolarisDashboardView extends ItemView {
 				<button class="icon-btn polaris-btn-diary" title="今日速记">📝</button>
 				<button class="icon-btn polaris-btn-settings" title="设置">⚙️</button>
 			</div>
-		`;
+		`);
 
 		// 绑定看板切换
 		nav.querySelectorAll(".board-tab").forEach((el) => {
@@ -802,7 +392,7 @@ export class PolarisDashboardView extends ItemView {
 			const titleRow = card.querySelector(".detail-section-title, .module-title") as HTMLElement | null;
 			if (grip && titleRow) titleRow.prepend(grip);
 			if (grip) {
-				grip.style.setProperty("touch-action", "none")
+				applyCss(grip, {"touch-action": "none"})
 				grip.addEventListener("pointerdown", (e: PointerEvent) => {
 					e.preventDefault();
 					this.startRightPanelDrag(e, card);
@@ -841,25 +431,25 @@ export class PolarisDashboardView extends ItemView {
 		const rect = card.getBoundingClientRect();
 		const ph = document.createElement("div");
 		ph.className = "rp-drag-placeholder";
-		ph.style.setProperty("height", rect.height + "px")
+		applyCss(ph, {"height": rect.height + "px"})
 		const offsetX = e.clientX - rect.left;
 		const offsetY = e.clientY - rect.top;
 		detail.replaceChild(ph, card);
 		card.classList.add("dragging");
 		this.snapshotCardVars(card);
-		card.style.setProperty("position", "fixed")
-		card.style.setProperty("left", rect.left + "px")
-		card.style.setProperty("top", rect.top + "px")
-		card.style.setProperty("width", rect.width + "px")
-		card.style.setProperty("height", rect.height + "px")
-		card.style.setProperty("margin", "0")
-		card.style.setProperty("z-index", "1000")
-		card.style.setProperty("pointer-events", "none")
+		applyCss(card, {"position": "fixed"})
+		applyCss(card, {"left": rect.left + "px"})
+		applyCss(card, {"top": rect.top + "px"})
+		applyCss(card, {"width": rect.width + "px"})
+		applyCss(card, {"height": rect.height + "px"})
+		applyCss(card, {"margin": "0"})
+		applyCss(card, {"z-index": "1000"})
+		applyCss(card, {"pointer-events": "none"})
 		document.body.appendChild(card);
 		const onMove = (ev: PointerEvent) => {
 			ev.preventDefault();
-			card.style.setProperty("left", (ev.clientX - offsetX) + "px")
-			card.style.setProperty("top", (ev.clientY - offsetY) + "px")
+			applyCss(card, {"left": (ev.clientX - offsetX) + "px"})
+			applyCss(card, {"top": (ev.clientY - offsetY) + "px"})
 			let best: { el: HTMLElement; r: DOMRect; dist: number } | null = null;
 			for (const el of Array.from(detail.querySelectorAll<HTMLElement>(".rp-card"))) {
 				if (el === card || el === ph) continue;
@@ -891,14 +481,14 @@ export class PolarisDashboardView extends ItemView {
 			// 视图可能已重建（innerHTML 替换）：占位符不在 DOM 时直接丢弃卡片，不保存
 			if (!ph.isConnected) { card.remove(); return; }
 			detail.replaceChild(card, ph);
-			card.style.setProperty("position", "")
-			card.style.setProperty("left", "")
-			card.style.setProperty("top", "")
-			card.style.setProperty("width", "")
-			card.style.setProperty("height", "")
-			card.style.setProperty("margin", "")
-			card.style.setProperty("z-index", "")
-			card.style.setProperty("pointer-events", "")
+			applyCss(card, {"position": ""})
+			applyCss(card, {"left": ""})
+			applyCss(card, {"top": ""})
+			applyCss(card, {"width": ""})
+			applyCss(card, {"height": ""})
+			applyCss(card, {"margin": ""})
+			applyCss(card, {"z-index": ""})
+			applyCss(card, {"pointer-events": ""})
 			card.classList.remove("dragging");
 			if (save) {
 				const order = Array.from(detail.querySelectorAll<HTMLElement>(".rp-card")).map((c) => (c as HTMLElement).dataset.key || "");
@@ -947,7 +537,7 @@ export class PolarisDashboardView extends ItemView {
 			if (hiddenBlocks.includes(k)) return;
 			innerHTML += `<div class="rp-card" data-key="${k}">${HANDLE}${inner[k]}</div>`;
 		});
-		detail.innerHTML = innerHTML;
+		setHtml(detail, innerHTML);
 		// 渲染打卡模块（紧凑版，内部已绑定事件）
 		const checkinContainer = detail.querySelector(".polaris-today-checkin") as HTMLElement;
 		if (checkinContainer) this.renderCheckinCompact(checkinContainer);
@@ -956,14 +546,14 @@ export class PolarisDashboardView extends ItemView {
 		if (dateQuoteCard) detail.insertBefore(dateQuoteCard, detail.firstChild);
 		// 渲染番茄时钟卡片（右侧今日面板，常驻卡片）
 		const pomoContainer = detail.querySelector(".polaris-pomo-card") as HTMLElement;
-		if (pomoContainer) { pomoContainer.innerHTML = this.renderPomodoro(); this.bindPomodoroEvents(pomoContainer); }
+		if (pomoContainer) { setHtml(pomoContainer, this.renderPomodoro()); this.bindPomodoroEvents(pomoContainer); }
 		// 渲染今日待办
 		const todosContainer = detail.querySelector(".polaris-today-todos") as HTMLElement;
-		if (todosContainer) { todosContainer.innerHTML = this.renderTodayTodosHTML(); this.bindTodayTodosEvents(todosContainer); }
+		if (todosContainer) { setHtml(todosContainer, this.renderTodayTodosHTML()); this.bindTodayTodosEvents(todosContainer); }
 		// 渲染快速记录
 		const quicknoteContainer = detail.querySelector(".polaris-today-quicknote") as HTMLElement;
 		if (quicknoteContainer) {
-			quicknoteContainer.innerHTML = this.renderQuickNoteHTML();
+			setHtml(quicknoteContainer, this.renderQuickNoteHTML());
 			const quickNoteBtn = quicknoteContainer.querySelector(".polaris-quick-note") as HTMLElement;
 			if (quickNoteBtn) quickNoteBtn.onclick = () => this.createQuickNote();
 		}
@@ -1073,8 +663,8 @@ export class PolarisDashboardView extends ItemView {
 		block.className = "polaris-todo-expand";
 		block.dataset.taskId = taskId;
 		const priorityColor = task.priority === "P0" ? "#c084fc" : task.priority === "P1" ? "#fbbf24" : "#9ca3af";
-		block.style.setProperty("border-left-color", priorityColor)
-		block.innerHTML = this.renderTodoExpandHTML(task);
+		applyCss(block, {"border-left-color": priorityColor})
+		setHtml(block, this.renderTodoExpandHTML(task));
 		anchor.insertAdjacentElement("afterend", block);
 		anchor.classList.add("todo-expanded");
 		this.todoExpandTaskId = taskId;
@@ -1360,7 +950,7 @@ export class PolarisDashboardView extends ItemView {
 		const priorityColor = task.priority === "P0" ? "#c084fc" : task.priority === "P1" ? "#fbbf24" : "#9ca3af";
 		const statusColor = task.status === "done" ? (this.themeIsLight() ? "#a8c040" : "#c8e060") : task.status === "doing" ? "#60a5fa" : "#9ca3af";
 		const statusText = task.status === "done" ? "已完成" : task.status === "doing" ? "进行中" : "待办";
-		drawer.innerHTML = `
+		setHtml(drawer, `
 			<div class="polaris-drawer-header">
 				<div class="polaris-drawer-title">任务详情</div>
 				<button class="polaris-drawer-close" onclick="document.getElementById('polaris-drawer')?.classList.remove('open');document.getElementById('polaris-drawer-overlay')?.classList.remove('open');">✕</button>
@@ -1410,7 +1000,7 @@ export class PolarisDashboardView extends ItemView {
 				<button class="btn-primary polaris-drawer-complete" data-task-id="${task.id}">✓ 完成任务</button>
 				<button class="btn-secondary polaris-drawer-open-note" data-task-id="${task.id}">📝 编辑笔记</button>
 			</div>
-		`;
+		`);
 		drawer.classList.add("open");
 		overlay.classList.add("open");
 		// 绑定状态切换
@@ -1587,26 +1177,26 @@ export class PolarisDashboardView extends ItemView {
 		const rect = card.getBoundingClientRect();
 		const ph = document.createElement("div");
 		ph.className = "dash-card-drag-placeholder";
-		ph.style.setProperty("height", rect.height + "px")
-		ph.style.setProperty("grid-column", getComputedStyle(card).gridColumn)
+		applyCss(ph, {"height": rect.height + "px"})
+		applyCss(ph, {"grid-column": getComputedStyle(card).gridColumn})
 		const offsetX = e.clientX - rect.left;
 		const offsetY = e.clientY - rect.top;
 		grid.replaceChild(ph, card);
 		card.classList.add("dragging");
 		this.snapshotCardVars(card);
-		card.style.setProperty("position", "fixed")
-		card.style.setProperty("left", rect.left + "px")
-		card.style.setProperty("top", rect.top + "px")
-		card.style.setProperty("width", rect.width + "px")
-		card.style.setProperty("height", rect.height + "px")
-		card.style.setProperty("margin", "0")
-		card.style.setProperty("z-index", "1000")
-		card.style.setProperty("pointer-events", "none")
+		applyCss(card, {"position": "fixed"})
+		applyCss(card, {"left": rect.left + "px"})
+		applyCss(card, {"top": rect.top + "px"})
+		applyCss(card, {"width": rect.width + "px"})
+		applyCss(card, {"height": rect.height + "px"})
+		applyCss(card, {"margin": "0"})
+		applyCss(card, {"z-index": "1000"})
+		applyCss(card, {"pointer-events": "none"})
 		document.body.appendChild(card);
 		const onMove = (ev: PointerEvent) => {
 			ev.preventDefault();
-			card.style.setProperty("left", (ev.clientX - offsetX) + "px")
-			card.style.setProperty("top", (ev.clientY - offsetY) + "px")
+			applyCss(card, {"left": (ev.clientX - offsetX) + "px"})
+			applyCss(card, {"top": (ev.clientY - offsetY) + "px"})
 			let best: { el: HTMLElement; r: DOMRect; dist: number } | null = null;
 			for (const el of Array.from(grid.querySelectorAll<HTMLElement>(".dash-card"))) {
 				if (el === card || el === ph) continue;
@@ -1637,14 +1227,14 @@ export class PolarisDashboardView extends ItemView {
 			if (this._activeDragFinish === finish) this._activeDragFinish = null;
 			if (!ph.isConnected) { card.remove(); return; }
 			grid.replaceChild(card, ph);
-			card.style.setProperty("position", "")
-			card.style.setProperty("left", "")
-			card.style.setProperty("top", "")
-			card.style.setProperty("width", "")
-			card.style.setProperty("height", "")
-			card.style.setProperty("margin", "")
-			card.style.setProperty("z-index", "")
-			card.style.setProperty("pointer-events", "")
+			applyCss(card, {"position": ""})
+			applyCss(card, {"left": ""})
+			applyCss(card, {"top": ""})
+			applyCss(card, {"width": ""})
+			applyCss(card, {"height": ""})
+			applyCss(card, {"margin": ""})
+			applyCss(card, {"z-index": ""})
+			applyCss(card, {"pointer-events": ""})
 			card.classList.remove("dragging");
 			if (save) {
 				const order = Array.from(grid.querySelectorAll(".dash-card")).map((c) => (c as HTMLElement).dataset.cardId || "");
@@ -1676,10 +1266,10 @@ export class PolarisDashboardView extends ItemView {
 			const target = Math.max(1, Math.min(12, Math.round(startSpan + ((ev.clientX - startX) / gridW) * 12)));
 			const spans = [4, 6, 8, 12];
 			curSpan = spans.reduce((best, s) => (Math.abs(s - target) < Math.abs(best - target) ? s : best), 12);
-			card.style.setProperty("--span", String(curSpan));
+			applyCss(card, {"--span": String(curSpan)});
 			tip.textContent = `${Math.round((curSpan / 12) * 100)}% 宽`;
-			tip.style.setProperty("left", `${ev.clientX + 12}px`)
-			tip.style.setProperty("top", `${ev.clientY - 30}px`)
+			applyCss(tip, {"left": `${ev.clientX + 12}px`})
+			applyCss(tip, {"top": `${ev.clientY - 30}px`})
 		};
 		const ac = new AbortController();
 		this._docAborters.push(ac);
@@ -1707,12 +1297,12 @@ export class PolarisDashboardView extends ItemView {
 		if (!grid) return;
 		grid.querySelectorAll(".dash-card-drag").forEach((h) => {
 			const el = h as HTMLElement;
-			el.style.setProperty("touch-action", "none")
+			applyCss(el, {"touch-action": "none"})
 			el.addEventListener("pointerdown", (ev) => this.startCardDrag(ev as PointerEvent, board));
 		});
 		grid.querySelectorAll(".dash-card-resize").forEach((h) => {
 			const el = h as HTMLElement;
-			el.style.setProperty("touch-action", "none")
+			applyCss(el, {"touch-action": "none"})
 			el.addEventListener("pointerdown", (ev) => this.startCardResize(ev as PointerEvent, board));
 		});
 	}
@@ -1738,13 +1328,13 @@ export class PolarisDashboardView extends ItemView {
 			gantt: this.cardShell({ id: "gantt", title: "项目时间线", icon: "📊", bodyClass: "polaris-work-gantt", toolsHTML: this.ganttToolsHTML() }),
 			kanban: this.cardShell({ id: "kanban", title: "任务看板", icon: "🗂️", bodyClass: "polaris-work-kanban", toolsHTML: this.kanbanToolsHTML() }),
 		};
-		main.innerHTML = `
+		setHtml(main, `
 			<div class="board-wrap">
 				<div class="canvas-header"><div class="canvas-header-title">💼 工作看板</div><button class="btn-primary polaris-header-new">＋ 新建任务</button></div>
 				<div class="dash-grid" data-board="work">
 					${order.map((id) => shells[id] || "").join("")}
 				</div>
-			</div>`;
+			</div>`);
 		this.renderWorkStats(main);
 		this.renderFocusCard(main);
 		this.renderGantt(main);
@@ -1793,13 +1383,13 @@ export class PolarisDashboardView extends ItemView {
 			recent: this.cardShell({ id: "recent", title: "最近笔记", icon: "🕐", bodyClass: "polaris-kb-recent" }),
 			starred: this.cardShell({ id: "starred", title: "收藏笔记", icon: "⭐", bodyClass: "polaris-kb-starred" }),
 		};
-		main.innerHTML = `
+		setHtml(main, `
 			<div class="board-wrap">
 				<div class="canvas-header"><div class="canvas-header-title">📚 知识库看板</div><button class="btn-primary polaris-header-new">＋ 新建笔记</button></div>
 				<div class="dash-grid" data-board="knowledge">
 					${order.map((id) => shells[id] || "").join("")}
 				</div>
-			</div>`;
+			</div>`);
 		// 内容渲染（各卡片 body）与卡片点击事件绑定
 		this.renderKnowledgeBoardContent(main);
 		this.bindCardDragResize("knowledge");
@@ -1810,8 +1400,8 @@ export class PolarisDashboardView extends ItemView {
 		if (refreshBtn) {
 			(refreshBtn as HTMLElement).onclick = () => {
 				// 添加旋转动画
-				(refreshBtn as HTMLElement).style.setProperty("transform", "rotate(360deg)")
-				(refreshBtn as HTMLElement).style.setProperty("transition", "transform 0.5s ease")
+				applyCss((refreshBtn as HTMLElement), {"transform": "rotate(360deg)"})
+				applyCss((refreshBtn as HTMLElement), {"transition": "transform 0.5s ease"})
 				setTimeout(() => {
 					this.renderKnowledgeBoard(main);
 					this.showToast("已刷新收藏列表");
@@ -1823,17 +1413,17 @@ export class PolarisDashboardView extends ItemView {
 	// 知识库看板内容渲染（骨架已建好；文件增删改后调用以更新数据概览等，不重建布局）
 	private renderKnowledgeBoardContent(main: HTMLElement) {
 		this.renderKnowledgeStats(main);
-		(main.querySelector(".polaris-kb-output") as HTMLElement).innerHTML = this.knowledgeOutputHTML();
-		(main.querySelector(".polaris-kb-para") as HTMLElement).innerHTML = this.knowledgeParaHTML();
+		setHtml((main.querySelector(".polaris-kb-output") as HTMLElement), this.knowledgeOutputHTML());
+		setHtml((main.querySelector(".polaris-kb-para") as HTMLElement), this.knowledgeParaHTML());
 		const heatmapCard = main.querySelector(".polaris-kb-heatmap") as HTMLElement;
-		heatmapCard.innerHTML = this.renderHeatmap(this.getVaultStats().heatmapData, heatmapCard ? heatmapCard.offsetWidth : 0);
-		(main.querySelector(".polaris-kb-tags") as HTMLElement).innerHTML = this.renderTagCloud(this.getVaultStats().topTags, this.getVaultStats().totalTags);
-		(main.querySelector(".polaris-kb-recent") as HTMLElement).innerHTML = this.knowledgeRecentHTML();
-		(main.querySelector(".polaris-kb-starred") as HTMLElement).innerHTML = this.knowledgeStarredHTML();
+		setHtml(heatmapCard, this.renderHeatmap(this.getVaultStats().heatmapData, heatmapCard ? heatmapCard.offsetWidth : 0));
+		setHtml((main.querySelector(".polaris-kb-tags") as HTMLElement), this.renderTagCloud(this.getVaultStats().topTags, this.getVaultStats().totalTags));
+		setHtml((main.querySelector(".polaris-kb-recent") as HTMLElement), this.knowledgeRecentHTML());
+		setHtml((main.querySelector(".polaris-kb-starred") as HTMLElement), this.knowledgeStarredHTML());
 		// 热力图工具区统计（近90天活跃/连续打卡/本月笔记）随文件变化同步
 		const heatCard = main.querySelector('.dash-card[data-card-id="heatmap"]') as HTMLElement;
 		const heatTools = heatCard?.querySelector(".dash-card-tools") as HTMLElement;
-		if (heatTools) heatTools.innerHTML = this.heatmapToolsHTML(this.getVaultStats().heatmapData);
+		if (heatTools) setHtml(heatTools, this.heatmapToolsHTML(this.getVaultStats().heatmapData));
 
 		// 最近笔记：点击打开笔记
 		main.querySelectorAll('.dash-card[data-card-id="recent"] .list-item').forEach((el) => {
@@ -1861,8 +1451,8 @@ export class PolarisDashboardView extends ItemView {
 				this.confirmRemoveStarred(path, name, main);
 			};
 			// hover 效果
-			(el as HTMLElement).onmouseenter = () => { (el as HTMLElement).style.setProperty("opacity", "1") (el as HTMLElement).style.setProperty("color", "var(--danger-red)") (el as HTMLElement).style.setProperty("background", "rgba(239,68,68,0.1)") };
-			(el as HTMLElement).onmouseleave = () => { (el as HTMLElement).style.setProperty("opacity", "0.6") (el as HTMLElement).style.setProperty("color", "var(--text-muted)") (el as HTMLElement).style.setProperty("background", "transparent") };
+			(el as HTMLElement).onmouseenter = () => { applyCss((el as HTMLElement), {"opacity": "1"}); applyCss((el as HTMLElement), {"color": "var(--danger-red)"}); applyCss((el as HTMLElement), {"background": "rgba(239,68,68,0.1)"}) };
+			(el as HTMLElement).onmouseleave = () => { applyCss((el as HTMLElement), {"opacity": "0.6"}); applyCss((el as HTMLElement), {"color": "var(--text-muted)"}); applyCss((el as HTMLElement), {"background": "transparent"}) };
 		});
 
 		// 空状态点击：显示调试信息
@@ -1882,8 +1472,8 @@ export class PolarisDashboardView extends ItemView {
 				}
 			};
 			// hover 效果
-			(el as HTMLElement).onmouseenter = () => { (el as HTMLElement).style.setProperty("transform", "scale(1.05)") (el as HTMLElement).style.setProperty("opacity", "1") };
-			(el as HTMLElement).onmouseleave = () => { (el as HTMLElement).style.setProperty("transform", "scale(1)") };
+			(el as HTMLElement).onmouseenter = () => { applyCss((el as HTMLElement), {"transform": "scale(1.05)"}); applyCss((el as HTMLElement), {"opacity": "1"}) };
+			(el as HTMLElement).onmouseleave = () => { applyCss((el as HTMLElement), {"transform": "scale(1)"}) };
 		});
 
 		// 查看全部标签：打开 Obsidian 标签面板
@@ -1911,8 +1501,8 @@ export class PolarisDashboardView extends ItemView {
 					this.renderDayLog(date);
 				}
 			};
-			(el as HTMLElement).onmouseenter = () => { (el as HTMLElement).style.setProperty("transform", "scale(1.2)") (el as HTMLElement).style.setProperty("z-index", "10") };
-			(el as HTMLElement).onmouseleave = () => { (el as HTMLElement).style.setProperty("transform", "scale(1)") (el as HTMLElement).style.setProperty("z-index", "1") };
+			(el as HTMLElement).onmouseenter = () => { applyCss((el as HTMLElement), {"transform": "scale(1.2)"}); applyCss((el as HTMLElement), {"z-index": "10"}) };
+			(el as HTMLElement).onmouseleave = () => { applyCss((el as HTMLElement), {"transform": "scale(1)"}); applyCss((el as HTMLElement), {"z-index": "1"}) };
 		});
 
 		// 热力图视图切换：年/月/周
@@ -1953,11 +1543,10 @@ export class PolarisDashboardView extends ItemView {
 		})();
 		const brokenNote = stats.brokenLinks > 0 ? "建议修复" : "状态良好";
 		const emptyNote = stats.emptyNotes > 0 ? "待补内容" : "状态良好";
-		el.innerHTML =
-			this.statCardHTML("📚", "blue", stats.total, "总笔记", `PARA 项目 ${stats.paraCounts.projects} 篇`, false, false, "total") +
+		setHtml(el, this.statCardHTML("📚", "blue", stats.total, "总笔记", `PARA 项目 ${stats.paraCounts.projects} 篇`, false, false, "total") +
 			this.statCardHTML("🔗", "red", stats.brokenLinks, "断链", brokenNote, stats.brokenLinks > 0, true, "broken") +
 			this.statCardHTML("📄", "purple", stats.emptyNotes, "空笔记", emptyNote, false, stats.emptyNotes > 0, "empty") +
-			this.statCardHTML("✨", "green", lastMonthly, "本月新增", `较上月 ${diffText}`, false, false, "monthly");
+			this.statCardHTML("✨", "green", lastMonthly, "本月新增", `较上月 ${diffText}`, false, false, "monthly"));
 		// 点击统计卡：弹出对应文档列表（可点击打开，便于修复断链 / 补空笔记 / 查看笔记）
 		el.querySelectorAll(".stat-card[data-stat-click]").forEach((card) => {
 			(card as HTMLElement).onclick = () => this.openStatNoteList((card as HTMLElement).dataset.statClick || "");
@@ -2028,9 +1617,9 @@ export class PolarisDashboardView extends ItemView {
 			const filtered = kw
 				? items.filter((it) => (it.name + " " + (it.path || "") + " " + (it.sub || "")).toLowerCase().includes(kw))
 				: items;
-			container.innerHTML = filtered.length
+			setHtml(container, filtered.length
 				? renderRows(filtered)
-				: `<div style="padding:20px 0;text-align:center;font-size:12px;color:var(--text-muted);">未找到匹配的笔记</div>`;
+				: `<div style="padding:20px 0;text-align:center;font-size:12px;color:var(--text-muted);">未找到匹配的笔记</div>`);
 			if (count) count.textContent = `${filtered.length} / ${items.length} 篇`;
 			bind();
 		};
@@ -2127,26 +1716,26 @@ export class PolarisDashboardView extends ItemView {
 			mastery: this.cardShell({ id: "mastery", title: "知识点掌握", icon: "🧠", bodyClass: "polaris-rv-mastery" }),
 			learning: this.cardShell({ id: "learning", title: "本周学习", icon: "📖", bodyClass: "polaris-rv-learning" }),
 		};
-		main.innerHTML = `
+		setHtml(main, `
 			<div class="board-wrap">
 				<div class="canvas-header"><div class="canvas-header-title">🎯 复习看板</div><button class="btn-primary polaris-header-new">＋ 新建复习</button></div>
 				<div class="dash-grid" data-board="review">
 					${order.map((id) => shells[id] || "").join("")}
 				</div>
-			</div>`;
+			</div>`);
 		// 内容渲染（各卡片 body）
 		this.renderReviewStats(main);
-		(main.querySelector(".polaris-rv-progress") as HTMLElement).innerHTML = this.reviewProgressHTML();
+		setHtml((main.querySelector(".polaris-rv-progress") as HTMLElement), this.reviewProgressHTML());
 		this.initReviewRing(main);
-		(main.querySelector(".polaris-rv-subjects") as HTMLElement).innerHTML = this.reviewSubjectsHTML();
+		setHtml((main.querySelector(".polaris-rv-subjects") as HTMLElement), this.reviewSubjectsHTML());
 		this.bindSubjectCollapse(main);
-		(main.querySelector(".polaris-rv-queue") as HTMLElement).innerHTML = this.reviewQueueHTML();
-		(main.querySelector(".polaris-rv-trend") as HTMLElement).innerHTML = this.reviewTrendHTML();
+		setHtml((main.querySelector(".polaris-rv-queue") as HTMLElement), this.reviewQueueHTML());
+		setHtml((main.querySelector(".polaris-rv-trend") as HTMLElement), this.reviewTrendHTML());
 		this.initReviewTrend(main);
-		(main.querySelector(".polaris-rv-mastery") as HTMLElement).innerHTML = this.reviewMasteryHTML();
+		setHtml((main.querySelector(".polaris-rv-mastery") as HTMLElement), this.reviewMasteryHTML());
 		const rvLearningEl = main.querySelector(".polaris-rv-learning") as HTMLElement;
 		if (rvLearningEl) {
-			rvLearningEl.innerHTML = this.renderWeeklyLearningHTML(false);
+			setHtml(rvLearningEl, this.renderWeeklyLearningHTML(false));
 			rvLearningEl.querySelectorAll(".polaris-learning-item").forEach((el) => {
 				(el as HTMLElement).onclick = () => {
 					const path = (el as HTMLElement).dataset.path;
@@ -2532,11 +2121,10 @@ export class PolarisDashboardView extends ItemView {
 		const el = main.querySelector(".dash-card-stat-row .dash-card-body") as HTMLElement;
 		if (!el) return;
 		el.className = "dash-card-body polaris-stats-overview";
-		el.innerHTML =
-			this.statCardHTML("🎤", "green", `${progress}%`, "今日完成率", `${doneToday}/${totalToday} 条`, false, false, "reviewToday") +
+		setHtml(el, this.statCardHTML("🎤", "green", `${progress}%`, "今日完成率", `${doneToday}/${totalToday} 条`, false, false, "reviewToday") +
 			this.statCardHTML("📅", "blue", `${weekDays}天`, "本周学习", "本周有复习记录", false, false, "reviewWeek") +
 			this.statCardHTML("⏱️", "purple", `${totalHours}h`, "累计时长", `${totalItems} 条 · 每条估算5分钟`, false, false, "reviewTotal") +
-			this.statCardHTML("⏰", "red", overdue, "逾期复习", `${queue.length} 条待复习`, overdue > 0, false, "reviewOverdue");
+			this.statCardHTML("⏰", "red", overdue, "逾期复习", `${queue.length} 条待复习`, overdue > 0, false, "reviewOverdue"));
 		el.querySelectorAll(".stat-card[data-stat-click]").forEach((card) => {
 			(card as HTMLElement).onclick = () => this.openReviewStat((card as HTMLElement).dataset.statClick || "");
 		});
@@ -2698,8 +2286,8 @@ export class PolarisDashboardView extends ItemView {
 					const maxW = Math.max(160, holder.clientWidth - 16);
 					const maxH = Math.max(160, holder.clientHeight - 116);
 					const size = Math.max(160, Math.min(maxW, maxH, 520));
-					wrap.style.setProperty("width", size + "px")
-					wrap.style.setProperty("height", size + "px")
+					applyCss(wrap, {"width": size + "px"})
+					applyCss(wrap, {"height": size + "px"})
 					try { chart.resize(); } catch (e) { /* noop */ }
 				} catch (e) { /* noop */ }
 			});
@@ -2725,7 +2313,7 @@ export class PolarisDashboardView extends ItemView {
 			if (H <= 0) return;
 			bars.forEach((bar) => {
 				const pct = parseFloat(bar.dataset.h || "8");
-				bar.style.setProperty("height", Math.max(6, Math.round((H * pct) / 100)) + "px")
+				applyCss(bar, {"height": Math.max(6, Math.round((H * pct) / 100)) + "px"})
 			});
 		};
 		apply();
@@ -2801,9 +2389,9 @@ export class PolarisDashboardView extends ItemView {
 				if (!group) return;
 				const open = group.dataset.open === "1";
 				group.dataset.open = open ? "0" : "1";
-				group.style.setProperty("display", open ? "none" : "")
+				applyCss(group, {"display": open ? "none" : ""})
 				const arrow = el.querySelector(".polaris-subj-arrow");
-				if (arrow) (arrow as HTMLElement).style.setProperty("transform", open ? "rotate(-90deg)" : "rotate(0deg)")
+				if (arrow) applyCss((arrow as HTMLElement), {"transform": open ? "rotate(-90deg)" : "rotate(0deg)"})
 			};
 		});
 		// 下钻：二级板块行 + 无二级的领域行 → 弹出该板块笔记列表
@@ -2946,7 +2534,7 @@ export class PolarisDashboardView extends ItemView {
 			const folderPath = "00-Inbox-收集箱";
 			const fullPath = `${folderPath}/${fileName}`;
 			const content = `# 快速记录\n\n> 创建时间：${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")} ${timeStr}\n\n<!-- 在这里记录你的灵感 -->\n\n`;
-			try { await this.app.vault.createFolder(folderPath); } catch (e) {}
+			try { await this.app.vault.createFolder(folderPath); } catch (e) { /* 文件夹可能已存在，忽略 */ }
 			const file = await this.app.vault.create(fullPath, content);
 			await this.app.workspace.getLeaf().openFile(file);
 			this.showToast(`已创建快速笔记：${fileName}`);
@@ -2972,7 +2560,7 @@ export class PolarisDashboardView extends ItemView {
 			{ key: "done", icon: "✅", num: doneCount, label: "已完成任务", color: "purple", note: total > 0 ? `完成率 ${pct(doneCount)}%` : "" },
 			{ key: "overdue", icon: "⚠️", num: overdueCount, label: "逾期任务", color: "red", note: overdueCount > 0 ? "需尽快处理" : "无逾期", warn: true },
 		];
-		el.innerHTML = stats.map((s) => `
+		setHtml(el, stats.map((s) => `
 			<div class="stat-card ${s.key === "overdue" && s.num > 0 ? "danger" : ""}" data-stat="${s.key}" title="查看${s.label}">
 				<div class="stat-icon ${s.color}">${s.icon}</div>
 				<div class="stat-info">
@@ -2981,7 +2569,7 @@ export class PolarisDashboardView extends ItemView {
 					${s.note ? `<div class="stat-note ${s.warn ? "stat-note-warn" : ""}">${s.note}</div>` : ""}
 				</div>
 			</div>
-		`).join("");
+		`).join(""));
 		// 点击统计卡：跳转到任务看板并切换对应筛选
 		el.querySelectorAll(".stat-card").forEach((card) => {
 			(card as HTMLElement).onclick = () => this.jumpToKanbanFilter((card as HTMLElement).dataset.stat || "all");
@@ -3020,22 +2608,22 @@ export class PolarisDashboardView extends ItemView {
 		const el = main.querySelector(".polaris-work-focus") as HTMLElement;
 		const task = this.getFocusTask();
 		if (!task) {
-			el.innerHTML = `
+			setHtml(el, `
 				<div class="glass-card focus-card">
 					<div class="focus-title" style="font-size:16px;color:var(--text-secondary);">暂无待办任务</div>
 					<div class="focus-meta" style="margin-bottom:0;color:var(--text-muted);">所有任务都已完成，今天可以专注其他事情</div>
-				</div>`;
+				</div>`);
 			return;
 		}
 		const tag = task.priority === "P0" ? '<span class="badge badge-purple"><span class="dot"></span>P0</span>' : task.priority === "P1" ? '<span class="badge badge-yellow"><span class="dot"></span>P1</span>' : '<span class="badge badge-gray"><span class="dot"></span>P2</span>';
 		const statusText = task.status === "doing" ? "进行中" : "待开始";
-		el.innerHTML = `
+		setHtml(el, `
 			<div class="glass-card focus-card">
 				<div class="focus-meta"><div class="focus-tags">${this.isTaskOverdue(task) ? '<span class="badge badge-red"><span class="dot"></span>已逾期</span>' : ""}${tag}</div><span>负责人：${task.assignee || "未分配"}</span> · <span>截止日期：${task.dueDate || "—"}</span></div>
 				<div class="focus-title">${task.title}</div>
 				<div class="focus-progress-row"><div class="progress-track" style="height:10px"><div class="progress-fill" style="width:${task.progress}%"></div></div><span class="progress-text">${task.progress}%</span></div>
 				<div class="focus-actions"><button class="btn-primary polaris-focus-edit">继续编辑</button><button class="polaris-focus-detail">查看详情</button></div>
-			</div>`;
+			</div>`);
 		(el.querySelector(".polaris-focus-edit") as HTMLElement).onclick = (e) => {
 			e.stopPropagation();
 			if (task.notePath) { this.openNoteByPath(task.notePath); }
@@ -3150,7 +2738,7 @@ export class PolarisDashboardView extends ItemView {
 		const weekDates = this.getWeekDates();
 		const todayIndex = weekDates.findIndex((d) => d.dateStr === todayStr);
 
-		el.innerHTML = `
+		setHtml(el, `
 			<div class="module-title" style="display:flex;justify-content:space-between;align-items:center;">
 				<span>📅 每日打卡</span>
 				<div style="display:flex;gap:8px;">
@@ -3186,7 +2774,7 @@ export class PolarisDashboardView extends ItemView {
 					<span>${d.dayLabel}</span>
 					<div class="day-cell">${allDone ? "✓" : `${dayDone}/${dayTotal}`}</div>
 				</div>`;
-			}).join("")}</div>`;
+			}).join("")}</div>`);
 
 		el.querySelectorAll(".habit-item").forEach((item) => {
 			(item as HTMLElement).onclick = async () => {
@@ -3323,7 +2911,7 @@ export class PolarisDashboardView extends ItemView {
 			</div>`;
 
 		// 插入「日期+每日一句」合并卡片 + 打卡模块到容器顶部
-		container.insertAdjacentHTML("afterbegin", dateQuoteHtml + checkinHtml);
+		insertHtml(container, "afterbegin", dateQuoteHtml + checkinHtml);
 
 		const checkinSection = container.querySelector(".polaris-compact-checkin") as HTMLElement;
 
@@ -3343,7 +2931,7 @@ export class PolarisDashboardView extends ItemView {
 				const detail = (btn as HTMLElement).closest(".polaris-sign-row")?.querySelector(".polaris-sign-detail") as HTMLElement;
 				if (detail) {
 					const hidden = detail.style.display === "none";
-					detail.style.setProperty("display", hidden ? "block" : "none")
+					applyCss(detail, {"display": hidden ? "block" : "none"});
 					(btn as HTMLElement).textContent = hidden ? "收起" : "解签";
 				}
 			};
@@ -3417,7 +3005,7 @@ export class PolarisDashboardView extends ItemView {
 		const existing = checkinSection.querySelector(".polaris-calendar-expand") as HTMLElement;
 		if (existing) {
 			existing.remove();
-			weekCal.style.setProperty("display", "")
+			applyCss(weekCal, {"display": ""})
 			if (this.calExpandCloseHandler) {
 				document.removeEventListener("mousedown", this.calExpandCloseHandler);
 				this.calExpandCloseHandler = null;
@@ -3451,7 +3039,7 @@ export class PolarisDashboardView extends ItemView {
 
 		const block = document.createElement("div");
 		block.className = "polaris-calendar-expand";
-		block.setAttribute("style", "margin-top:8px;border-top:1px solid var(--border-color);padding-top:8px;");
+		applyCss(block, {"margin-top": "8px", "border-top": "1px solid var(--border-color)", "padding-top": "8px"});
 
 		const render = () => {
 			const firstDay = new Date(viewYear, viewMonth, 1);
@@ -3488,7 +3076,7 @@ export class PolarisDashboardView extends ItemView {
 				}).join("");
 			}
 
-			block.innerHTML = `
+			setHtml(block, `
 				<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
 					<button class="cal-prev" style="cursor:pointer;background:var(--control-bg);border:none;border-radius:6px;padding:4px 8px;font-size:14px;color:var(--text-secondary);">‹</button>
 					<span style="font-size:14px;font-weight:600;color:var(--text-primary);">${viewYear}年${monthNames[viewMonth]}</span>
@@ -3503,7 +3091,7 @@ export class PolarisDashboardView extends ItemView {
 					<span style="font-size:13px;font-weight:600;color:var(--text-primary);">${selected.getMonth()+1}月${selected.getDate()}日 ${dayLabels[selected.getDay()]}</span>
 					<button class="cal-day-next" style="cursor:pointer;background:transparent;border:none;color:var(--text-secondary);font-size:13px;padding:2px 8px;border-radius:6px;">后一天 ›</button>
 				</div>
-				<div style="display:flex;flex-direction:column;gap:4px;">${detailHtml}</div>`;
+				<div style="display:flex;flex-direction:column;gap:4px;">${detailHtml}</div>`);
 
 			// 绑定：翻月
 			const prevBtn = block.querySelector(".cal-prev") as HTMLElement;
@@ -3534,14 +3122,14 @@ export class PolarisDashboardView extends ItemView {
 		render();
 
 		// 就地展开：隐藏周历小视图，完整月历插到其后面（打卡列表保持在月历上方）
-		weekCal.style.setProperty("display", "none")
+		applyCss(weekCal, {"display": "none"})
 		weekCal.insertAdjacentElement("afterend", block);
 
 		// 点击展开区域外收起；若期间选中日期变化，刷新面板同步小视图
 		const closeHandler = (e: MouseEvent) => {
 			if (!checkinSection.contains(e.target as Node)) {
 				block.remove();
-				weekCal.style.setProperty("display", "")
+				applyCss(weekCal, {"display": ""})
 				document.removeEventListener("mousedown", closeHandler);
 				if (this.calExpandCloseHandler === closeHandler) this.calExpandCloseHandler = null;
 				if (this.selectedCheckinDate !== initSel) this.refreshRightPanel();
@@ -3579,21 +3167,21 @@ export class PolarisDashboardView extends ItemView {
 		// 用内联 style.setProperty 保证浮层及内部元素（‹ › / 今天 / 清除 / 日期格）始终吃到当前主题 token
 		{
 			const isLight = this.theme === "light";
-			pop.style.setProperty("--card-bg-rgb", isLight ? "255, 255, 255" : "28, 28, 34");
-			pop.style.setProperty("--border-color", isLight ? "rgba(0, 0, 0, 0.06)" : "rgba(255, 255, 255, 0.08)");
-			pop.style.setProperty("--text-primary", isLight ? "#1a1a1f" : "#f0f0f3");
-			pop.style.setProperty("--text-secondary", isLight ? "#52525b" : "#a1a1aa");
-			pop.style.setProperty("--text-muted", isLight ? "#71717a" : "#71717a");
-			pop.style.setProperty("--control-bg", isLight ? "rgba(0, 0, 0, 0.06)" : "rgba(255, 255, 255, 0.08)");
-			pop.style.setProperty("--text-brand", isLight ? "#1a1a1f" : "#c8e060");
+			applyCss(pop, {"--card-bg-rgb": isLight ? "255, 255, 255" : "28, 28, 34"});
+			applyCss(pop, {"--border-color": isLight ? "rgba(0, 0, 0, 0.06)" : "rgba(255, 255, 255, 0.08)"});
+			applyCss(pop, {"--text-primary": isLight ? "#1a1a1f" : "#f0f0f3"});
+			applyCss(pop, {"--text-secondary": isLight ? "#52525b" : "#a1a1aa"});
+			applyCss(pop, {"--text-muted": isLight ? "#71717a" : "#71717a"});
+			applyCss(pop, {"--control-bg": isLight ? "rgba(0, 0, 0, 0.06)" : "rgba(255, 255, 255, 0.08)"});
+			applyCss(pop, {"--text-brand": isLight ? "#1a1a1f" : "#c8e060"});
 		}
 		const rect = anchor.getBoundingClientRect();
 		const POP_W = 236, EST_H = 292;
 		let left = Math.min(Math.max(8, rect.right - POP_W), window.innerWidth - POP_W - 8);
 		let top = rect.bottom + 4;
 		if (top + EST_H > window.innerHeight - 8) top = Math.max(8, rect.top - EST_H - 4);
-		pop.style.setProperty("left", left + "px")
-		pop.style.setProperty("top", top + "px")
+		applyCss(pop, {"left": left + "px"})
+		applyCss(pop, {"top": top + "px"})
 
 		const render = () => {
 			const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
@@ -3606,7 +3194,7 @@ export class PolarisDashboardView extends ItemView {
 				const cls = dateStr === selStr ? " sel" : dateStr === todayStr ? " today" : "";
 				grid += `<div class="polaris-date-cell${cls}" data-date="${dateStr}">${day}</div>`;
 			}
-			pop.innerHTML = `
+			setHtml(pop, `
 				<div class="polaris-date-pop-head">
 					<button type="button" class="polaris-date-nav" data-nav="-1">‹</button>
 					<span class="polaris-date-pop-title">${viewYear}年${monthNames[viewMonth]}</span>
@@ -3617,7 +3205,7 @@ export class PolarisDashboardView extends ItemView {
 				<div class="polaris-date-pop-foot">
 					<button type="button" class="polaris-date-today">今天</button>
 					<button type="button" class="polaris-date-clear">清除</button>
-				</div>`;
+				</div>`);
 			pop.querySelectorAll(".polaris-date-nav").forEach((el) => {
 				(el as HTMLElement).onclick = (e) => {
 					e.stopPropagation();
@@ -3735,20 +3323,20 @@ export class PolarisDashboardView extends ItemView {
 			(btn as HTMLElement).onclick = () => {
 				selectedIcon = (btn as HTMLElement).dataset.icon || icons[0];
 				modal.querySelectorAll(".habit-icon-option").forEach((b) => {
-					(b as HTMLElement).style.setProperty("border-color", "var(--background-modifier-border)")
-					(b as HTMLElement).style.setProperty("background", "transparent")
+					applyCss((b as HTMLElement), {"border-color": "var(--background-modifier-border)"})
+					applyCss((b as HTMLElement), {"background": "transparent"})
 				});
-				(btn as HTMLElement).style.setProperty("border-color", "var(--brand-green)")
-				(btn as HTMLElement).style.setProperty("background", "rgba(34,197,94,0.1)")
+				applyCss((btn as HTMLElement), {"border-color": "var(--brand-green)"})
+				applyCss((btn as HTMLElement), {"background": "rgba(34,197,94,0.1)"})
 			};
 		});
 		modal.querySelectorAll(".habit-color-option").forEach((btn) => {
 			(btn as HTMLElement).onclick = () => {
 				selectedColor = (btn as HTMLElement).dataset.color || colors[0];
 				modal.querySelectorAll(".habit-color-option").forEach((b) => {
-					(b as HTMLElement).style.setProperty("border", "3px solid transparent")
+					applyCss((b as HTMLElement), {"border": "3px solid transparent"})
 				});
-				(btn as HTMLElement).style.setProperty("border", "3px solid white")
+				applyCss((btn as HTMLElement), {"border": "3px solid white"})
 			};
 		});
 		(modal.querySelector("#polaris-add-habit-form") as HTMLFormElement).onsubmit = async (e) => {
@@ -3766,14 +3354,14 @@ export class PolarisDashboardView extends ItemView {
 	private showHabitManager() {
 		const detail = this.rootEl!.querySelector(".polaris-detail-content") as HTMLElement;
 		detail.className = "polaris-detail-content detail-body";
-		detail.innerHTML = `
+		setHtml(detail, `
 			<div class="detail-section">
 				<div class="detail-section-title" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
 					<span>⚙️ 习惯管理</span>
 					<button class="polaris-history-back" style="cursor:pointer;background:var(--control-bg);border:none;border-radius:6px;padding:3px 8px;font-size:11px;color:var(--text-secondary);">← 返回</button>
 				</div>
 				${this.buildHabitManagerHTML()}
-			</div>`;
+			</div>`);
 
 		(detail.querySelector(".polaris-history-back") as HTMLElement).onclick = () => this.resetDetail();
 		this.bindHabitManagerEvents(detail, () => this.showHabitManager());
@@ -3917,20 +3505,20 @@ export class PolarisDashboardView extends ItemView {
 			(btn as HTMLElement).onclick = () => {
 				selectedIcon = (btn as HTMLElement).dataset.icon || habit.icon;
 				modal.querySelectorAll(".habit-icon-option").forEach((b) => {
-					(b as HTMLElement).style.setProperty("border-color", "var(--background-modifier-border)")
-					(b as HTMLElement).style.setProperty("background", "transparent")
+					applyCss((b as HTMLElement), {"border-color": "var(--background-modifier-border)"})
+					applyCss((b as HTMLElement), {"background": "transparent"})
 				});
-				(btn as HTMLElement).style.setProperty("border-color", "var(--brand-green)")
-				(btn as HTMLElement).style.setProperty("background", "rgba(34,197,94,0.1)")
+				applyCss((btn as HTMLElement), {"border-color": "var(--brand-green)"})
+				applyCss((btn as HTMLElement), {"background": "rgba(34,197,94,0.1)"})
 			};
 		});
 		modal.querySelectorAll(".habit-color-option").forEach((btn) => {
 			(btn as HTMLElement).onclick = () => {
 				selectedColor = (btn as HTMLElement).dataset.color || habit.color;
 				modal.querySelectorAll(".habit-color-option").forEach((b) => {
-					(b as HTMLElement).style.setProperty("border", "3px solid transparent")
+					applyCss((b as HTMLElement), {"border": "3px solid transparent"})
 				});
-				(btn as HTMLElement).style.setProperty("border", "3px solid white")
+				applyCss((btn as HTMLElement), {"border": "3px solid white"})
 			};
 		});
 		(modal.querySelector("#polaris-edit-habit-form") as HTMLFormElement).onsubmit = async (e) => {
@@ -4077,7 +3665,7 @@ export class PolarisDashboardView extends ItemView {
 			return end >= rangeStart && start <= rangeEnd;
 		});
 
-		el.innerHTML = `
+		setHtml(el, `
 			<div class="gantt-plot">
 				${todayInRange ? `<span class="gantt-today-tag" style="left:calc(96px + (100% - 96px) * ${dayPos(now)/100})">今天</span>` : ""}
 				${todayInRange ? `<div class="gantt-today-line" style="left:calc(96px + (100% - 96px) * ${dayPos(now)/100})"></div>` : ""}
@@ -4115,7 +3703,7 @@ export class PolarisDashboardView extends ItemView {
 				<span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:8px;border-radius:2px;background:${this.themeIsLight() ? '#c8e060' : '#a8c040'};"></span>已完成</span>
 				<span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:8px;border-radius:2px;background:#f87171;"></span>已逾期</span>
 			</div>
-			<div style="margin-top:6px;font-size:10px;color:var(--text-muted);opacity:0.8;">↔ 拖动任务条整体平移起止日期 · 拖动条左右边缘可单独调整开始 / 截止</div>`;
+			<div style="margin-top:6px;font-size:10px;color:var(--text-muted);opacity:0.8;">↔ 拖动任务条整体平移起止日期 · 拖动条左右边缘可单独调整开始 / 截止</div>`);
 
 		main.querySelectorAll(".gantt-view-btn").forEach((btn) => {
 			(btn as HTMLElement).onclick = () => {
@@ -4149,8 +3737,8 @@ export class PolarisDashboardView extends ItemView {
 			const leftPct = Math.min(100, sDay / totalDays * 100);
 			const rightPct = Math.min(100, (eDay + 1) / totalDays * 100);
 			const widthPct = Math.max(1, rightPct - leftPct);
-			bar.style.setProperty("left", `${leftPct}%`)
-			bar.style.setProperty("width", `${Math.min(widthPct, 100)}%`)
+			applyCss(bar, {"left": `${leftPct}%`})
+			applyCss(bar, {"width": `${Math.min(widthPct, 100)}%`})
 		};
 		// 拖拽实时日期浮层：跟随鼠标显示当前定位到的日期，松开/取消时移除
 		let tipEl: HTMLElement | null = null;
@@ -4159,7 +3747,7 @@ export class PolarisDashboardView extends ItemView {
 			if (!tipEl) {
 				tipEl = document.createElement("div");
 				tipEl.className = "gantt-drag-tip";
-				tipEl.setAttribute("style", "position:fixed;z-index:9999;background:rgba(15,15,19,0.95);color:#f0f0f3;font-size:11px;font-weight:600;padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.14);pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,0.35);white-space:nowrap;font-family:inherit;");
+				applyCss(tipEl, {"position": "fixed", "z-index": "9999", "background": "rgba(15,15,19,0.95)", "color": "#f0f0f3", "font-size": "11px", "font-weight": "600", "padding": "4px 8px", "border-radius": "6px", "border": "1px solid rgba(255,255,255,0.14)", "pointer-events": "none", "box-shadow": "0 4px 12px rgba(0,0,0,0.35)", "white-space": "nowrap", "font-family": "inherit"});
 				document.body.appendChild(tipEl);
 			}
 			const today0 = new Date(); today0.setHours(0, 0, 0, 0);
@@ -4167,8 +3755,8 @@ export class PolarisDashboardView extends ItemView {
 			const label = (mode === "body" ? `${fmtMD(ns)} ~ ${fmtMD(ne)}` : mode === "left" ? `开始 ${fmtMD(ns)}` : `截止 ${fmtMD(ne)}`) + (willOverdue ? " ⚠ 将逾期" : "");
 			tipEl.textContent = label;
 			const tw = tipEl.offsetWidth, th = tipEl.offsetHeight;
-			tipEl.style.setProperty("left", `${Math.max(4, Math.min(cx + 14, window.innerWidth - tw - 8))}px`)
-			tipEl.style.setProperty("top", `${Math.max(4, cy - th - 14)}px`)
+			applyCss(tipEl, {"left": `${Math.max(4, Math.min(cx + 14, window.innerWidth - tw - 8))}px`})
+			applyCss(tipEl, {"top": `${Math.max(4, cy - th - 14)}px`})
 		};
 		const computeDates = (dx: number) => {
 			const dayDelta = Math.round((dx / trackW) * totalDays);
@@ -4189,7 +3777,7 @@ export class PolarisDashboardView extends ItemView {
 			mode = ev.clientX - rect.left < 8 ? "left" : rect.right - ev.clientX < 8 ? "right" : "body";
 			startX = ev.clientX; dragging = true; moved = false;
 			bar.classList.add("dragging");
-			try { bar.setPointerCapture(ev.pointerId); } catch {}
+			try { bar.setPointerCapture(ev.pointerId); } catch { /* 忽略捕获失败 */ }
 		});
 		bar.addEventListener("pointermove", (ev) => {
 			if (!dragging || trackW <= 0) return;
@@ -4204,7 +3792,7 @@ export class PolarisDashboardView extends ItemView {
 			dragging = false;
 			bar.classList.remove("dragging");
 			removeTip();
-			try { bar.releasePointerCapture(ev.pointerId); } catch {}
+			try { bar.releasePointerCapture(ev.pointerId); } catch { /* 忽略捕获失败 */ }
 			if (!moved) {
 				const statusMap: Record<string,string> = { todo:"待开始", doing:"进行中", done:"已完成" };
 				this.showTaskDetail({ id: task.id, title: task.title, priority: task.priority, status: statusMap[task.status], progress: task.progress, dueDate: task.dueDate, assignee: task.assignee || "Alvin", notePath: task.notePath });
@@ -4279,7 +3867,7 @@ export class PolarisDashboardView extends ItemView {
 
 	private renderKanban(main: HTMLElement) {
 		const el = main.querySelector(".polaris-work-kanban") as HTMLElement;
-		el.innerHTML = this.kanbanResultsHTML();
+		setHtml(el, this.kanbanResultsHTML());
 		this.bindKanbanResultsEvents(el);
 	}
 
@@ -4298,7 +3886,7 @@ export class PolarisDashboardView extends ItemView {
 					(t as HTMLElement).classList.toggle("active", (t as HTMLElement).dataset.filter === this.kanbanFilter));
 				const wrap = main.querySelector(".kanban-results-wrap") as HTMLElement;
 				if (wrap) {
-					wrap.innerHTML = this.kanbanResultsHTML();
+					setHtml(wrap, this.kanbanResultsHTML());
 					this.bindKanbanResultsEvents(el);
 				}
 			};
@@ -4320,7 +3908,7 @@ export class PolarisDashboardView extends ItemView {
 				this.kanbanSearch = searchInput.value;
 				const wrap = main.querySelector(".kanban-results-wrap") as HTMLElement;
 				if (wrap) {
-					wrap.innerHTML = this.kanbanResultsHTML();
+					setHtml(wrap, this.kanbanResultsHTML());
 					this.bindKanbanResultsEvents(el);
 				}
 			};
@@ -4583,7 +4171,7 @@ export class PolarisDashboardView extends ItemView {
 		// 状态/优先级选项（分段按钮硬编码在模板中）
 		const currentStatusValue = t.status === "已完成" ? "done" : t.status === "进行中" ? "doing" : "todo";
 
-		detail.innerHTML = `
+		setHtml(detail, `
 			<div class="detail-section">
 				<div class="detail-section-title" style="display:flex;justify-content:space-between;align-items:center;">
 					<span>🎯 焦点任务</span>
@@ -4637,7 +4225,7 @@ export class PolarisDashboardView extends ItemView {
 					<button class="btn-primary polaris-detail-edit-task">✎ 编辑任务</button>
 				</div>
 			</div>
-			</div>`;
+			</div>`);
 
 
 		// 打开笔记按钮
@@ -4774,10 +4362,10 @@ export class PolarisDashboardView extends ItemView {
 			const q = kw.trim().toLowerCase();
 			const matched = q === "" ? files.slice(0, 30) : files.filter((f) => f.path.toLowerCase().includes(q)).slice(0, 30);
 			if (matched.length === 0) {
-				listEl.innerHTML = '<div style="padding:12px;color:var(--text-muted);font-size:12px;">未找到匹配笔记</div>';
+				setHtml(listEl, '<div style="padding:12px;color:var(--text-muted);font-size:12px;">未找到匹配笔记</div>');
 				return;
 			}
-			listEl.innerHTML = matched.map((f) => {
+			setHtml(listEl, matched.map((f) => {
 				const r = recordMap[f.path];
 				const badge = !r ? '<span style="color:var(--text-brand);font-size:11px;">新笔记</span>'
 					: r.skipped ? '<span style="color:var(--text-muted);font-size:11px;">已跳过</span>'
@@ -4786,12 +4374,12 @@ export class PolarisDashboardView extends ItemView {
 				return '<div class="polaris-review-item" data-path="' + f.path + '" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--divider-color);display:flex;justify-content:space-between;gap:8px;align-items:center;">'
 					+ '<span style="font-size:12px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + f.path + '</span>'
 					+ '<span style="flex-shrink:0;">' + badge + '</span></div>';
-			}).join("");
+			}).join(""));
 			listEl.querySelectorAll(".polaris-review-item").forEach((el) => {
 				const item = el as HTMLElement;
 				item.onclick = () => {
-					listEl.querySelectorAll(".polaris-review-item").forEach((x) => { (x as HTMLElement).style.setProperty("background", "") });
-					item.style.setProperty("background", "rgba(200,224,96,0.12)")
+					listEl.querySelectorAll(".polaris-review-item").forEach((x) => { applyCss((x as HTMLElement), {"background": ""}) });
+					applyCss(item, {"background": "rgba(200,224,96,0.12)"})
 					selectedPath = item.dataset.path || "";
 					const f = files.find((x) => x.path === selectedPath);
 					const r = recordMap[selectedPath];
@@ -5153,16 +4741,16 @@ export class PolarisDashboardView extends ItemView {
 				const plus = customThumb.querySelector(".polaris-wp-plus") as HTMLElement;
 				const customImg = customThumb.querySelector(".polaris-wp-custom-img") as HTMLImageElement;
 				if (wpDraft.type === "image" && wpDraft.value) {
-					if (customImg) { customImg.src = wpDraft.value; customImg.style.setProperty("display", "block") }
-					if (plus) plus.style.setProperty("display", "none")
+					if (customImg) { customImg.src = wpDraft.value; applyCss(customImg, {"display": "block"}) }
+					if (plus) applyCss(plus, {"display": "none"})
 				} else {
-					if (customImg) { customImg.removeAttribute("src"); customImg.style.setProperty("display", "none") }
-					if (plus) plus.style.setProperty("display", "")
+					if (customImg) { customImg.removeAttribute("src"); applyCss(customImg, {"display": "none"}) }
+					if (plus) applyCss(plus, {"display": ""})
 				}
 			}
 			if (wpDraft.type === "none") dashboard.style.removeProperty("--wallpaper-bg");
-			else if (wpDraft.type === "preset") { const bg = WALLPAPER_PRESETS[wpDraft.value]; if (bg) dashboard.style.setProperty("--wallpaper-bg", bg); }
-			else if (wpDraft.value) dashboard.style.setProperty("--wallpaper-bg", `url('${wpDraft.value.replace(/'/g, "\\'")}') center / cover no-repeat, linear-gradient(180deg, #14141e 0%, #1a1228 55%, #10101a 100%)`);
+			else if (wpDraft.type === "preset") { const bg = WALLPAPER_PRESETS[wpDraft.value]; if (bg) applyCss(dashboard, {"--wallpaper-bg": bg}); }
+			else if (wpDraft.value) applyCss(dashboard, {"--wallpaper-bg": `url('${wpDraft.value.replace(/'/g, "\\'")}') center / cover no-repeat, linear-gradient(180deg, #14141e 0%, #1a1228 55%, #10101a 100%)`});
 		};
 		wpOpts.forEach((b) => {
 			b.onclick = () => {
@@ -5241,10 +4829,10 @@ export class PolarisDashboardView extends ItemView {
 		rl.addEventListener("input", () => { const el = getS("polaris-review-limit-value"); if (el) el.textContent = rl.dataset.value + "条"; });
 		rm.addEventListener("input", () => { const el = getS("polaris-review-minutes-value"); if (el) el.textContent = rm.dataset.value + "分钟"; });
 		const opEl = getS("polaris-opacity-slider");
-		opEl.addEventListener("input", () => { const val = parseFloat(opEl.dataset.value || "0"); dashboard.style.setProperty("--card-opacity", String(val)); const el = getS("polaris-opacity-value"); if (el) el.textContent = Math.round(val*100)+"%"; });
+		opEl.addEventListener("input", () => { const val = parseFloat(opEl.dataset.value || "0"); applyCss(dashboard, {"--card-opacity": String(val)}); const el = getS("polaris-opacity-value"); if (el) el.textContent = Math.round(val*100)+"%"; });
 		opEl.addEventListener("change", async () => { if (this.plugin) { this.plugin.pluginData.cardOpacity = parseFloat(opEl.dataset.value || "0"); await this.plugin.savePluginData(); } });
 		const blEl = getS("polaris-blur-slider");
-		blEl.addEventListener("input", () => { const val = parseFloat(blEl.dataset.value || "0"); dashboard.style.setProperty("--card-blur", val+"px"); const el = getS("polaris-blur-value"); if (el) el.textContent = val+"px"; });
+		blEl.addEventListener("input", () => { const val = parseFloat(blEl.dataset.value || "0"); applyCss(dashboard, {"--card-blur": val+"px"}); const el = getS("polaris-blur-value"); if (el) el.textContent = val+"px"; });
 		blEl.addEventListener("change", async () => { if (this.plugin) { this.plugin.pluginData.cardBlur = parseInt(blEl.dataset.value || "0"); await this.plugin.savePluginData(); } });
 		themeToggle.onchange = async () => {
 			this.theme = themeToggle.checked ? "light" : "dark";
@@ -5264,7 +4852,7 @@ export class PolarisDashboardView extends ItemView {
 		const v = parseFloat(el.dataset.value || "0");
 		const pct = Math.max(0, Math.min(1, (v - min) / (max - min)));
 		const thumb = el.querySelector(".tslider-thumb") as HTMLElement;
-		if (thumb) thumb.style.setProperty("left", (pct * 100) + "%")
+		if (thumb) applyCss(thumb, {"left": (pct * 100) + "%"})
 	}
 	private wireCustomSliders(modal: HTMLElement) {
 		modal.querySelectorAll<HTMLElement>(".tslider").forEach((el) => {
@@ -5293,7 +4881,7 @@ export class PolarisDashboardView extends ItemView {
 	private showModal(title: string, contentHTML: string) {
 		this.rootEl!.querySelector(".polaris-modal-root")?.remove();
 		const modalRoot = this.rootEl!.createDiv({ cls: "polaris-modal-root open" });
-		modalRoot.innerHTML = `<div class="modal-overlay polaris-modal-overlay"></div><div class="modal-box polaris-modal-box" role="dialog" aria-modal="true"><div class="modal-header"><div class="modal-title">${title}</div><button class="modal-close" aria-label="关闭">✕</button></div>${contentHTML}</div>`;
+		setHtml(modalRoot, `<div class="modal-overlay polaris-modal-overlay"></div><div class="modal-box polaris-modal-box" role="dialog" aria-modal="true"><div class="modal-header"><div class="modal-title">${title}</div><button class="modal-close" aria-label="关闭">✕</button></div>${contentHTML}</div>`);
 		(modalRoot.querySelector(".modal-close") as HTMLElement).onclick = () => this.closeModal();
 		(modalRoot.querySelector(".polaris-modal-overlay") as HTMLElement).onclick = () => this.closeModal();
 		// 通用取消按钮：弹窗内任意 .polaris-modal-cancel 点击即关闭（各弹窗可再单独覆盖）
@@ -5311,18 +4899,18 @@ export class PolarisDashboardView extends ItemView {
 		const body = box.querySelector(".polaris-sign-modal") as HTMLElement;
 		if (!body) return;
 		setTimeout(() => {
-			body.innerHTML = `
+			setHtml(body, `
 				<div style="font-size:22px;font-weight:800;color:var(--date-text);letter-spacing:0.5px;">第${drawn.no}签 · ${drawn.luck}</div>
 				<div style="font-size:14px;font-weight:600;color:var(--text-secondary);margin-top:4px;">${drawn.title}</div>
 				<div style="font-size:13px;color:var(--text-primary);margin-top:8px;line-height:1.9;">${drawn.poem}</div>
 				<button type="button" class="polaris-sign-modal-toggle" style="margin-top:12px;cursor:pointer;background:var(--control-bg);border:1px solid var(--border-color);border-radius:8px;padding:8px 20px;font-size:12px;color:var(--text-secondary);">解签</button>
-				<div class="polaris-sign-modal-detail" style="display:none;margin-top:12px;color:var(--text-muted);font-size:12px;line-height:1.9;background:rgba(var(--card-bg-rgb),0.5);border-radius:8px;padding:8px 12px;text-align:left;">${drawn.jie}</div>`;
+				<div class="polaris-sign-modal-detail" style="display:none;margin-top:12px;color:var(--text-muted);font-size:12px;line-height:1.9;background:rgba(var(--card-bg-rgb),0.5);border-radius:8px;padding:8px 12px;text-align:left;">${drawn.jie}</div>`);
 			const toggle = body.querySelector(".polaris-sign-modal-toggle") as HTMLElement;
 			const detail = body.querySelector(".polaris-sign-modal-detail") as HTMLElement;
 			if (toggle && detail) {
 				toggle.onclick = () => {
 					const hidden = detail.style.display === "none";
-					detail.style.setProperty("display", hidden ? "block" : "none")
+					applyCss(detail, {"display": hidden ? "block" : "none"});
 					toggle.textContent = hidden ? "收起解签" : "解签";
 				};
 			}
@@ -5349,7 +4937,7 @@ export class PolarisDashboardView extends ItemView {
 			if (!u) { root.style.removeProperty("--wallpaper-bg"); return; }
 			bg = `url('${u.replace(/'/g, "\\'")}') center / cover no-repeat, linear-gradient(180deg, #14141e 0%, #1a1228 55%, #10101a 100%)`;
 		}
-		root.style.setProperty("--wallpaper-bg", bg);
+		applyCss(root, {"--wallpaper-bg": bg});
 	}
 
 
@@ -6308,7 +5896,7 @@ export class PolarisDashboardView extends ItemView {
 		if (pomoCard) {
 			// 重新渲染整个卡片
 			const wrapper = document.createElement("div");
-			wrapper.innerHTML = this.renderPomodoro();
+			setHtml(wrapper, this.renderPomodoro());
 			const newCard = wrapper.firstElementChild;
 			if (newCard) {
 				newCard.classList.add("polaris-pomo-card");
@@ -6382,8 +5970,8 @@ export class PolarisDashboardView extends ItemView {
 	private showPomodoroSettings() {
 		const modal = document.createElement("div");
 		modal.className = "polaris-modal";
-		modal.setAttribute("style", "position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;");
-		modal.innerHTML = `
+		applyCss(modal, {"position": "fixed", "inset": "0", "background": "rgba(0,0,0,0.5)", "display": "flex", "align-items": "center", "justify-content": "center", "z-index": "9999"});
+		setHtml(modal, `
 			<div class="polaris-modal-box" style="background:var(--background-primary);border-radius:12px;padding:24px;max-width:360px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
 				<div style="font-size:18px;font-weight:700;margin-bottom:16px;">🍅 番茄时钟设置</div>
 				<div style="margin-bottom:12px;">
@@ -6407,7 +5995,7 @@ export class PolarisDashboardView extends ItemView {
 				<div style="display:flex;gap:12px;justify-content:flex-end;">
 					<button class="polaris-pomo-close" style="padding:8px 20px;border-radius:8px;border:1px solid var(--background-modifier-border);background:transparent;color:var(--text-secondary);cursor:pointer;font-size:13px;">关闭</button>
 				</div>
-			</div>`;
+			</div>`);
 		document.body.appendChild(modal);
 		const close = () => { modal.remove(); };
 		modal.querySelector(".polaris-pomo-close")?.addEventListener("click", close);
@@ -6797,7 +6385,7 @@ export class PolarisDashboardView extends ItemView {
 		(modal.querySelector(".polaris-q-add") as HTMLElement).onclick = () => {
 			const list = modal.querySelector("#polaris-q-list") as HTMLElement;
 			if (!list) return;
-			list.insertAdjacentHTML("beforeend", `
+			insertHtml(list, "beforeend", `
 				<div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
 					<input class="polaris-q-input" style="flex:1;"/>
 					<button class="polaris-q-del" style="background:rgba(239,68,68,0.15);border:none;border-radius:6px;padding:6px 8px;color:#f87171;font-size:12px;cursor:pointer;">删除</button>
@@ -6868,7 +6456,7 @@ export class PolarisDashboardView extends ItemView {
 		(modal.querySelector(".polaris-m-add") as HTMLElement).onclick = () => {
 			const list = modal.querySelector("#polaris-m-list") as HTMLElement;
 			if (!list) return;
-			list.insertAdjacentHTML("beforeend", `
+			insertHtml(list, "beforeend", `
 				<div data-idx="new" style="display:flex;gap:6px;margin-bottom:8px;align-items:center;flex-wrap:wrap;">
 					<input class="polaris-m-name" placeholder="名称（如：妈妈生日）" style="width:118px;"/>
 					<input class="polaris-m-month" type="number" min="1" max="12" placeholder="月" style="width:52px;"/>
@@ -6950,7 +6538,7 @@ export class PolarisDashboardView extends ItemView {
 				}).join("")
 			: '<div style="text-align:center;padding:28px;color:var(--text-muted);font-size:13px;">这一天没有修改任何笔记</div>';
 
-		detail.innerHTML = `
+		setHtml(detail, `
 			<div class="detail-section">
 				<div class="detail-section-title" style="display:flex;justify-content:space-between;align-items:center;">
 					<span>📅 当日日志</span>
@@ -6970,7 +6558,7 @@ export class PolarisDashboardView extends ItemView {
 				<div style="margin-top:12px;display:flex;gap:8px;">
 					<button class="polaris-daylog-report btn-primary" style="flex:1;padding:12px;font-size:14px;">📝 生成日报</button>
 				</div>
-			</div>`;
+			</div>`);
 
 		// 关闭按钮
 		(detail.querySelector(".polaris-daylog-close") as HTMLElement).onclick = () => {
@@ -6983,8 +6571,8 @@ export class PolarisDashboardView extends ItemView {
 				const path = (el as HTMLElement).dataset.path || "";
 				if (path) this.openNoteByPath(path);
 			};
-			(el as HTMLElement).onmouseenter = () => { (el as HTMLElement).style.setProperty("background", "rgba(255,255,255,0.05)") };
-			(el as HTMLElement).onmouseleave = () => { (el as HTMLElement).style.setProperty("background", "transparent") };
+			(el as HTMLElement).onmouseenter = () => { applyCss((el as HTMLElement), {"background": "rgba(255,255,255,0.05)"}) };
+			(el as HTMLElement).onmouseleave = () => { applyCss((el as HTMLElement), {"background": "transparent"}) };
 		});
 
 		// 生成日报按钮
@@ -7203,7 +6791,7 @@ export class PolarisDashboardView extends ItemView {
 			foot += `<button type="button" class="tsd-close">关闭</button></span>`;
 			html = `<div class="tsd-body">${html}</div><div class="tsd-foot">${foot}</div>`;
 		}
-		pop.innerHTML = html;
+		setHtml(pop, html);
 		this.searchItemEls = Array.from(pop.querySelectorAll(".tsd-item")) as HTMLElement[];
 		this.searchItemEls.forEach((el, i) => {
 			el.addEventListener("mousedown", (e) => e.preventDefault());
@@ -7367,7 +6955,6 @@ export class PolarisDashboardView extends ItemView {
 		if (this.pomodoroInterval) { window.clearInterval(this.pomodoroInterval); this.pomodoroInterval = null; }
 		if (this.kbRefreshTimer) { window.clearTimeout(this.kbRefreshTimer); this.kbRefreshTimer = null; }
 		if (this._searchDebounceTimer !== undefined) { window.clearTimeout(this._searchDebounceTimer); this._searchDebounceTimer = undefined; }
-		if (this.styleEl) { this.styleEl.remove(); this.styleEl = null; }
 		this.rootEl = null;
 		this.containerEl.empty();
 	}

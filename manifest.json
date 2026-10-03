@@ -1,9 +1,9 @@
 {
   "id": "polaris-dashboard",
   "name": "Polaris Dashboard",
-  "version": "1.0.1",
-  "minAppVersion": "1.5.0",
-  "description": "工作/知识库/复习三看板仪表盘,支持Dataview读取Vault任务笔记,内置专注计时器、可拖拽甘特视图,玻璃拟态深色UI. A glassmorphism personal dashboard for tasks, knowledge and review.",
+  "version": "1.0.3",
+  "minAppVersion": "1.7.2",
+  "description": "A glassmorphism personal dashboard with work, knowledge and review boards, task timeline, pomodoro timer and vault statistics. Works as a custom view inside your note-taking app.",
   "author": "Alvin",
   "isDesktopOnly": true
 }

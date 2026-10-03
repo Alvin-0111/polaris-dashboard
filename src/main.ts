@@ -167,7 +167,6 @@ export default class PolarisDashboardPlugin extends Plugin {
 				}
 				this.pluginData.checkinRecords = newRecords;
 				this.pluginData.habits = [migratedHabit, ...(this.pluginData.habits || [])];
-				console.log("[Polaris Dashboard] 已迁移旧版打卡数据到多习惯格式");
 			}
 		}
 
@@ -177,9 +176,8 @@ export default class PolarisDashboardPlugin extends Plugin {
 		if (dvPlugin) {
 			// @ts-ignore
 			this.dataviewApi = dvPlugin.api;
-			console.log("[Polaris Dashboard] Dataview 已连接");
 		} else {
-			console.log("[Polaris Dashboard] 未检测到 Dataview，使用演示数据");
+			// 未检测到 Dataview，插件使用演示数据（视图内已做提示）
 		}
 
 		// 注册视图
