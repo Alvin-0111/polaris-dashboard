@@ -234,7 +234,7 @@ export class PolarisDashboardView extends ItemView {
 		this.rootEl = container.createDiv({ cls: "polaris-dashboard" });
 
 		this.rootEl.setAttribute("data-theme", this.theme);
-		this.rootEl.style.cssText = "width:100%;height:100%;display:flex;flex-direction:column;overflow:hidden;";
+		this.rootEl.setAttribute("style", "width:100%;height:100%;display:flex;flex-direction:column;overflow:hidden;");
 		// 应用持久化的透明度 / 模糊设置
 		const _cfg = this.plugin?.pluginData;
 		if (_cfg?.cardOpacity != null) this.rootEl.style.setProperty("--card-opacity", String(_cfg.cardOpacity));
@@ -802,7 +802,7 @@ export class PolarisDashboardView extends ItemView {
 			const titleRow = card.querySelector(".detail-section-title, .module-title") as HTMLElement | null;
 			if (grip && titleRow) titleRow.prepend(grip);
 			if (grip) {
-				grip.style.touchAction = "none";
+				grip.style.setProperty("touch-action", "none")
 				grip.addEventListener("pointerdown", (e: PointerEvent) => {
 					e.preventDefault();
 					this.startRightPanelDrag(e, card);
@@ -841,25 +841,25 @@ export class PolarisDashboardView extends ItemView {
 		const rect = card.getBoundingClientRect();
 		const ph = document.createElement("div");
 		ph.className = "rp-drag-placeholder";
-		ph.style.height = rect.height + "px";
+		ph.style.setProperty("height", rect.height + "px")
 		const offsetX = e.clientX - rect.left;
 		const offsetY = e.clientY - rect.top;
 		detail.replaceChild(ph, card);
 		card.classList.add("dragging");
 		this.snapshotCardVars(card);
-		card.style.position = "fixed";
-		card.style.left = rect.left + "px";
-		card.style.top = rect.top + "px";
-		card.style.width = rect.width + "px";
-		card.style.height = rect.height + "px";
-		card.style.margin = "0";
-		card.style.zIndex = "1000";
-		card.style.pointerEvents = "none";
+		card.style.setProperty("position", "fixed")
+		card.style.setProperty("left", rect.left + "px")
+		card.style.setProperty("top", rect.top + "px")
+		card.style.setProperty("width", rect.width + "px")
+		card.style.setProperty("height", rect.height + "px")
+		card.style.setProperty("margin", "0")
+		card.style.setProperty("z-index", "1000")
+		card.style.setProperty("pointer-events", "none")
 		document.body.appendChild(card);
 		const onMove = (ev: PointerEvent) => {
 			ev.preventDefault();
-			card.style.left = (ev.clientX - offsetX) + "px";
-			card.style.top = (ev.clientY - offsetY) + "px";
+			card.style.setProperty("left", (ev.clientX - offsetX) + "px")
+			card.style.setProperty("top", (ev.clientY - offsetY) + "px")
 			let best: { el: HTMLElement; r: DOMRect; dist: number } | null = null;
 			for (const el of Array.from(detail.querySelectorAll<HTMLElement>(".rp-card"))) {
 				if (el === card || el === ph) continue;
@@ -891,14 +891,14 @@ export class PolarisDashboardView extends ItemView {
 			// 视图可能已重建（innerHTML 替换）：占位符不在 DOM 时直接丢弃卡片，不保存
 			if (!ph.isConnected) { card.remove(); return; }
 			detail.replaceChild(card, ph);
-			card.style.position = "";
-			card.style.left = "";
-			card.style.top = "";
-			card.style.width = "";
-			card.style.height = "";
-			card.style.margin = "";
-			card.style.zIndex = "";
-			card.style.pointerEvents = "";
+			card.style.setProperty("position", "")
+			card.style.setProperty("left", "")
+			card.style.setProperty("top", "")
+			card.style.setProperty("width", "")
+			card.style.setProperty("height", "")
+			card.style.setProperty("margin", "")
+			card.style.setProperty("z-index", "")
+			card.style.setProperty("pointer-events", "")
 			card.classList.remove("dragging");
 			if (save) {
 				const order = Array.from(detail.querySelectorAll<HTMLElement>(".rp-card")).map((c) => (c as HTMLElement).dataset.key || "");
@@ -1073,7 +1073,7 @@ export class PolarisDashboardView extends ItemView {
 		block.className = "polaris-todo-expand";
 		block.dataset.taskId = taskId;
 		const priorityColor = task.priority === "P0" ? "#c084fc" : task.priority === "P1" ? "#fbbf24" : "#9ca3af";
-		block.style.borderLeftColor = priorityColor;
+		block.style.setProperty("border-left-color", priorityColor)
 		block.innerHTML = this.renderTodoExpandHTML(task);
 		anchor.insertAdjacentElement("afterend", block);
 		anchor.classList.add("todo-expanded");
@@ -1587,26 +1587,26 @@ export class PolarisDashboardView extends ItemView {
 		const rect = card.getBoundingClientRect();
 		const ph = document.createElement("div");
 		ph.className = "dash-card-drag-placeholder";
-		ph.style.height = rect.height + "px";
-		ph.style.gridColumn = getComputedStyle(card).gridColumn;
+		ph.style.setProperty("height", rect.height + "px")
+		ph.style.setProperty("grid-column", getComputedStyle(card).gridColumn)
 		const offsetX = e.clientX - rect.left;
 		const offsetY = e.clientY - rect.top;
 		grid.replaceChild(ph, card);
 		card.classList.add("dragging");
 		this.snapshotCardVars(card);
-		card.style.position = "fixed";
-		card.style.left = rect.left + "px";
-		card.style.top = rect.top + "px";
-		card.style.width = rect.width + "px";
-		card.style.height = rect.height + "px";
-		card.style.margin = "0";
-		card.style.zIndex = "1000";
-		card.style.pointerEvents = "none";
+		card.style.setProperty("position", "fixed")
+		card.style.setProperty("left", rect.left + "px")
+		card.style.setProperty("top", rect.top + "px")
+		card.style.setProperty("width", rect.width + "px")
+		card.style.setProperty("height", rect.height + "px")
+		card.style.setProperty("margin", "0")
+		card.style.setProperty("z-index", "1000")
+		card.style.setProperty("pointer-events", "none")
 		document.body.appendChild(card);
 		const onMove = (ev: PointerEvent) => {
 			ev.preventDefault();
-			card.style.left = (ev.clientX - offsetX) + "px";
-			card.style.top = (ev.clientY - offsetY) + "px";
+			card.style.setProperty("left", (ev.clientX - offsetX) + "px")
+			card.style.setProperty("top", (ev.clientY - offsetY) + "px")
 			let best: { el: HTMLElement; r: DOMRect; dist: number } | null = null;
 			for (const el of Array.from(grid.querySelectorAll<HTMLElement>(".dash-card"))) {
 				if (el === card || el === ph) continue;
@@ -1637,14 +1637,14 @@ export class PolarisDashboardView extends ItemView {
 			if (this._activeDragFinish === finish) this._activeDragFinish = null;
 			if (!ph.isConnected) { card.remove(); return; }
 			grid.replaceChild(card, ph);
-			card.style.position = "";
-			card.style.left = "";
-			card.style.top = "";
-			card.style.width = "";
-			card.style.height = "";
-			card.style.margin = "";
-			card.style.zIndex = "";
-			card.style.pointerEvents = "";
+			card.style.setProperty("position", "")
+			card.style.setProperty("left", "")
+			card.style.setProperty("top", "")
+			card.style.setProperty("width", "")
+			card.style.setProperty("height", "")
+			card.style.setProperty("margin", "")
+			card.style.setProperty("z-index", "")
+			card.style.setProperty("pointer-events", "")
 			card.classList.remove("dragging");
 			if (save) {
 				const order = Array.from(grid.querySelectorAll(".dash-card")).map((c) => (c as HTMLElement).dataset.cardId || "");
@@ -1678,8 +1678,8 @@ export class PolarisDashboardView extends ItemView {
 			curSpan = spans.reduce((best, s) => (Math.abs(s - target) < Math.abs(best - target) ? s : best), 12);
 			card.style.setProperty("--span", String(curSpan));
 			tip.textContent = `${Math.round((curSpan / 12) * 100)}% 宽`;
-			tip.style.left = `${ev.clientX + 12}px`;
-			tip.style.top = `${ev.clientY - 30}px`;
+			tip.style.setProperty("left", `${ev.clientX + 12}px`)
+			tip.style.setProperty("top", `${ev.clientY - 30}px`)
 		};
 		const ac = new AbortController();
 		this._docAborters.push(ac);
@@ -1707,12 +1707,12 @@ export class PolarisDashboardView extends ItemView {
 		if (!grid) return;
 		grid.querySelectorAll(".dash-card-drag").forEach((h) => {
 			const el = h as HTMLElement;
-			el.style.touchAction = "none";
+			el.style.setProperty("touch-action", "none")
 			el.addEventListener("pointerdown", (ev) => this.startCardDrag(ev as PointerEvent, board));
 		});
 		grid.querySelectorAll(".dash-card-resize").forEach((h) => {
 			const el = h as HTMLElement;
-			el.style.touchAction = "none";
+			el.style.setProperty("touch-action", "none")
 			el.addEventListener("pointerdown", (ev) => this.startCardResize(ev as PointerEvent, board));
 		});
 	}
@@ -1810,8 +1810,8 @@ export class PolarisDashboardView extends ItemView {
 		if (refreshBtn) {
 			(refreshBtn as HTMLElement).onclick = () => {
 				// 添加旋转动画
-				(refreshBtn as HTMLElement).style.transform = "rotate(360deg)";
-				(refreshBtn as HTMLElement).style.transition = "transform 0.5s ease";
+				(refreshBtn as HTMLElement).style.setProperty("transform", "rotate(360deg)")
+				(refreshBtn as HTMLElement).style.setProperty("transition", "transform 0.5s ease")
 				setTimeout(() => {
 					this.renderKnowledgeBoard(main);
 					this.showToast("已刷新收藏列表");
@@ -1861,8 +1861,8 @@ export class PolarisDashboardView extends ItemView {
 				this.confirmRemoveStarred(path, name, main);
 			};
 			// hover 效果
-			(el as HTMLElement).onmouseenter = () => { (el as HTMLElement).style.opacity = "1"; (el as HTMLElement).style.color = "var(--danger-red)"; (el as HTMLElement).style.background = "rgba(239,68,68,0.1)"; };
-			(el as HTMLElement).onmouseleave = () => { (el as HTMLElement).style.opacity = "0.6"; (el as HTMLElement).style.color = "var(--text-muted)"; (el as HTMLElement).style.background = "transparent"; };
+			(el as HTMLElement).onmouseenter = () => { (el as HTMLElement).style.setProperty("opacity", "1") (el as HTMLElement).style.setProperty("color", "var(--danger-red)") (el as HTMLElement).style.setProperty("background", "rgba(239,68,68,0.1)") };
+			(el as HTMLElement).onmouseleave = () => { (el as HTMLElement).style.setProperty("opacity", "0.6") (el as HTMLElement).style.setProperty("color", "var(--text-muted)") (el as HTMLElement).style.setProperty("background", "transparent") };
 		});
 
 		// 空状态点击：显示调试信息
@@ -1882,8 +1882,8 @@ export class PolarisDashboardView extends ItemView {
 				}
 			};
 			// hover 效果
-			(el as HTMLElement).onmouseenter = () => { (el as HTMLElement).style.transform = "scale(1.05)"; (el as HTMLElement).style.opacity = "1"; };
-			(el as HTMLElement).onmouseleave = () => { (el as HTMLElement).style.transform = "scale(1)"; };
+			(el as HTMLElement).onmouseenter = () => { (el as HTMLElement).style.setProperty("transform", "scale(1.05)") (el as HTMLElement).style.setProperty("opacity", "1") };
+			(el as HTMLElement).onmouseleave = () => { (el as HTMLElement).style.setProperty("transform", "scale(1)") };
 		});
 
 		// 查看全部标签：打开 Obsidian 标签面板
@@ -1911,8 +1911,8 @@ export class PolarisDashboardView extends ItemView {
 					this.renderDayLog(date);
 				}
 			};
-			(el as HTMLElement).onmouseenter = () => { (el as HTMLElement).style.transform = "scale(1.2)"; (el as HTMLElement).style.zIndex = "10"; };
-			(el as HTMLElement).onmouseleave = () => { (el as HTMLElement).style.transform = "scale(1)"; (el as HTMLElement).style.zIndex = "1"; };
+			(el as HTMLElement).onmouseenter = () => { (el as HTMLElement).style.setProperty("transform", "scale(1.2)") (el as HTMLElement).style.setProperty("z-index", "10") };
+			(el as HTMLElement).onmouseleave = () => { (el as HTMLElement).style.setProperty("transform", "scale(1)") (el as HTMLElement).style.setProperty("z-index", "1") };
 		});
 
 		// 热力图视图切换：年/月/周
@@ -2698,8 +2698,8 @@ export class PolarisDashboardView extends ItemView {
 					const maxW = Math.max(160, holder.clientWidth - 16);
 					const maxH = Math.max(160, holder.clientHeight - 116);
 					const size = Math.max(160, Math.min(maxW, maxH, 520));
-					wrap.style.width = size + "px";
-					wrap.style.height = size + "px";
+					wrap.style.setProperty("width", size + "px")
+					wrap.style.setProperty("height", size + "px")
 					try { chart.resize(); } catch (e) { /* noop */ }
 				} catch (e) { /* noop */ }
 			});
@@ -2725,7 +2725,7 @@ export class PolarisDashboardView extends ItemView {
 			if (H <= 0) return;
 			bars.forEach((bar) => {
 				const pct = parseFloat(bar.dataset.h || "8");
-				bar.style.height = Math.max(6, Math.round((H * pct) / 100)) + "px";
+				bar.style.setProperty("height", Math.max(6, Math.round((H * pct) / 100)) + "px")
 			});
 		};
 		apply();
@@ -2801,9 +2801,9 @@ export class PolarisDashboardView extends ItemView {
 				if (!group) return;
 				const open = group.dataset.open === "1";
 				group.dataset.open = open ? "0" : "1";
-				group.style.display = open ? "none" : "";
+				group.style.setProperty("display", open ? "none" : "")
 				const arrow = el.querySelector(".polaris-subj-arrow");
-				if (arrow) (arrow as HTMLElement).style.transform = open ? "rotate(-90deg)" : "rotate(0deg)";
+				if (arrow) (arrow as HTMLElement).style.setProperty("transform", open ? "rotate(-90deg)" : "rotate(0deg)")
 			};
 		});
 		// 下钻：二级板块行 + 无二级的领域行 → 弹出该板块笔记列表
@@ -2846,7 +2846,7 @@ export class PolarisDashboardView extends ItemView {
 			input.oninput = () => {
 				const q = input.value.trim().toLowerCase();
 				list.querySelectorAll<HTMLElement>(".polaris-subj-file").forEach((row) => {
-					row.style.display = !q || (row.textContent || "").toLowerCase().includes(q) ? "" : "none";
+					row.style.setProperty("display", !q || (row.textContent || "").toLowerCase().includes(q) ? "" : "none");
 				});
 			};
 			input.focus();
@@ -3343,7 +3343,7 @@ export class PolarisDashboardView extends ItemView {
 				const detail = (btn as HTMLElement).closest(".polaris-sign-row")?.querySelector(".polaris-sign-detail") as HTMLElement;
 				if (detail) {
 					const hidden = detail.style.display === "none";
-					detail.style.display = hidden ? "block" : "none";
+					detail.style.setProperty("display", hidden ? "block" : "none")
 					(btn as HTMLElement).textContent = hidden ? "收起" : "解签";
 				}
 			};
@@ -3417,7 +3417,7 @@ export class PolarisDashboardView extends ItemView {
 		const existing = checkinSection.querySelector(".polaris-calendar-expand") as HTMLElement;
 		if (existing) {
 			existing.remove();
-			weekCal.style.display = "";
+			weekCal.style.setProperty("display", "")
 			if (this.calExpandCloseHandler) {
 				document.removeEventListener("mousedown", this.calExpandCloseHandler);
 				this.calExpandCloseHandler = null;
@@ -3451,7 +3451,7 @@ export class PolarisDashboardView extends ItemView {
 
 		const block = document.createElement("div");
 		block.className = "polaris-calendar-expand";
-		block.style.cssText = "margin-top:8px;border-top:1px solid var(--border-color);padding-top:8px;";
+		block.setAttribute("style", "margin-top:8px;border-top:1px solid var(--border-color);padding-top:8px;");
 
 		const render = () => {
 			const firstDay = new Date(viewYear, viewMonth, 1);
@@ -3534,14 +3534,14 @@ export class PolarisDashboardView extends ItemView {
 		render();
 
 		// 就地展开：隐藏周历小视图，完整月历插到其后面（打卡列表保持在月历上方）
-		weekCal.style.display = "none";
+		weekCal.style.setProperty("display", "none")
 		weekCal.insertAdjacentElement("afterend", block);
 
 		// 点击展开区域外收起；若期间选中日期变化，刷新面板同步小视图
 		const closeHandler = (e: MouseEvent) => {
 			if (!checkinSection.contains(e.target as Node)) {
 				block.remove();
-				weekCal.style.display = "";
+				weekCal.style.setProperty("display", "")
 				document.removeEventListener("mousedown", closeHandler);
 				if (this.calExpandCloseHandler === closeHandler) this.calExpandCloseHandler = null;
 				if (this.selectedCheckinDate !== initSel) this.refreshRightPanel();
@@ -3592,8 +3592,8 @@ export class PolarisDashboardView extends ItemView {
 		let left = Math.min(Math.max(8, rect.right - POP_W), window.innerWidth - POP_W - 8);
 		let top = rect.bottom + 4;
 		if (top + EST_H > window.innerHeight - 8) top = Math.max(8, rect.top - EST_H - 4);
-		pop.style.left = left + "px";
-		pop.style.top = top + "px";
+		pop.style.setProperty("left", left + "px")
+		pop.style.setProperty("top", top + "px")
 
 		const render = () => {
 			const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
@@ -3735,20 +3735,20 @@ export class PolarisDashboardView extends ItemView {
 			(btn as HTMLElement).onclick = () => {
 				selectedIcon = (btn as HTMLElement).dataset.icon || icons[0];
 				modal.querySelectorAll(".habit-icon-option").forEach((b) => {
-					(b as HTMLElement).style.borderColor = "var(--background-modifier-border)";
-					(b as HTMLElement).style.background = "transparent";
+					(b as HTMLElement).style.setProperty("border-color", "var(--background-modifier-border)")
+					(b as HTMLElement).style.setProperty("background", "transparent")
 				});
-				(btn as HTMLElement).style.borderColor = "var(--brand-green)";
-				(btn as HTMLElement).style.background = "rgba(34,197,94,0.1)";
+				(btn as HTMLElement).style.setProperty("border-color", "var(--brand-green)")
+				(btn as HTMLElement).style.setProperty("background", "rgba(34,197,94,0.1)")
 			};
 		});
 		modal.querySelectorAll(".habit-color-option").forEach((btn) => {
 			(btn as HTMLElement).onclick = () => {
 				selectedColor = (btn as HTMLElement).dataset.color || colors[0];
 				modal.querySelectorAll(".habit-color-option").forEach((b) => {
-					(b as HTMLElement).style.border = "3px solid transparent";
+					(b as HTMLElement).style.setProperty("border", "3px solid transparent")
 				});
-				(btn as HTMLElement).style.border = "3px solid white";
+				(btn as HTMLElement).style.setProperty("border", "3px solid white")
 			};
 		});
 		(modal.querySelector("#polaris-add-habit-form") as HTMLFormElement).onsubmit = async (e) => {
@@ -3917,20 +3917,20 @@ export class PolarisDashboardView extends ItemView {
 			(btn as HTMLElement).onclick = () => {
 				selectedIcon = (btn as HTMLElement).dataset.icon || habit.icon;
 				modal.querySelectorAll(".habit-icon-option").forEach((b) => {
-					(b as HTMLElement).style.borderColor = "var(--background-modifier-border)";
-					(b as HTMLElement).style.background = "transparent";
+					(b as HTMLElement).style.setProperty("border-color", "var(--background-modifier-border)")
+					(b as HTMLElement).style.setProperty("background", "transparent")
 				});
-				(btn as HTMLElement).style.borderColor = "var(--brand-green)";
-				(btn as HTMLElement).style.background = "rgba(34,197,94,0.1)";
+				(btn as HTMLElement).style.setProperty("border-color", "var(--brand-green)")
+				(btn as HTMLElement).style.setProperty("background", "rgba(34,197,94,0.1)")
 			};
 		});
 		modal.querySelectorAll(".habit-color-option").forEach((btn) => {
 			(btn as HTMLElement).onclick = () => {
 				selectedColor = (btn as HTMLElement).dataset.color || habit.color;
 				modal.querySelectorAll(".habit-color-option").forEach((b) => {
-					(b as HTMLElement).style.border = "3px solid transparent";
+					(b as HTMLElement).style.setProperty("border", "3px solid transparent")
 				});
-				(btn as HTMLElement).style.border = "3px solid white";
+				(btn as HTMLElement).style.setProperty("border", "3px solid white")
 			};
 		});
 		(modal.querySelector("#polaris-edit-habit-form") as HTMLFormElement).onsubmit = async (e) => {
@@ -4149,8 +4149,8 @@ export class PolarisDashboardView extends ItemView {
 			const leftPct = Math.min(100, sDay / totalDays * 100);
 			const rightPct = Math.min(100, (eDay + 1) / totalDays * 100);
 			const widthPct = Math.max(1, rightPct - leftPct);
-			bar.style.left = `${leftPct}%`;
-			bar.style.width = `${Math.min(widthPct, 100)}%`;
+			bar.style.setProperty("left", `${leftPct}%`)
+			bar.style.setProperty("width", `${Math.min(widthPct, 100)}%`)
 		};
 		// 拖拽实时日期浮层：跟随鼠标显示当前定位到的日期，松开/取消时移除
 		let tipEl: HTMLElement | null = null;
@@ -4159,7 +4159,7 @@ export class PolarisDashboardView extends ItemView {
 			if (!tipEl) {
 				tipEl = document.createElement("div");
 				tipEl.className = "gantt-drag-tip";
-				tipEl.style.cssText = "position:fixed;z-index:9999;background:rgba(15,15,19,0.95);color:#f0f0f3;font-size:11px;font-weight:600;padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.14);pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,0.35);white-space:nowrap;font-family:inherit;";
+				tipEl.setAttribute("style", "position:fixed;z-index:9999;background:rgba(15,15,19,0.95);color:#f0f0f3;font-size:11px;font-weight:600;padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.14);pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,0.35);white-space:nowrap;font-family:inherit;");
 				document.body.appendChild(tipEl);
 			}
 			const today0 = new Date(); today0.setHours(0, 0, 0, 0);
@@ -4167,8 +4167,8 @@ export class PolarisDashboardView extends ItemView {
 			const label = (mode === "body" ? `${fmtMD(ns)} ~ ${fmtMD(ne)}` : mode === "left" ? `开始 ${fmtMD(ns)}` : `截止 ${fmtMD(ne)}`) + (willOverdue ? " ⚠ 将逾期" : "");
 			tipEl.textContent = label;
 			const tw = tipEl.offsetWidth, th = tipEl.offsetHeight;
-			tipEl.style.left = `${Math.max(4, Math.min(cx + 14, window.innerWidth - tw - 8))}px`;
-			tipEl.style.top = `${Math.max(4, cy - th - 14)}px`;
+			tipEl.style.setProperty("left", `${Math.max(4, Math.min(cx + 14, window.innerWidth - tw - 8))}px`)
+			tipEl.style.setProperty("top", `${Math.max(4, cy - th - 14)}px`)
 		};
 		const computeDates = (dx: number) => {
 			const dayDelta = Math.round((dx / trackW) * totalDays);
@@ -4790,8 +4790,8 @@ export class PolarisDashboardView extends ItemView {
 			listEl.querySelectorAll(".polaris-review-item").forEach((el) => {
 				const item = el as HTMLElement;
 				item.onclick = () => {
-					listEl.querySelectorAll(".polaris-review-item").forEach((x) => { (x as HTMLElement).style.background = ""; });
-					item.style.background = "rgba(200,224,96,0.12)";
+					listEl.querySelectorAll(".polaris-review-item").forEach((x) => { (x as HTMLElement).style.setProperty("background", "") });
+					item.style.setProperty("background", "rgba(200,224,96,0.12)")
 					selectedPath = item.dataset.path || "";
 					const f = files.find((x) => x.path === selectedPath);
 					const r = recordMap[selectedPath];
@@ -5153,11 +5153,11 @@ export class PolarisDashboardView extends ItemView {
 				const plus = customThumb.querySelector(".polaris-wp-plus") as HTMLElement;
 				const customImg = customThumb.querySelector(".polaris-wp-custom-img") as HTMLImageElement;
 				if (wpDraft.type === "image" && wpDraft.value) {
-					if (customImg) { customImg.src = wpDraft.value; customImg.style.display = "block"; }
-					if (plus) plus.style.display = "none";
+					if (customImg) { customImg.src = wpDraft.value; customImg.style.setProperty("display", "block") }
+					if (plus) plus.style.setProperty("display", "none")
 				} else {
-					if (customImg) { customImg.removeAttribute("src"); customImg.style.display = "none"; }
-					if (plus) plus.style.display = "";
+					if (customImg) { customImg.removeAttribute("src"); customImg.style.setProperty("display", "none") }
+					if (plus) plus.style.setProperty("display", "")
 				}
 			}
 			if (wpDraft.type === "none") dashboard.style.removeProperty("--wallpaper-bg");
@@ -5264,7 +5264,7 @@ export class PolarisDashboardView extends ItemView {
 		const v = parseFloat(el.dataset.value || "0");
 		const pct = Math.max(0, Math.min(1, (v - min) / (max - min)));
 		const thumb = el.querySelector(".tslider-thumb") as HTMLElement;
-		if (thumb) thumb.style.left = (pct * 100) + "%";
+		if (thumb) thumb.style.setProperty("left", (pct * 100) + "%")
 	}
 	private wireCustomSliders(modal: HTMLElement) {
 		modal.querySelectorAll<HTMLElement>(".tslider").forEach((el) => {
@@ -5322,7 +5322,7 @@ export class PolarisDashboardView extends ItemView {
 			if (toggle && detail) {
 				toggle.onclick = () => {
 					const hidden = detail.style.display === "none";
-					detail.style.display = hidden ? "block" : "none";
+					detail.style.setProperty("display", hidden ? "block" : "none")
 					toggle.textContent = hidden ? "收起解签" : "解签";
 				};
 			}
@@ -6382,7 +6382,7 @@ export class PolarisDashboardView extends ItemView {
 	private showPomodoroSettings() {
 		const modal = document.createElement("div");
 		modal.className = "polaris-modal";
-		modal.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;";
+		modal.setAttribute("style", "position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;");
 		modal.innerHTML = `
 			<div class="polaris-modal-box" style="background:var(--background-primary);border-radius:12px;padding:24px;max-width:360px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
 				<div style="font-size:18px;font-weight:700;margin-bottom:16px;">🍅 番茄时钟设置</div>
@@ -6983,8 +6983,8 @@ export class PolarisDashboardView extends ItemView {
 				const path = (el as HTMLElement).dataset.path || "";
 				if (path) this.openNoteByPath(path);
 			};
-			(el as HTMLElement).onmouseenter = () => { (el as HTMLElement).style.background = "rgba(255,255,255,0.05)"; };
-			(el as HTMLElement).onmouseleave = () => { (el as HTMLElement).style.background = "transparent"; };
+			(el as HTMLElement).onmouseenter = () => { (el as HTMLElement).style.setProperty("background", "rgba(255,255,255,0.05)") };
+			(el as HTMLElement).onmouseleave = () => { (el as HTMLElement).style.setProperty("background", "transparent") };
 		});
 
 		// 生成日报按钮
