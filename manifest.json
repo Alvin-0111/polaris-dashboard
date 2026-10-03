@@ -3,7 +3,7 @@
   "name": "Polaris Dashboard",
   "version": "1.0.0",
   "minAppVersion": "1.4.0",
-  "description": "工作/知识库/复习三看板仪表盘,支持Dataview读取Vault任务笔记,内置专注计时器、可拖拽甘特视图,玻璃拟态深色UI",
+  "description": "工作/知识库/复习三看板仪表盘,支持Dataview读取Vault任务笔记,内置专注计时器、可拖拽甘特视图,玻璃拟态深色UI. A glassmorphism personal dashboard for tasks, knowledge and review.",
   "author": "Alvin",
   "isDesktopOnly": true
 }
