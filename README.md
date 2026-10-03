@@ -40,7 +40,7 @@
 1. 下载本仓库的 `main.js` 与 `manifest.json`
 2. 拷贝到你的笔记库：
    ```
-   你的Vault/.obsidian/plugins/polaris-dashboard-obsidian/
+   你的Vault/.obsidian/plugins/polaris-dashboard/
    ```
 3. 重启 Obsidian，进入 设置 → 第三方插件 → 启用 **Polaris Dashboard**
 
