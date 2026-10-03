@@ -1,0 +1,47 @@
+name: Build Release with Attestation
+
+on:
+  workflow_dispatch:
+
+  permissions:
+    contents: write
+      id-token: write
+        attestations: write
+
+        jobs:
+          release:
+              runs-on: ubuntu-latest
+                  steps:
+                        - name: Checkout
+                                uses: actions/checkout@v4
+
+                                      - name: Setup Node
+                                              uses: actions/setup-node@v4
+                                                      with:
+                                                                node-version: 20
+                                                                          cache: npm
+
+                                                                                - name: Install dependencies
+                                                                                        run: npm ci
+
+                                                                                              - name: Build
+                                                                                                      run: npm run build
+                                                                                                      
+                                                                                                            - name: Attest main.js
+                                                                                                                    uses: actions/attest-build-provenance@v1
+                                                                                                                            with:
+                                                                                                                                      subject-path: dist/main.js
+                                                                                                                                      
+                                                                                                                                            - name: Attest styles.css
+                                                                                                                                                    uses: actions/attest-build-provenance@v1
+                                                                                                                                                            with:
+                                                                                                                                                                      subject-path: styles.css
+                                                                                                                                                                      
+                                                                                                                                                                            - name: Create Release
+                                                                                                                                                                                    env:
+                                                                                                                                                                                              GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                                                                                                                                                                                                      run: |
+                                                                                                                                                                                                                VERSION=$(node -p "require('./manifest.json').version")
+                                                                                                                                                                                                                          gh release create "${VERSION}" dist/main.js manifest.json styles.css \
+                                                                                                                                                                                                                                      --title "${VERSION}" \
+                                                                                                                                                                                                                                                  --notes "Automated release built with provenance attestation."
