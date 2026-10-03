@@ -56,7 +56,13 @@ npm run build        # 产出 dist/main.js
 
 ## 🖥️ 界面预览 / Preview
 
-（截图待补充 —— 仓库初始化后可将 `shots/` 下的截图放入此段）
+| 💼 工作看板 | 📚 知识库看板 |
+|---|---|
+| ![工作看板](shots/dashboard-work.png) | ![知识库看板](shots/dashboard-knowledge.png) |
+
+| 🎯 复习看板 |
+|---|
+| ![复习看板](shots/dashboard-review.png) |
 
 ---
 

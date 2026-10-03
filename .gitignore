@@ -10,7 +10,6 @@ dist/
 # Backups & temp
 _backup/
 backup-*/
-shots/
 *.log
 
 # Obsidian vault local copy (do not publish)
