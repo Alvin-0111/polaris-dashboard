@@ -417,7 +417,6 @@
   overflow-y: auto;
   background: rgba(var(--card-bg-rgb), 0.2);
 }
-}
 
 /* 数据概览（工作看板顶部） */
 .polaris-stats-overview {

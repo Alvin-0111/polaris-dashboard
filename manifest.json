@@ -1,7 +1,7 @@
 {
   "id": "polaris-dashboard",
   "name": "Polaris Dashboard",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "minAppVersion": "1.7.2",
   "description": "A glassmorphism personal dashboard with work, knowledge and review boards, task timeline, pomodoro timer and vault statistics. Works as a custom view inside your note-taking app.",
   "author": "Alvin",
