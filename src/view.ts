@@ -8,10 +8,10 @@ import { CanvasRenderer } from "echarts/renderers";
 import { TALOS_STYLES } from "./styles";
 
 echarts.use([PieChart, TooltipComponent, CanvasRenderer]);
-import type TalosDashboardPlugin from "./main";
+import type PolarisDashboardPlugin from "./main";
 import type { PomodoroSession, Habit, CheckinRecords, ReviewRecord, ReviewSession, ReviewConfig } from "./main";
 
-export const VIEW_TYPE_TALOS_DASHBOARD = "talos-dashboard-view";
+export const VIEW_TYPE_TALOS_DASHBOARD = "polaris-dashboard-view";
 export type DataviewApi = any;
 
 // ===== 背景壁纸预设（深色主题沉浸玻璃场景，设置面板可切换）=====
@@ -94,14 +94,14 @@ const boardMeta = {
 
 const ganttPhases = [
 	{ name: "需求评审", start: 3, end: 12, color: "#22c55e" },
-	{ name: "产品设计", start: 5, end: 20, color: "#eab308" },
+	{ name: "产品设计", start: 5, end: 20, color: "#fbbf24" },
 	{ name: "开发实现", start: 10, end: 25, color: "#22c55e" },
-	{ name: "测试验证", start: 18, end: 31, color: "#a855f7" },
+	{ name: "测试验证", start: 18, end: 31, color: "#a78bfa" },
 ];
 
 const kanbanColumns = [
 	{ key: "todo", name: "待办", color: "#9ca3af" },
-	{ key: "doing", name: "进行中", color: "#3b82f6" },
+	{ key: "doing", name: "进行中", color: "#60a5fa" },
 	{ key: "done", name: "已完成", color: "#22c55e" },
 ];
 
@@ -120,9 +120,9 @@ const REVIEW_NEW_WINDOW_DAYS = 30;
 const REVIEW_QUEUE_LIMIT = 15;
 const REVIEW_MINUTES_PER_ITEM = 5;
 
-export class TalosDashboardView extends ItemView {
+export class PolarisDashboardView extends ItemView {
 	dataviewApi: DataviewApi | null = null;
-	plugin: TalosDashboardPlugin | null = null;
+	plugin: PolarisDashboardPlugin | null = null;
 
 	private currentBoard = "work";
 	private ganttMode = "month";
@@ -164,6 +164,8 @@ export class TalosDashboardView extends ItemView {
 	private draggedTaskId: string | null = null; // 当前拖拽的任务ID
 	private _justDragged = false; // 标记是否刚完成拖拽（避免拖拽后误触发点击）
 	private kbRefreshTimer: number | null = null; // 知识库看板刷新防抖计时器
+	private _docAborters: AbortController[] = []; // document 级监听器的控制器（onClose 统一 abort）
+	private _activeDragFinish: (() => void) | null = null; // 当前拖拽清理函数（面板重建/视图关闭时先取消）
 
 	constructor(leaf: WorkspaceLeaf) { super(leaf); }
 	getViewType() { return VIEW_TYPE_TALOS_DASHBOARD; }
@@ -229,7 +231,7 @@ export class TalosDashboardView extends ItemView {
 		// 加载卡片布局（顺序与宽度）
 		this.loadCardLayout();
 
-		this.rootEl = container.createDiv({ cls: "talos-dashboard" });
+		this.rootEl = container.createDiv({ cls: "polaris-dashboard" });
 
 		this.rootEl.setAttribute("data-theme", this.theme);
 		this.rootEl.style.cssText = "width:100%;height:100%;display:flex;flex-direction:column;overflow:hidden;";
@@ -246,8 +248,9 @@ export class TalosDashboardView extends ItemView {
 		this.registerEvent(this.app.metadataCache.on("changed", () => this.scheduleKnowledgeRefresh()));
 		} catch (e: any) {
 			console.error("[Polaris Dashboard] onOpen error:", e);
+			// 收窄：仅当主界面尚未渲染时才显示错误，局部异常不导致整页空白
 			const errEl = this.containerEl.children[1] as HTMLElement;
-			if (errEl) {
+			if (errEl && !errEl.querySelector(".polaris-dashboard")) {
 				errEl.empty();
 				errEl.createDiv({ text: "TALOS_ERROR: " + String((e && (e.stack || e.message)) || e) });
 			}
@@ -259,27 +262,27 @@ export class TalosDashboardView extends ItemView {
 		this.styleEl = document.createElement("style");
 		this.styleEl.textContent = TALOS_STYLES + `
 			/* 隐藏 Obsidian 默认的视图标题栏（包含分屏选项、更多按钮等） */
-			.workspace-leaf-content[data-type="talos-dashboard-view"] .view-header { display:none !important; }
-			.workspace-leaf-content[data-type="talos-dashboard-view"] .view-content { padding:0 !important; overflow:hidden !important; }
-			.talos-dashboard { height:100% !important; display:flex !important; flex-direction:column !important; }
-			.talos-dashboard .talos-app { flex:1 !important; display:flex !important; min-height:0 !important; height:auto !important; }
-			.talos-dashboard .talos-sidebar { width:260px !important; flex-shrink:0 !important; overflow-y:auto !important; min-height:0 !important; }
-			.talos-dashboard .talos-main { flex:1 !important; overflow-y:auto !important; overflow-x:hidden !important; min-width:0 !important; min-height:0 !important; }
-			.talos-dashboard .talos-detail { width:320px !important; flex-shrink:0 !important; overflow-y:auto !important; min-height:0 !important; }
-			.talos-dashboard .talos-sidebar,.talos-dashboard .talos-main,.talos-dashboard .talos-detail { position:relative !important; z-index:1 !important; }
-			.talos-dashboard .quick-icon,.talos-dashboard .list-item-icon,.talos-dashboard .recent-icon,.talos-dashboard .canvas-stat-icon,.talos-dashboard .logo-icon,.talos-dashboard .nav-icon,.talos-dashboard .diary-icon,.talos-dashboard .empty-icon,.talos-dashboard .search-icon,.talos-dashboard .section-title { font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif !important; }
-			.talos-dashboard .talos-modal-root { position:fixed !important; z-index:9999 !important; }
-			.talos-dashboard .quick-grid .quick-btn,.talos-dashboard .quick-actions-grid .quick-btn { display:flex !important; flex-direction:column !important; align-items:center !important; justify-content:center !important; min-height:64px !important; padding:10px 6px !important; gap:4px !important; line-height:1.2 !important; }
-			.talos-dashboard .talos-toast-container { pointer-events:none !important; }
-			.talos-dashboard .talos-toast-container .toast { pointer-events:auto !important; }
+			.workspace-leaf-content[data-type="polaris-dashboard-view"] .view-header { display:none !important; }
+			.workspace-leaf-content[data-type="polaris-dashboard-view"] .view-content { padding:0 !important; overflow:hidden !important; }
+			.polaris-dashboard { height:100% !important; display:flex !important; flex-direction:column !important; }
+			.polaris-dashboard .polaris-app { flex:1 !important; display:flex !important; min-height:0 !important; height:auto !important; }
+			.polaris-dashboard .polaris-sidebar { width:260px !important; flex-shrink:0 !important; overflow-y:auto !important; min-height:0 !important; }
+			.polaris-dashboard .polaris-main { flex:1 !important; overflow-y:auto !important; overflow-x:hidden !important; min-width:0 !important; min-height:0 !important; }
+			.polaris-dashboard .polaris-detail { width:320px !important; flex-shrink:0 !important; overflow-y:auto !important; min-height:0 !important; }
+			.polaris-dashboard .polaris-sidebar,.polaris-dashboard .polaris-main,.polaris-dashboard .polaris-detail { position:relative !important; z-index:1 !important; }
+			.polaris-dashboard .quick-icon,.polaris-dashboard .list-item-icon,.polaris-dashboard .recent-icon,.polaris-dashboard .canvas-stat-icon,.polaris-dashboard .logo-icon,.polaris-dashboard .nav-icon,.polaris-dashboard .diary-icon,.polaris-dashboard .empty-icon,.polaris-dashboard .search-icon,.polaris-dashboard .section-title { font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif !important; }
+			.polaris-dashboard .polaris-modal-root { position:fixed !important; z-index:9999 !important; }
+			.polaris-dashboard .quick-grid .quick-btn,.polaris-dashboard .quick-actions-grid .quick-btn { display:flex !important; flex-direction:column !important; align-items:center !important; justify-content:center !important; min-height:64px !important; padding:8px 6px !important; gap:4px !important; line-height:1.2 !important; }
+			.polaris-dashboard .polaris-toast-container { pointer-events:none !important; }
+			.polaris-dashboard .polaris-toast-container .toast { pointer-events:auto !important; }
 			/* 搜索框样式修复：确保图标和文字不重叠 */
-			.talos-dashboard .search-box { position:relative; display:flex; align-items:center; width:100%; }
-			.talos-dashboard .search-box .search-icon { position:absolute; left:12px; font-size:14px; z-index:2; pointer-events:none; }
-			.talos-dashboard .search-input { width:100%; padding:9px 60px 9px 36px !important; font-size:13px; box-sizing:border-box; }
-			.talos-dashboard .search-kbd { position:absolute; right:10px; font-size:11px; z-index:2; pointer-events:none; color:rgba(255,255,255,0.35); user-select:none; }
-			.talos-dashboard .talos-note-list-search::placeholder { color:var(--text-muted); opacity:0.75; }
+			.polaris-dashboard .search-box { position:relative; display:flex; align-items:center; width:100%; }
+			.polaris-dashboard .search-box .search-icon { position:absolute; left:12px; font-size:14px; z-index:2; pointer-events:none; }
+			.polaris-dashboard .search-input { width:100%; padding:8px 60px 8px 36px !important; font-size:13px; box-sizing:border-box; }
+			.polaris-dashboard .search-kbd { position:absolute; right:10px; font-size:11px; z-index:2; pointer-events:none; color:rgba(255,255,255,0.35); user-select:none; }
+			.polaris-dashboard .polaris-note-list-search::placeholder { color:var(--text-muted); opacity:0.75; }
 			/* 弹窗笔记列表搜索框：与导航栏搜索框观感统一（细边框/大圆角/同高），深浅色适配 */
-			.talos-dashboard .talos-note-list-search {
+			.polaris-dashboard .polaris-note-list-search {
 				height:36px !important;
 				padding:0 12px 0 36px !important;
 				border-radius:12px !important;
@@ -290,36 +293,36 @@ export class TalosDashboardView extends ItemView {
 				color:var(--text-normal) !important;
 			}
 			/* 弹窗搜索图标：内嵌输入框左侧，垂直居中后微调 2px 修正 emoji 重心 */
-			.talos-dashboard .search-box .talos-note-list-search-icon {
+			.polaris-dashboard .search-box .polaris-note-list-search-icon {
 				top:50% !important;
 				transform:translateY(calc(-50% + 2px)) !important;
 			}
 			/* 侧栏搜索 emoji 图标：同样垂直居中 + 2px 重心修正 */
-			.talos-dashboard .talos-sidebar .search-box .search-icon {
+			.polaris-dashboard .polaris-sidebar .search-box .search-icon {
 				top:50% !important;
 				transform:translateY(calc(-50% + 2px)) !important;
 			}
-			.talos-dashboard[data-theme="light"] .talos-note-list-search {
+			.polaris-dashboard[data-theme="light"] .polaris-note-list-search {
 				background:rgba(0,0,0,0.03) !important;
 				border-color:rgba(0,0,0,0.12) !important;
 			}
 			/* 弹窗搜索框 focus：主题色细描边（无发光，需 !important 覆盖基础边框规则） */
-			.talos-dashboard .talos-note-list-search:focus {
+			.polaris-dashboard .polaris-note-list-search:focus {
 				border-color:var(--focus-border) !important;
 				box-shadow:none !important;
 				background:rgba(255,255,255,0.06) !important;
 				outline:none !important;
 			}
-			.talos-dashboard[data-theme="light"] .talos-note-list-search:focus {
+			.polaris-dashboard[data-theme="light"] .polaris-note-list-search:focus {
 				background:rgba(0,0,0,0.04) !important;
 			}
-			.talos-dashboard[data-theme="light"] .talos-note-list-search::placeholder { color:rgba(0,0,0,0.4) !important; }
+			.polaris-dashboard[data-theme="light"] .polaris-note-list-search::placeholder { color:rgba(0,0,0,0.4) !important; }
 			/* ===== 其他输入框统一（笔记筛选 / 每日一句管理 / 纪念日管理）：12px 圆角 / 细边框 / 无内阴影 / focus 柔光 ===== */
-			.talos-dashboard .talos-subj-filter,
-			.talos-dashboard .talos-q-input,
-			.talos-dashboard .talos-m-name,
-			.talos-dashboard .talos-m-month,
-			.talos-dashboard .talos-m-day {
+			.polaris-dashboard .polaris-subj-filter,
+			.polaris-dashboard .polaris-q-input,
+			.polaris-dashboard .polaris-m-name,
+			.polaris-dashboard .polaris-m-month,
+			.polaris-dashboard .polaris-m-day {
 				background: rgba(255,255,255,0.04) !important;
 				border: 1px solid rgba(255,255,255,0.15) !important;
 				border-radius: 12px !important;
@@ -330,29 +333,29 @@ export class TalosDashboardView extends ItemView {
 				box-sizing: border-box;
 				transition: border-color 0.2s ease, box-shadow 0.2s ease;
 			}
-			.talos-dashboard .talos-subj-filter { height: 36px !important; padding: 0 12px !important; }
-			.talos-dashboard .talos-q-input { height: 36px !important; padding: 0 12px !important; }
-			.talos-dashboard .talos-m-name { height: 32px !important; padding: 0 10px !important; }
-			.talos-dashboard .talos-m-month, .talos-dashboard .talos-m-day { height: 32px !important; padding: 0 8px !important; }
-			.talos-dashboard .talos-subj-filter:focus,
-			.talos-dashboard .talos-q-input:focus,
-			.talos-dashboard .talos-m-name:focus,
-			.talos-dashboard .talos-m-month:focus,
-			.talos-dashboard .talos-m-day:focus {
+			.polaris-dashboard .polaris-subj-filter { height: 36px !important; padding: 0 12px !important; }
+			.polaris-dashboard .polaris-q-input { height: 36px !important; padding: 0 12px !important; }
+			.polaris-dashboard .polaris-m-name { height: 32px !important; padding: 0 8px !important; }
+			.polaris-dashboard .polaris-m-month, .polaris-dashboard .polaris-m-day { height: 32px !important; padding: 0 8px !important; }
+			.polaris-dashboard .polaris-subj-filter:focus,
+			.polaris-dashboard .polaris-q-input:focus,
+			.polaris-dashboard .polaris-m-name:focus,
+			.polaris-dashboard .polaris-m-month:focus,
+			.polaris-dashboard .polaris-m-day:focus {
 				border-color: var(--focus-border) !important;
 				box-shadow: none !important;
 				outline: none !important;
 			}
-			.talos-dashboard[data-theme="light"] .talos-subj-filter,
-			.talos-dashboard[data-theme="light"] .talos-q-input,
-			.talos-dashboard[data-theme="light"] .talos-m-name,
-			.talos-dashboard[data-theme="light"] .talos-m-month,
-			.talos-dashboard[data-theme="light"] .talos-m-day {
+			.polaris-dashboard[data-theme="light"] .polaris-subj-filter,
+			.polaris-dashboard[data-theme="light"] .polaris-q-input,
+			.polaris-dashboard[data-theme="light"] .polaris-m-name,
+			.polaris-dashboard[data-theme="light"] .polaris-m-month,
+			.polaris-dashboard[data-theme="light"] .polaris-m-day {
 				background: rgba(0,0,0,0.03) !important;
 				border-color: rgba(0,0,0,0.12) !important;
 			}
 			/* 复习看板进度圆环 */
-			.talos-dashboard .review-progress-ring {
+			.polaris-dashboard .review-progress-ring {
 				width:120px;height:120px;border-radius:50%;
 				border:8px solid rgba(255,255,255,0.1);
 				border-top-color:var(--brand-green);
@@ -360,131 +363,315 @@ export class TalosDashboardView extends ItemView {
 				flex-shrink:0;
 			}
 			/* ========== 浅色主题全面修复 ========== */
-			.talos-dashboard[data-theme="light"] { background:#f5f5f5 !important; color:#1a1a1a !important; }
-			.talos-dashboard[data-theme="light"] .talos-app { background:#f5f5f5 !important; }
-			.talos-dashboard[data-theme="light"] .glass-card,
-			.talos-dashboard[data-theme="light"] .glass-card-static,
-			.talos-dashboard[data-theme="light"] .stat-card,
-			.talos-dashboard[data-theme="light"] .focus-card,
-			.talos-dashboard[data-theme="light"] .kanban-column,
-			.talos-dashboard[data-theme="light"] .detail-section,
-			.talos-dashboard[data-theme="light"] .task-card,
-			.talos-dashboard[data-theme="light"] .quick-btn,
-			.talos-dashboard[data-theme="light"] .icon-btn,
-			.talos-dashboard[data-theme="light"] .modal-box {
+			.polaris-dashboard[data-theme="light"] { background:#f5f5f0 !important; color:#1a1a1f !important; }
+			.polaris-dashboard[data-theme="light"] .polaris-app { background:#f5f5f0 !important; }
+			.polaris-dashboard[data-theme="light"] .glass-card,
+			.polaris-dashboard[data-theme="light"] .glass-card-static,
+			.polaris-dashboard[data-theme="light"] .stat-card,
+			.polaris-dashboard[data-theme="light"] .focus-card,
+			.polaris-dashboard[data-theme="light"] .kanban-column,
+			.polaris-dashboard[data-theme="light"] .detail-section,
+			.polaris-dashboard[data-theme="light"] .task-card,
+			.polaris-dashboard[data-theme="light"] .quick-btn,
+			.polaris-dashboard[data-theme="light"] .icon-btn,
+			.polaris-dashboard[data-theme="light"] .modal-box {
 				background:rgba(255,255,255,0.9) !important;
 				border-color:rgba(0,0,0,0.1) !important;
-				color:#1a1a1a !important;
+				color:#1a1a1f !important;
 			}
-			.talos-dashboard[data-theme="light"] .search-input,
-			.talos-dashboard[data-theme="light"] .form-input,
-			.talos-dashboard[data-theme="light"] .form-date-field,
-			.talos-dashboard[data-theme="light"] .form-textarea,
-			.talos-dashboard[data-theme="light"] .memo-textarea {
+			.polaris-dashboard[data-theme="light"] .search-input,
+			.polaris-dashboard[data-theme="light"] .form-input,
+			.polaris-dashboard[data-theme="light"] .form-date-field,
+			.polaris-dashboard[data-theme="light"] .form-textarea,
+			.polaris-dashboard[data-theme="light"] .memo-textarea {
 				background:rgba(0,0,0,0.03) !important;
 				border-color:rgba(0,0,0,0.12) !important;
-				color:#1a1a1a !important;
+				color:#1a1a1f !important;
 			}
 			/* 浅色 select：拆分 background 为 color+image，保证自定义箭头不被简写清掉 */
-			.talos-dashboard[data-theme="light"] .form-select {
+			.polaris-dashboard[data-theme="light"] .form-select {
 				background-color:rgba(0,0,0,0.03) !important;
 				border-color:rgba(0,0,0,0.12) !important;
-				color:#1a1a1a !important;
+				color:#1a1a1f !important;
 				background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='black' stroke-opacity='0.45' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>") !important;
 				background-repeat:no-repeat !important;
 				background-position:right 10px center !important;
 				background-size:14px !important;
 			}
-			.talos-dashboard[data-theme="light"] .search-input::placeholder { color:rgba(0,0,0,0.4) !important; }
+			.polaris-dashboard[data-theme="light"] .search-input::placeholder { color:rgba(0,0,0,0.4) !important; }
 			/* 浅色主题 Focus 统一覆盖：同 !important 时 specificity 更高（0,4,0），保证细绿描边必胜于浅色基础边框 */
-			.talos-dashboard[data-theme="light"] .talos-top-nav .search-area .search-input:focus,
-			.talos-dashboard[data-theme="light"] .search-input:focus,
-			.talos-dashboard[data-theme="light"] .form-input:focus,
-			.talos-dashboard[data-theme="light"] .form-select:focus,
-			.talos-dashboard[data-theme="light"] .form-date-field:focus,
-			.talos-dashboard[data-theme="light"] .form-textarea:focus,
-			.talos-dashboard[data-theme="light"] .memo-textarea:focus,
-			.talos-dashboard[data-theme="light"] .kanban-search-input:focus,
-			.talos-dashboard[data-theme="light"] .talos-note-list-search:focus,
-			.talos-dashboard[data-theme="light"] .talos-subj-filter:focus,
-			.talos-dashboard[data-theme="light"] .talos-q-input:focus,
-			.talos-dashboard[data-theme="light"] .talos-m-name:focus,
-			.talos-dashboard[data-theme="light"] .talos-m-month:focus,
-			.talos-dashboard[data-theme="light"] .talos-m-day:focus {
+			.polaris-dashboard[data-theme="light"] .polaris-top-nav .search-area .search-input:focus,
+			.polaris-dashboard[data-theme="light"] .search-input:focus,
+			.polaris-dashboard[data-theme="light"] .form-input:focus,
+			.polaris-dashboard[data-theme="light"] .form-select:focus,
+			.polaris-dashboard[data-theme="light"] .form-date-field:focus,
+			.polaris-dashboard[data-theme="light"] .form-textarea:focus,
+			.polaris-dashboard[data-theme="light"] .memo-textarea:focus,
+			.polaris-dashboard[data-theme="light"] .kanban-search-input:focus,
+			.polaris-dashboard[data-theme="light"] .polaris-note-list-search:focus,
+			.polaris-dashboard[data-theme="light"] .polaris-subj-filter:focus,
+			.polaris-dashboard[data-theme="light"] .polaris-q-input:focus,
+			.polaris-dashboard[data-theme="light"] .polaris-m-name:focus,
+			.polaris-dashboard[data-theme="light"] .polaris-m-month:focus,
+			.polaris-dashboard[data-theme="light"] .polaris-m-day:focus {
 				border-color: #96b030 !important;
 			}
-			.talos-dashboard[data-theme="light"] .search-kbd { background:transparent !important; color:rgba(0,0,0,0.35) !important; border:none !important; }
-			.talos-dashboard[data-theme="dark"] .search-kbd { background:transparent !important; color:rgba(255,255,255,0.35) !important; border:none !important; box-shadow:none !important; }
-			.talos-dashboard[data-theme="light"] .gantt-row-track,
-			.talos-dashboard[data-theme="light"] .progress-track { background:rgba(0,0,0,calc(var(--card-opacity) * 0.107)) !important; }
+			.polaris-dashboard[data-theme="light"] .search-kbd { background:transparent !important; color:rgba(0,0,0,0.35) !important; border:none !important; }
+			.polaris-dashboard[data-theme="dark"] .search-kbd { background:transparent !important; color:rgba(255,255,255,0.35) !important; border:none !important; box-shadow:none !important; }
+			.polaris-dashboard[data-theme="light"] .gantt-row-track,
+			.polaris-dashboard[data-theme="light"] .progress-track { background:rgba(0,0,0,calc(var(--card-opacity) * 0.107)) !important; }
 			/* 浅色主题：甘特任务条底色改为浅灰，与轨道同高可见 */
-			.talos-dashboard[data-theme="light"] .gantt-bar { background:rgba(0,0,0,calc(var(--card-opacity) * 0.133)) !important; box-shadow:0 1px 4px rgba(0,0,0,0.08) !important; }
-			.talos-dashboard[data-theme="light"] .ring-bg { stroke:rgba(0,0,0,calc(var(--card-opacity) * 0.107)) !important; }
-			.talos-dashboard[data-theme="light"] .review-progress-ring {
+			.polaris-dashboard[data-theme="light"] .gantt-bar { background:rgba(0,0,0,calc(var(--card-opacity) * 0.133)) !important; box-shadow:0 1px 4px rgba(0,0,0,0.08) !important; }
+			.polaris-dashboard[data-theme="light"] .ring-bg { stroke:rgba(0,0,0,calc(var(--card-opacity) * 0.107)) !important; }
+			.polaris-dashboard[data-theme="light"] .review-progress-ring {
 				border-color:rgba(0,0,0,calc(var(--card-opacity) * 0.107)) !important;
 				border-top-color:var(--brand-green) !important;
 			}
-			.talos-dashboard[data-theme="light"] .list-item:hover,
-			.talos-dashboard[data-theme="light"] .recent-item:hover,
-			.talos-dashboard[data-theme="light"] .rss-item:hover { background:rgba(0,0,0,0.03) !important; }
-			.talos-dashboard[data-theme="light"] .nav-item { color:#1a1a1a !important; }
-			.talos-dashboard[data-theme="light"] .nav-item:hover { background:rgba(0,0,0,0.04) !important; color:#1a1a1a !important; }
+			.polaris-dashboard[data-theme="light"] .list-item:hover,
+			.polaris-dashboard[data-theme="light"] .recent-item:hover,
+			.polaris-dashboard[data-theme="light"] .rss-item:hover { background:rgba(0,0,0,0.03) !important; }
+			.polaris-dashboard[data-theme="light"] .nav-item { color:#1a1a1f !important; }
+			.polaris-dashboard[data-theme="light"] .nav-item:hover { background:rgba(0,0,0,0.04) !important; color:#1a1a1f !important; }
 			/* 浅色主题：顶部导航 tab（选中态绿底深字，保证可见） */
-			.talos-dashboard[data-theme="light"] .board-tab { color:#52525b !important; }
-			.talos-dashboard[data-theme="light"] .board-tab:hover { color:#1a1a1a !important; background:rgba(0,0,0,0.05) !important; }
-.talos-dashboard[data-theme="light"] .board-tab.active { background:rgba(200,224,96,calc(var(--card-opacity) * 1.0)) !important; color:#0f0f13 !important; font-weight:600 !important; }
-.talos-dashboard[data-theme="light"] .nav-item.active { background:rgba(200,224,96,calc(var(--card-opacity) * 0.333)) !important; color:#1a1a1f !important; border-left-color:var(--brand-green) !important; }
-.talos-dashboard[data-theme="light"] .btn-primary { background:var(--brand-green) !important; color:#0f0f13 !important; }
-			.talos-dashboard[data-theme="light"] .btn-secondary { background:transparent !important; color:#1a1a1a !important; border-color:rgba(0,0,0,0.25) !important; }
-.talos-dashboard[data-theme="light"] .btn-secondary:hover { background:rgba(0,0,0,calc(var(--card-opacity) * 0.08)) !important; border-color:rgba(200,224,96,0.5) !important; }
-.talos-dashboard[data-theme="light"] .btn-new-card { background:var(--brand-green) !important; color:#0f0f13 !important; }
-			.talos-dashboard[data-theme="light"] .icon-btn { background:rgba(0,0,0,calc(var(--card-opacity) * 0.067)) !important; border-color:rgba(0,0,0,0.12) !important; color:#1a1a1a !important; }
-.talos-dashboard[data-theme="light"] .icon-btn:hover { background:rgba(200,224,96,calc(var(--card-opacity) * 0.133)) !important; border-color:rgba(200,224,96,0.5) !important; }
-			.talos-dashboard[data-theme="light"] .quick-btn { background:rgba(0,0,0,0.04) !important; border-color:rgba(0,0,0,0.08) !important; color:#1a1a1a !important; }
-.talos-dashboard[data-theme="light"] .quick-btn:hover { background:rgba(200,224,96,0.1) !important; border-color:rgba(200,224,96,0.4) !important; }
-			.talos-dashboard[data-theme="light"] .checkin-btn { background:rgba(0,0,0,calc(var(--card-opacity) * 0.08)) !important; color:#1a1a1a !important; border-color:rgba(0,0,0,0.15) !important; }
-.talos-dashboard[data-theme="light"] .checkin-btn.checked { background:rgba(200,224,96,calc(var(--card-opacity) * 1.0)) !important; color:#0f0f13 !important; }
-			.talos-dashboard[data-theme="light"] .filter-tab { background:rgba(0,0,0,calc(var(--card-opacity) * 0.067)) !important; color:#1a1a1a !important; }
-.talos-dashboard[data-theme="light"] .filter-tab.active { background:var(--brand-green) !important; color:#0f0f13 !important; }
-			.talos-dashboard[data-theme="light"] .gantt-view-toggle { background:rgba(0,0,0,calc(var(--card-opacity) * 0.08)) !important; }
-			.talos-dashboard[data-theme="light"] .gantt-view-btn { background:transparent !important; color:#1a1a1a !important; }
-.talos-dashboard[data-theme="light"] .gantt-view-btn.active { background:rgba(200,224,96,calc(var(--card-opacity) * 1.0)) !important; color:#0f0f13 !important; }
-			.talos-dashboard[data-theme="light"] .task-card:hover { border-color:var(--brand-green) !important; }
+			.polaris-dashboard[data-theme="light"] .board-tab { color:#52525b !important; }
+			.polaris-dashboard[data-theme="light"] .board-tab:hover { color:#1a1a1f !important; background:rgba(0,0,0,0.05) !important; }
+.polaris-dashboard[data-theme="light"] .board-tab.active { background:rgba(200,224,96,calc(var(--card-opacity) * 1.0)) !important; color:#0f0f13 !important; font-weight:600 !important; }
+.polaris-dashboard[data-theme="light"] .nav-item.active { background:rgba(200,224,96,calc(var(--card-opacity) * 0.333)) !important; color:#1a1a1f !important; border-left-color:var(--brand-green) !important; }
+.polaris-dashboard[data-theme="light"] .btn-primary { background:var(--brand-green) !important; color:#0f0f13 !important; }
+			.polaris-dashboard[data-theme="light"] .btn-secondary { background:transparent !important; color:#1a1a1f !important; border-color:rgba(0,0,0,0.25) !important; }
+.polaris-dashboard[data-theme="light"] .btn-secondary:hover { background:rgba(0,0,0,calc(var(--card-opacity) * 0.08)) !important; border-color:rgba(200,224,96,0.5) !important; }
+.polaris-dashboard[data-theme="light"] .btn-new-card { background:var(--brand-green) !important; color:#0f0f13 !important; }
+			.polaris-dashboard[data-theme="light"] .icon-btn { background:rgba(0,0,0,calc(var(--card-opacity) * 0.067)) !important; border-color:rgba(0,0,0,0.12) !important; color:#1a1a1f !important; }
+.polaris-dashboard[data-theme="light"] .icon-btn:hover { background:rgba(200,224,96,calc(var(--card-opacity) * 0.133)) !important; border-color:rgba(200,224,96,0.5) !important; }
+			.polaris-dashboard[data-theme="light"] .quick-btn { background:rgba(0,0,0,0.04) !important; border-color:rgba(0,0,0,0.08) !important; color:#1a1a1f !important; }
+.polaris-dashboard[data-theme="light"] .quick-btn:hover { background:rgba(200,224,96,0.1) !important; border-color:rgba(200,224,96,0.4) !important; }
+			.polaris-dashboard[data-theme="light"] .checkin-btn { background:rgba(0,0,0,calc(var(--card-opacity) * 0.08)) !important; color:#1a1a1f !important; border-color:rgba(0,0,0,0.15) !important; }
+.polaris-dashboard[data-theme="light"] .checkin-btn.checked { background:rgba(200,224,96,calc(var(--card-opacity) * 1.0)) !important; color:#0f0f13 !important; }
+			.polaris-dashboard[data-theme="light"] .filter-tab { background:rgba(0,0,0,calc(var(--card-opacity) * 0.067)) !important; color:#1a1a1f !important; }
+.polaris-dashboard[data-theme="light"] .filter-tab.active { background:var(--brand-green) !important; color:#0f0f13 !important; }
+			.polaris-dashboard[data-theme="light"] .gantt-view-toggle { background:rgba(0,0,0,calc(var(--card-opacity) * 0.08)) !important; }
+			.polaris-dashboard[data-theme="light"] .gantt-view-btn { background:transparent !important; color:#1a1a1f !important; }
+.polaris-dashboard[data-theme="light"] .gantt-view-btn.active { background:rgba(200,224,96,calc(var(--card-opacity) * 1.0)) !important; color:#0f0f13 !important; }
+			.polaris-dashboard[data-theme="light"] .task-card:hover { border-color:var(--brand-green) !important; }
 			/* 浅色主题：恢复任务卡片左侧状态色带（浅色统一边框规则会盖掉它） */
-			.talos-dashboard[data-theme="light"] .task-card.status-todo { border-left:2px solid rgba(156,163,175,0.6) !important; }
-			.talos-dashboard[data-theme="light"] .task-card.status-doing { border-left:2px solid rgba(59,130,246,0.6) !important; }
-			.talos-dashboard[data-theme="light"] .task-card.status-done { border-left:2px solid rgba(34,197,94,0.6) !important; }
-			.talos-dashboard[data-theme="light"] .task-card.status-overdue { border-left:2px solid rgba(239,68,68,0.6) !important; }
-			.talos-dashboard[data-theme="light"] .task-card:hover.status-todo { border-left-color:#9ca3af !important; }
-			.talos-dashboard[data-theme="light"] .task-card:hover.status-doing { border-left-color:#3b82f6 !important; }
-			.talos-dashboard[data-theme="light"] .task-card:hover.status-done { border-left-color:#22c55e !important; }
-			.talos-dashboard[data-theme="light"] .task-card:hover.status-overdue { border-left-color:#ef4444 !important; }
-			.talos-dashboard[data-theme="light"] .modal-overlay { background:rgba(0,0,0,0.4) !important; }
-			.talos-dashboard[data-theme="light"] .form-label { color:#1a1a1a !important; }
-			.talos-dashboard[data-theme="light"] .gantt-row-label { color:#1a1a1a !important; }
-			.talos-dashboard[data-theme="light"] .gantt-tick { color:rgba(0,0,0,0.5) !important; }
-			.talos-dashboard[data-theme="light"] .kanban-col-header { color:#1a1a1a !important; }
-			.talos-dashboard[data-theme="light"] .kanban-empty { color:rgba(0,0,0,0.4) !important; }
-			.talos-dashboard[data-theme="light"] .detail-empty-state { color:rgba(0,0,0,0.4) !important; }
-			.talos-dashboard[data-theme="light"] .detail-section-title { color:#1a1a1a !important; }
-			.talos-dashboard[data-theme="light"] .detail-info-label { color:rgba(0,0,0,0.5) !important; }
-			.talos-dashboard[data-theme="light"] .detail-info-value { color:#1a1a1a !important; }
+			.polaris-dashboard[data-theme="light"] .task-card.status-todo { border-left:2px solid rgba(156,163,175,0.6) !important; }
+			.polaris-dashboard[data-theme="light"] .task-card.status-doing { border-left:2px solid rgba(59,130,246,0.6) !important; }
+			.polaris-dashboard[data-theme="light"] .task-card.status-done { border-left:2px solid rgba(34,197,94,0.6) !important; }
+			.polaris-dashboard[data-theme="light"] .task-card.status-overdue { border-left:2px solid rgba(239,68,68,0.6) !important; }
+			.polaris-dashboard[data-theme="light"] .task-card:hover.status-todo { border-left-color:#9ca3af !important; }
+			.polaris-dashboard[data-theme="light"] .task-card:hover.status-doing { border-left-color:#60a5fa !important; }
+			.polaris-dashboard[data-theme="light"] .task-card:hover.status-done { border-left-color:#22c55e !important; }
+			.polaris-dashboard[data-theme="light"] .task-card:hover.status-overdue { border-left-color:#f87171 !important; }
+			.polaris-dashboard[data-theme="light"] .modal-overlay { background:rgba(0,0,0,0.4) !important; }
+			.polaris-dashboard[data-theme="light"] .form-label { color:#1a1a1f !important; }
+			.polaris-dashboard[data-theme="light"] .gantt-row-label { color:#1a1a1f !important; }
+			.polaris-dashboard[data-theme="light"] .gantt-tick { color:rgba(0,0,0,0.5) !important; }
+			.polaris-dashboard[data-theme="light"] .kanban-col-header { color:#1a1a1f !important; }
+			.polaris-dashboard[data-theme="light"] .kanban-empty { color:rgba(0,0,0,0.4) !important; }
+			.polaris-dashboard[data-theme="light"] .detail-empty-state { color:rgba(0,0,0,0.4) !important; }
+			.polaris-dashboard[data-theme="light"] .detail-section-title { color:#1a1a1f !important; }
+			.polaris-dashboard[data-theme="light"] .detail-info-label { color:rgba(0,0,0,0.5) !important; }
+			.polaris-dashboard[data-theme="light"] .detail-info-value { color:#1a1a1f !important; }
 			/* 复习任务浅色主题 */
-			.talos-dashboard[data-theme="light"] .review-item { color:#1a1a1a !important; }
-			.talos-dashboard[data-theme="light"] .review-item:hover { background:rgba(0,0,0,0.03) !important; }
-			.talos-dashboard[data-theme="light"] .review-item + .review-item { border-top-color:rgba(0,0,0,0.08) !important; }
-			.talos-dashboard[data-theme="light"] .review-check { border-color:var(--check-border) !important; color:rgba(0,0,0,0.45) !important; background:transparent !important; }
-			.talos-dashboard[data-theme="light"] .review-item.completed .review-check { background:var(--brand-green) !important; border-color:var(--brand-green) !important; color:#0f0f13 !important; }
+			.polaris-dashboard[data-theme="light"] .review-item { color:#1a1a1f !important; }
+			.polaris-dashboard[data-theme="light"] .review-item:hover { background:rgba(0,0,0,0.03) !important; }
+			.polaris-dashboard[data-theme="light"] .review-item + .review-item { border-top-color:rgba(0,0,0,0.08) !important; }
+			.polaris-dashboard[data-theme="light"] .review-check { border-color:var(--check-border) !important; color:rgba(0,0,0,0.45) !important; background:transparent !important; }
+			.polaris-dashboard[data-theme="light"] .review-item.completed .review-check { background:var(--brand-green) !important; border-color:var(--brand-green) !important; color:#0f0f13 !important; }
 			/* 复习任务：不熟/跳过按钮（宿主 button 会覆盖成黑字白底，需 !important 压回） */
-			.talos-dashboard[data-theme="light"] .review-wrong { border-color:rgba(217,119,6,0.4) !important; color:#d97706 !important; background:transparent !important; }
-			.talos-dashboard[data-theme="light"] .review-wrong:hover { border-color:#b45309 !important; background:rgba(217,119,6,calc(var(--card-opacity) * 0.16)) !important; color:#b45309 !important; }
-			.talos-dashboard[data-theme="light"] .review-skip { border-color:rgba(0,0,0,0.25) !important; color:#71717a !important; background:transparent !important; }
-			.talos-dashboard[data-theme="light"] .review-skip:hover { border-color:var(--brand-green-dark) !important; color:var(--brand-green-dark) !important; background:rgba(200,224,96,calc(var(--card-opacity) * 0.2)) !important; }
-			.talos-dashboard[data-theme="light"] .review-text { color:#1a1a1a !important; }
-			.talos-dashboard[data-theme="light"] .review-subject { color:rgba(0,0,0,0.5) !important; }
-			.talos-dashboard[data-theme="light"] .review-item.completed .review-text { color:rgba(0,0,0,0.4) !important; }
+			.polaris-dashboard[data-theme="light"] .review-wrong { border-color:rgba(217,119,6,0.4) !important; color:#d97706 !important; background:transparent !important; }
+			.polaris-dashboard[data-theme="light"] .review-wrong:hover { border-color:#b45309 !important; background:rgba(217,119,6,calc(var(--card-opacity) * 0.16)) !important; color:#b45309 !important; }
+			.polaris-dashboard[data-theme="light"] .review-skip { border-color:rgba(0,0,0,0.25) !important; color:#71717a !important; background:transparent !important; }
+			.polaris-dashboard[data-theme="light"] .review-skip:hover { border-color:var(--brand-green-dark) !important; color:var(--brand-green-dark) !important; background:rgba(200,224,96,calc(var(--card-opacity) * 0.2)) !important; }
+			.polaris-dashboard[data-theme="light"] .review-text { color:#1a1a1f !important; }
+			.polaris-dashboard[data-theme="light"] .review-subject { color:rgba(0,0,0,0.5) !important; }
+			.polaris-dashboard[data-theme="light"] .review-item.completed .review-text { color:rgba(0,0,0,0.4) !important; }
 			/* 知识库图表浅色主题 */
-			.talos-dashboard[data-theme="light"] .knowledge-charts .glass-card-static > div > div[style*="rgba(255,255,255,0.08)"] { background:rgba(0,0,0,0.08) !important; }
+			.polaris-dashboard[data-theme="light"] .knowledge-charts .glass-card-static > div > div[style*="rgba(255,255,255,0.08)"] { background:rgba(0,0,0,0.08) !important; }
+
+			/* ============================================================
+			   液态玻璃拟态：强制覆盖按钮底色（解决 Obsidian 原生 button 深色底问题）
+			   ============================================================ */
+			/* 1. 「新建任务」等头部按钮 */
+			.polaris-dashboard .polaris-header-new,
+			.polaris-dashboard .polaris-quick-note,
+			.polaris-dashboard .polaris-focus-edit,
+			.polaris-dashboard .btn-primary {
+				background: rgba(255, 255, 255, 0.08) !important;
+				backdrop-filter: blur(16px) saturate(1.6) !important;
+				-webkit-backdrop-filter: blur(16px) saturate(1.6) !important;
+				border: 1px solid rgba(255, 255, 255, 0.18) !important;
+				box-shadow:
+					inset 0 1px 0 rgba(255, 255, 255, 0.12),
+					0 2px 8px rgba(0, 0, 0, 0.08) !important;
+				color: #e8e8ec !important;
+				font-weight: 600 !important;
+			}
+			.polaris-dashboard .polaris-header-new:hover,
+			.polaris-dashboard .polaris-quick-note:hover,
+			.polaris-dashboard .polaris-focus-edit:hover,
+			.polaris-dashboard .btn-primary:hover {
+				background: rgba(200, 224, 96, 0.16) !important;
+				border-color: rgba(200, 224, 96, 0.5) !important;
+				box-shadow:
+					inset 0 1px 0 rgba(255, 255, 255, 0.18),
+					0 4px 16px rgba(200, 224, 96, 0.15) !important;
+				color: var(--brand-green) !important;
+			}
+
+			/* 1.5 「查看详情」等次级按钮 */
+			.polaris-dashboard .polaris-focus-detail {
+				background: rgba(255, 255, 255, 0.07) !important;
+				backdrop-filter: blur(12px) saturate(1.4) !important;
+				-webkit-backdrop-filter: blur(12px) saturate(1.4) !important;
+				border: 1px solid rgba(255, 255, 255, 0.15) !important;
+				box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+				color: #d0d0d5 !important;
+			}
+			.polaris-dashboard .polaris-focus-detail:hover {
+				background: rgba(255, 255, 255, 0.12) !important;
+				border-color: rgba(200, 224, 96, 0.45) !important;
+				box-shadow:
+					inset 0 1px 0 rgba(255, 255, 255, 0.15),
+					0 2px 8px rgba(200, 224, 96, 0.1) !important;
+				color: var(--brand-green) !important;
+			}
+
+			/* 2. 周/月/季/年切换按钮组 */
+			.polaris-dashboard .gantt-view-toggle {
+				background: rgba(255, 255, 255, 0.06) !important;
+				border: 1px solid rgba(255, 255, 255, 0.1) !important;
+				backdrop-filter: blur(14px) saturate(1.4) !important;
+				-webkit-backdrop-filter: blur(14px) saturate(1.4) !important;
+				box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+			}
+			.polaris-dashboard .gantt-view-btn {
+				background: transparent !important;
+				border: none !important;
+				color: var(--text-secondary) !important;
+			}
+			.polaris-dashboard .gantt-view-btn.active {
+				background: rgba(255, 255, 255, 0.12) !important;
+				backdrop-filter: blur(10px) !important;
+				-webkit-backdrop-filter: blur(10px) !important;
+				color: var(--brand-green) !important;
+				box-shadow:
+					inset 0 1px 0 rgba(255, 255, 255, 0.15),
+					0 2px 8px rgba(0, 0, 0, 0.12) !important;
+			}
+
+			/* 3. 底部筛选按钮（全部/待办/进行中/已完成/逾期） */
+			.polaris-dashboard .filter-tab {
+				background: rgba(255, 255, 255, 0.07) !important;
+				backdrop-filter: blur(12px) saturate(1.4) !important;
+				-webkit-backdrop-filter: blur(12px) saturate(1.4) !important;
+				border: 1px solid rgba(255, 255, 255, 0.12) !important;
+				box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+				color: #b0b0b5 !important;
+			}
+			.polaris-dashboard .filter-tab:hover {
+				background: rgba(255, 255, 255, 0.13) !important;
+				border-color: rgba(255, 255, 255, 0.22) !important;
+				box-shadow:
+					inset 0 1px 0 rgba(255, 255, 255, 0.12),
+					0 2px 8px rgba(0, 0, 0, 0.1) !important;
+				color: #f0f0f3 !important;
+			}
+			.polaris-dashboard .filter-tab.active {
+				background: rgba(200, 224, 96, 0.16) !important;
+				border-color: rgba(200, 224, 96, 0.5) !important;
+				box-shadow:
+					inset 0 1px 0 rgba(255, 255, 255, 0.15),
+					0 2px 12px rgba(200, 224, 96, 0.15) !important;
+				color: var(--brand-green) !important;
+			}
+
+			/* 4. 右侧图标按钮（日历、+号等） */
+			.polaris-dashboard .icon-btn {
+				background: rgba(255, 255, 255, 0.08) !important;
+				backdrop-filter: blur(12px) saturate(1.4) !important;
+				-webkit-backdrop-filter: blur(12px) saturate(1.4) !important;
+				border: 1px solid rgba(255, 255, 255, 0.14) !important;
+				box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+				color: var(--text-secondary) !important;
+			}
+			.polaris-dashboard .icon-btn:hover {
+				background: rgba(200, 224, 96, 0.12) !important;
+				border-color: rgba(200, 224, 96, 0.45) !important;
+				box-shadow:
+					inset 0 1px 0 rgba(255, 255, 255, 0.12),
+					0 2px 8px rgba(200, 224, 96, 0.12) !important;
+				color: var(--brand-green) !important;
+			}
+
+			/* 5. 今日打卡 + 添加按钮 */
+			.polaris-dashboard .compact-checkin-add {
+				background: rgba(200, 224, 96, 0.12) !important;
+				backdrop-filter: blur(12px) saturate(1.5) !important;
+				-webkit-backdrop-filter: blur(12px) saturate(1.5) !important;
+				border: 1px solid rgba(200, 224, 96, 0.35) !important;
+				box-shadow:
+					inset 0 1px 0 rgba(255, 255, 255, 0.12),
+					0 2px 6px rgba(200, 224, 96, 0.1) !important;
+				color: var(--brand-green) !important;
+			}
+			.polaris-dashboard .compact-checkin-add:hover {
+				background: rgba(200, 224, 96, 0.25) !important;
+				border-color: rgba(200, 224, 96, 0.6) !important;
+				box-shadow:
+					inset 0 1px 0 rgba(255, 255, 255, 0.18),
+					0 4px 12px rgba(200, 224, 96, 0.2) !important;
+				color: var(--brand-green) !important;
+			}
+
+			/* 6. 统计小卡片：更通透的玻璃感，不要深灰蓝 */
+			.polaris-dashboard .stat-card {
+				background: rgba(255, 255, 255, 0.05) !important;
+				border: 1px solid rgba(255, 255, 255, 0.08) !important;
+				box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+			}
+
+			/* 7. 今日焦点大卡片：稍微调亮，减轻厚重感 */
+			.polaris-dashboard .focus-card {
+				background: rgba(255, 255, 255, 0.04) !important;
+				box-shadow:
+					inset 0 1px 0 rgba(255, 255, 255, 0.08),
+					0 4px 24px rgba(0, 0, 0, 0.12) !important;
+			}
+
+			/* 8. 顶部导航栏右侧图标按钮：玻璃质感，去掉灰底 */
+			.polaris-dashboard .polaris-top-nav .icon-btn {
+				background: rgba(255, 255, 255, 0.08) !important;
+				backdrop-filter: blur(12px) saturate(1.4) !important;
+				-webkit-backdrop-filter: blur(12px) saturate(1.4) !important;
+				border: 1px solid rgba(255, 255, 255, 0.14) !important;
+				box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+				color: var(--text-secondary) !important;
+			}
+			.polaris-dashboard .polaris-top-nav .icon-btn:hover {
+				background: rgba(200, 224, 96, 0.12) !important;
+				border-color: rgba(200, 224, 96, 0.45) !important;
+				box-shadow:
+					inset 0 1px 0 rgba(255, 255, 255, 0.12),
+					0 2px 8px rgba(200, 224, 96, 0.12) !important;
+				color: var(--brand-green) !important;
+			}
+
+			/* 10. 查看错题本按钮：玻璃风格 */
+			.polaris-dashboard .polaris-mistake-book {
+				background: rgba(255, 255, 255, 0.06) !important;
+				border: 1px solid rgba(255, 255, 255, 0.12) !important;
+				color: var(--text-secondary) !important;
+				border-radius: var(--radius-md) !important;
+				backdrop-filter: blur(12px) !important;
+				-webkit-backdrop-filter: blur(12px) !important;
+				transition: all 0.15s ease !important;
+			}
+			.polaris-dashboard .polaris-mistake-book:hover {
+				background: rgba(255, 255, 255, 0.1) !important;
+				border-color: rgba(239, 68, 68, 0.3) !important;
+				color: var(--danger-red) !important;
+			}
 		`;
 		document.head.appendChild(this.styleEl);
 	}
@@ -493,31 +680,31 @@ export class TalosDashboardView extends ItemView {
 	private renderApp() {
 		const root = this.rootEl!;
 		root.innerHTML = `
-			<div class="talos-app">
-				<nav class="talos-top-nav"></nav>
-				<div class="talos-content">
-					<main class="talos-main"></main>
-					<aside class="talos-detail">
-						<div class="talos-detail-content detail-body"></div>
+			<div class="polaris-app">
+				<nav class="polaris-top-nav"></nav>
+				<div class="polaris-content">
+					<main class="polaris-main"></main>
+					<aside class="polaris-detail">
+						<div class="polaris-detail-content detail-body"></div>
 					</aside>
 				</div>
 			</div>
-			<div class="talos-drawer-overlay" id="talos-drawer-overlay"></div>
-			<div class="talos-drawer" id="talos-drawer"></div>
-			<div class="talos-toast-container" id="talos-toast-container"></div>
+			<div class="polaris-drawer-overlay" id="polaris-drawer-overlay"></div>
+			<div class="polaris-drawer" id="polaris-drawer"></div>
+			<div class="polaris-toast-container" id="polaris-toast-container"></div>
 		`;
 		this.renderTopNav();
 		this.renderBoard();
 		this.renderTodayPanel();
 		// 绑定抽屉遮罩点击关闭
-		const overlay = root.querySelector("#talos-drawer-overlay") as HTMLElement;
+		const overlay = root.querySelector("#polaris-drawer-overlay") as HTMLElement;
 		overlay.onclick = () => this.closeDrawer();
 	}
 
 	// 顶部导航栏
 	private renderTopNav() {
 		const root = this.rootEl!;
-		const nav = root.querySelector(".talos-top-nav") as HTMLElement;
+		const nav = root.querySelector(".polaris-top-nav") as HTMLElement;
 		nav.innerHTML = `
 			<div class="logo-area">
 				<div class="logo-icon">
@@ -539,12 +726,12 @@ export class TalosDashboardView extends ItemView {
 			</div>
 			<div class="search-area">
 				<span class="search-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg></span>
-				<input class="search-input talos-global-search" type="text" placeholder="搜索笔记、任务、文档...">
+				<input class="search-input polaris-global-search" type="text" placeholder="搜索笔记、任务、文档...">
 				<span class="search-kbd">⌘K</span>
 			</div>
 			<div class="top-actions">
-				<button class="icon-btn talos-btn-diary" title="今日速记">📝</button>
-				<button class="icon-btn talos-btn-settings" title="设置">⚙️</button>
+				<button class="icon-btn polaris-btn-diary" title="今日速记">📝</button>
+				<button class="icon-btn polaris-btn-settings" title="设置">⚙️</button>
 			</div>
 		`;
 
@@ -562,11 +749,11 @@ export class TalosDashboardView extends ItemView {
 		});
 
 		// 绑定快捷操作
-		(nav.querySelector(".talos-btn-diary") as HTMLElement).onclick = () => this.openDiary();
-		(nav.querySelector(".talos-btn-settings") as HTMLElement).onclick = () => this.openSettingsModal();
+		(nav.querySelector(".polaris-btn-diary") as HTMLElement).onclick = () => this.openDiary();
+		(nav.querySelector(".polaris-btn-settings") as HTMLElement).onclick = () => this.openSettingsModal();
 
 		// 绑定搜索：输入实时搜索（下拉面板展开在搜索框下方），回车兜底打开 Obsidian 全局搜索
-		const searchInput = nav.querySelector(".talos-global-search") as HTMLInputElement;
+		const searchInput = nav.querySelector(".polaris-global-search") as HTMLInputElement;
 		let searchDebounce: number | null = null;
 		searchInput.addEventListener("input", () => {
 			if (searchDebounce) window.clearTimeout(searchDebounce);
@@ -608,7 +795,7 @@ export class TalosDashboardView extends ItemView {
 
 	// 右栏卡片拖拽排序（Pointer Events，与左栏看板一致：按住手柄拖动，松手自动落盘）
 	private wireRightPanelDrag() {
-		const detail = this.rootEl!.querySelector(".talos-detail-content") as HTMLElement;
+		const detail = this.rootEl!.querySelector(".polaris-detail-content") as HTMLElement;
 		if (!detail) return;
 		detail.querySelectorAll<HTMLElement>(".rp-card").forEach((card) => {
 			const grip = card.querySelector(".rp-handle");
@@ -625,8 +812,29 @@ export class TalosDashboardView extends ItemView {
 	}
 
 	// 右栏卡片指针拖拽（双向：按指针相对最近卡片的位置插前/插后）
+	// 拖拽时卡片移入 document.body，CSS 变量（定义在 .polaris-dashboard 作用域）解析失败，
+	// 会导致圆角/背景/阴影丢失（右栏卡片变方角）。此处把关键变量快照到卡片内联样式，
+	// 整棵子树恢复正常。左右栏拖拽统一调用。
+	private snapshotCardVars(card: HTMLElement): void {
+		const rootEl = this.rootEl as HTMLElement;
+		if (!rootEl) return;
+		const cs = getComputedStyle(rootEl);
+		const props = [
+			"--radius-sm", "--radius-md", "--radius-lg", "--radius-xl", "--radius-2xl", "--radius-full",
+			"--card-bg-rgb", "--card-opacity", "--card-blur", "--border-color", "--shadow-card",
+			"--brand-green", "--brand-green-dark", "--brand-purple", "--brand-purple-dark",
+			"--text-primary", "--text-secondary", "--text-tertiary", "--text-brand",
+			"--danger-red", "--priority-p0", "--priority-p1", "--priority-p2", "--info-blue",
+			"--space-sm", "--space-md", "--space-lg", "--bg-primary", "--fs-title",
+		];
+		for (const p of props) {
+			const val = cs.getPropertyValue(p).trim();
+			if (val) card.style.setProperty(p, val);
+		}
+	}
+
 	private startRightPanelDrag(e: PointerEvent, card: HTMLElement) {
-		const detail = this.rootEl!.querySelector(".talos-detail-content") as HTMLElement;
+		const detail = this.rootEl!.querySelector(".polaris-detail-content") as HTMLElement;
 		if (!detail) return;
 		e.preventDefault();
 		// 跟手拖拽：卡片脱离文档流跟随指针，占位符让其他卡片实时让位
@@ -638,6 +846,7 @@ export class TalosDashboardView extends ItemView {
 		const offsetY = e.clientY - rect.top;
 		detail.replaceChild(ph, card);
 		card.classList.add("dragging");
+		this.snapshotCardVars(card);
 		card.style.position = "fixed";
 		card.style.left = rect.left + "px";
 		card.style.top = rect.top + "px";
@@ -672,9 +881,15 @@ export class TalosDashboardView extends ItemView {
 				else detail.insertBefore(ph, best.el);
 			}
 		};
-		const onUp = async () => {
-			document.removeEventListener("pointermove", onMove);
-			document.removeEventListener("pointerup", onUp);
+		const ac = new AbortController();
+		this._docAborters.push(ac);
+		const finish = (save: boolean) => {
+			ac.abort();
+			const ai = this._docAborters.indexOf(ac);
+			if (ai >= 0) this._docAborters.splice(ai, 1);
+			if (this._activeDragFinish === finish) this._activeDragFinish = null;
+			// 视图可能已重建（innerHTML 替换）：占位符不在 DOM 时直接丢弃卡片，不保存
+			if (!ph.isConnected) { card.remove(); return; }
 			detail.replaceChild(card, ph);
 			card.style.position = "";
 			card.style.left = "";
@@ -685,18 +900,24 @@ export class TalosDashboardView extends ItemView {
 			card.style.zIndex = "";
 			card.style.pointerEvents = "";
 			card.classList.remove("dragging");
-			const order = Array.from(detail.querySelectorAll<HTMLElement>(".rp-card")).map((c) => (c as HTMLElement).dataset.key || "");
-			if (this.plugin) {
-				this.plugin.pluginData.rightPanel = this.plugin.pluginData.rightPanel || {};
-				this.plugin.pluginData.rightPanel.order = order;
-				await this.plugin.savePluginData();
+			if (save) {
+				const order = Array.from(detail.querySelectorAll<HTMLElement>(".rp-card")).map((c) => (c as HTMLElement).dataset.key || "");
+				if (this.plugin) {
+					this.plugin.pluginData.rightPanel = this.plugin.pluginData.rightPanel || {};
+					this.plugin.pluginData.rightPanel.order = order;
+					void this.plugin.savePluginData();
+				}
 			}
 		};
-		document.addEventListener("pointermove", onMove);
-		document.addEventListener("pointerup", onUp);
+		this._activeDragFinish = finish;
+		document.addEventListener("pointermove", onMove, { signal: ac.signal });
+		document.addEventListener("pointerup", () => finish(true), { signal: ac.signal });
+		document.addEventListener("pointercancel", () => finish(false), { signal: ac.signal });
 	}
 	// 右侧今日面板（固定显示打卡+待办+学习）
 	private renderTodayPanel() {
+		// 重建前取消进行中的右栏拖拽（防止卡片引用失效 / 保存错误顺序）
+		if (this._activeDragFinish) { const f = this._activeDragFinish; f(); }
 		// 重建前清理今日待办就地展开的全局监听（展开块随重建消失，监听不能残留）
 		if (this.todoExpandCloseHandler) {
 			document.removeEventListener("mousedown", this.todoExpandCloseHandler);
@@ -704,11 +925,11 @@ export class TalosDashboardView extends ItemView {
 		}
 		this.todoExpandTaskId = null;
 		const root = this.rootEl!;
-		const detail = root.querySelector(".talos-detail-content") as HTMLElement;
-		detail.className = "talos-detail-content detail-body";
+		const detail = root.querySelector(".polaris-detail-content") as HTMLElement;
+		detail.className = "polaris-detail-content detail-body";
 		// 先创建容器（按设置过滤掉用户隐藏的右栏板块）
 		const hiddenBlocks: string[] = this.plugin.pluginData.rightPanel?.hidden || [];
-		const CARD_STYLE = "padding:10px 12px;border-radius:var(--radius-md);background:rgba(var(--card-bg-rgb),var(--card-opacity));border:1px solid var(--border-color);box-shadow:var(--shadow-card);";
+		const CARD_STYLE = "padding:8px 12px;border-radius:var(--radius-xl);background:rgba(var(--card-bg-rgb),var(--card-opacity));backdrop-filter:blur(var(--card-blur));-webkit-backdrop-filter:blur(var(--card-blur));border:1px solid var(--border-color);box-shadow:var(--shadow-card);";
 		// 板块顺序：用户保存的 order 优先，新板块补在末尾
 		const CANONICAL = ["checkin", "pomo", "todos", "quicknote"];
 		const savedOrder = (this.plugin.pluginData.rightPanel?.order || []).filter((k) => CANONICAL.includes(k));
@@ -716,10 +937,10 @@ export class TalosDashboardView extends ItemView {
 		CANONICAL.forEach((k) => { if (!order.includes(k)) order.push(k); });
 		const HANDLE = `<div class="rp-handle" title="按住拖动排序">⠿</div>`;
 		const inner: Record<string, string> = {
-			checkin: `<div class="talos-today-checkin"></div>`,
-			pomo: `<div class="talos-pomo-card"></div>`,
-			todos: `<div class="talos-today-todos" style="${CARD_STYLE}"></div>`,
-			quicknote: `<div class="talos-today-quicknote" style="${CARD_STYLE}"></div>`,
+			checkin: `<div class="polaris-today-checkin"></div>`,
+			pomo: `<div class="polaris-pomo-card"></div>`,
+			todos: `<div class="polaris-today-todos" style="${CARD_STYLE}"></div>`,
+			quicknote: `<div class="polaris-today-quicknote" style="${CARD_STYLE}"></div>`,
 		};
 		let innerHTML = "";
 		order.forEach((k) => {
@@ -728,22 +949,22 @@ export class TalosDashboardView extends ItemView {
 		});
 		detail.innerHTML = innerHTML;
 		// 渲染打卡模块（紧凑版，内部已绑定事件）
-		const checkinContainer = detail.querySelector(".talos-today-checkin") as HTMLElement;
+		const checkinContainer = detail.querySelector(".polaris-today-checkin") as HTMLElement;
 		if (checkinContainer) this.renderCheckinCompact(checkinContainer);
 		// 日期卡独立：从打卡卡内挪到 detail 顶部（不参与拖拽排序）
-		const dateQuoteCard = detail.querySelector(".talos-date-quote-card") as HTMLElement;
+		const dateQuoteCard = detail.querySelector(".polaris-date-quote-card") as HTMLElement;
 		if (dateQuoteCard) detail.insertBefore(dateQuoteCard, detail.firstChild);
 		// 渲染番茄时钟卡片（右侧今日面板，常驻卡片）
-		const pomoContainer = detail.querySelector(".talos-pomo-card") as HTMLElement;
+		const pomoContainer = detail.querySelector(".polaris-pomo-card") as HTMLElement;
 		if (pomoContainer) { pomoContainer.innerHTML = this.renderPomodoro(); this.bindPomodoroEvents(pomoContainer); }
 		// 渲染今日待办
-		const todosContainer = detail.querySelector(".talos-today-todos") as HTMLElement;
+		const todosContainer = detail.querySelector(".polaris-today-todos") as HTMLElement;
 		if (todosContainer) { todosContainer.innerHTML = this.renderTodayTodosHTML(); this.bindTodayTodosEvents(todosContainer); }
 		// 渲染快速记录
-		const quicknoteContainer = detail.querySelector(".talos-today-quicknote") as HTMLElement;
+		const quicknoteContainer = detail.querySelector(".polaris-today-quicknote") as HTMLElement;
 		if (quicknoteContainer) {
 			quicknoteContainer.innerHTML = this.renderQuickNoteHTML();
-			const quickNoteBtn = quicknoteContainer.querySelector(".talos-quick-note") as HTMLElement;
+			const quickNoteBtn = quicknoteContainer.querySelector(".polaris-quick-note") as HTMLElement;
 			if (quickNoteBtn) quickNoteBtn.onclick = () => this.createQuickNote();
 		}
 		this.wireRightPanelDrag();
@@ -762,18 +983,18 @@ export class TalosDashboardView extends ItemView {
 		);
 		const completedToday = this.workTasks.filter((t) => t.status === "done" && t.completedDate === today);
 		let html = `
-			<div class="detail-section-title" style="display:flex;align-items:center;margin-bottom:10px;"><span>📝 今日待办</span><span style="font-size:11px;color:var(--text-muted);font-weight:400;margin-left:auto;">${todayTasks.length + completedToday.length} 项</span></div>
+			<div class="detail-section-title" style="display:flex;align-items:center;margin-bottom:8px;"><span class="rp-strip"></span><span class="rp-title">📝 今日待办</span><span style="font-size:11px;color:var(--text-muted);font-weight:400;margin-left:auto;">${todayTasks.length + completedToday.length} 项</span></div>
 		`;
 		if (todayTasks.length === 0 && completedToday.length === 0) {
 			html += `<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">暂无待办任务</div>`;
 		} else {
-			html += `<div class="talos-todo-list" style="display:flex;flex-direction:column;gap:4px;">`;
+			html += `<div class="polaris-todo-list" style="display:flex;flex-direction:column;gap:4px;">`;
 			todayTasks.forEach((t) => {
 				const isOverdue = this.isTaskOverdue(t);
 				const pClass = t.priority.toLowerCase();
 				html += `
-					<div class="talos-todo-item" data-task-id="${t.id}" style="display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:10px;cursor:pointer;transition:background 0.15s;" title="点击展开任务详情">
-												<div class="talos-todo-check" data-task-id="${t.id}" style="width:18px;height:18px;border-radius:50%;border:2px solid var(--check-border);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:transparent;cursor:pointer;transition:all 0.2s;" title="标记完成">✓</div>
+					<div class="polaris-todo-item" data-task-id="${t.id}" style="display:flex;align-items:center;gap:8px;padding:8px 8px;border-radius:10px;cursor:pointer;transition:background 0.15s;" title="点击展开任务详情">
+												<div class="polaris-todo-check" data-task-id="${t.id}" style="width:18px;height:18px;border-radius:50%;border:1px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.05);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:transparent;cursor:pointer;transition:all 0.2s;" title="标记完成">✓</div>
 						<div style="flex:1;min-width:0;font-size:13px;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.title}</div>
 							<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;margin-left:6px;">
 								<span class="task-priority ${pClass}" style="margin:0;"><span class="dot"></span>${t.priority}</span>
@@ -784,8 +1005,8 @@ export class TalosDashboardView extends ItemView {
 			});
 			completedToday.forEach((t) => {
 				html += `
-					<div class="talos-todo-item completed" data-task-id="${t.id}" style="display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:10px;cursor:pointer;opacity:0.55;" title="点击展开任务详情">
-												<div class="talos-todo-check checked" data-task-id="${t.id}" style="width:18px;height:18px;border-radius:50%;background:var(--brand-green);border:2px solid var(--brand-green);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:#0f0f13;font-weight:700;cursor:pointer;">✓</div>
+					<div class="polaris-todo-item completed" data-task-id="${t.id}" style="display:flex;align-items:center;gap:8px;padding:8px 8px;border-radius:10px;cursor:pointer;opacity:0.55;" title="点击展开任务详情">
+												<div class="polaris-todo-check checked" data-task-id="${t.id}" style="width:18px;height:18px;border-radius:50%;background:var(--brand-green);border:2px solid var(--brand-green);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:#0f0f13;font-weight:700;cursor:pointer;">✓</div>
 						<div style="flex:1;min-width:0;font-size:13px;text-decoration:line-through;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.title}</div>
 							<span style="font-size:10px;color:var(--text-muted);flex-shrink:0;margin-left:6px;">已完成</span>
 					</div>
@@ -806,7 +1027,7 @@ export class TalosDashboardView extends ItemView {
 
 	// 绑定今日待办事件
 	private bindTodayTodosEvents(container: HTMLElement) {
-		container.querySelectorAll(".talos-todo-check").forEach((el) => {
+		container.querySelectorAll(".polaris-todo-check").forEach((el) => {
 			(el as HTMLElement).onclick = (e) => {
 				e.stopPropagation();
 				const taskId = (el as HTMLElement).dataset.taskId;
@@ -816,7 +1037,7 @@ export class TalosDashboardView extends ItemView {
 				}
 			};
 		});
-		container.querySelectorAll(".talos-todo-item").forEach((el) => {
+		container.querySelectorAll(".polaris-todo-item").forEach((el) => {
 			(el as HTMLElement).onclick = () => {
 				const taskId = (el as HTMLElement).dataset.taskId;
 				if (taskId) {
@@ -829,18 +1050,18 @@ export class TalosDashboardView extends ItemView {
 	// 今日待办就地展开：点击任务行 → 在卡片内展开任务详情（非右侧抽屉）。
 	// 同任务再点收起；点展开区域外也收起。同一时刻只展开一个任务。
 	private toggleTodoExpand(taskId: string, anchor: HTMLElement) {
-		const section = anchor.closest(".talos-today-todos") as HTMLElement;
+		const section = anchor.closest(".polaris-today-todos") as HTMLElement;
 		if (!section) return;
 
 		// 同一任务再点 → 收起
-		const existing = section.querySelector(".talos-todo-expand") as HTMLElement;
+		const existing = section.querySelector(".polaris-todo-expand") as HTMLElement;
 		if (existing && existing.dataset.taskId === taskId) {
 			this.collapseTodoExpand(section);
 			return;
 		}
 		// 移除其他任务的展开块并恢复其行高亮
 		if (existing) {
-			const prev = section.querySelector(`.talos-todo-item[data-task-id="${existing.dataset.taskId}"]`);
+			const prev = section.querySelector(`.polaris-todo-item[data-task-id="${existing.dataset.taskId}"]`);
 			prev?.classList.remove("todo-expanded");
 			existing.remove();
 		}
@@ -849,7 +1070,7 @@ export class TalosDashboardView extends ItemView {
 		if (!task) return;
 
 		const block = document.createElement("div");
-		block.className = "talos-todo-expand";
+		block.className = "polaris-todo-expand";
 		block.dataset.taskId = taskId;
 		const priorityColor = task.priority === "P0" ? "#c084fc" : task.priority === "P1" ? "#fbbf24" : "#9ca3af";
 		block.style.borderLeftColor = priorityColor;
@@ -875,8 +1096,8 @@ export class TalosDashboardView extends ItemView {
 
 	// 收起今日待办的就地展开块
 	private collapseTodoExpand(section: HTMLElement) {
-		section.querySelector(".talos-todo-expand")?.remove();
-		section.querySelector(".talos-todo-item.todo-expanded")?.classList.remove("todo-expanded");
+		section.querySelector(".polaris-todo-expand")?.remove();
+		section.querySelector(".polaris-todo-item.todo-expanded")?.classList.remove("todo-expanded");
 		this.todoExpandTaskId = null;
 		if (this.todoExpandCloseHandler) {
 			document.removeEventListener("mousedown", this.todoExpandCloseHandler);
@@ -896,24 +1117,24 @@ export class TalosDashboardView extends ItemView {
 			<div class="progress-track" style="margin-bottom:12px;">
 				<div class="progress-fill" style="width:${task.progress}%"></div>
 			</div>
-			<div class="detail-edit-list" style="margin:10px 0;">
+			<div class="detail-edit-list" style="margin:8px 0;">
 				<div class="detail-edit-row">
 					<span class="detail-edit-row-label">📅 开始日期</span>
-					<button type="button" class="detail-edit-row-input date-field talos-expand-start" data-task-id="${task.id}">
+					<button type="button" class="detail-edit-row-input date-field polaris-expand-start" data-task-id="${task.id}">
 						<span class="date-field-value ${task.startDate ? "" : "empty"}">${task.startDate || "选择日期"}</span>
 						<span class="date-field-icon">📅</span>
 					</button>
 				</div>
 				<div class="detail-edit-row">
 					<span class="detail-edit-row-label">🕐 截止日期</span>
-					<button type="button" class="detail-edit-row-input date-field talos-expand-due" data-task-id="${task.id}">
+					<button type="button" class="detail-edit-row-input date-field polaris-expand-due" data-task-id="${task.id}">
 						<span class="date-field-value ${task.dueDate ? "" : "empty"}">${task.dueDate || "选择日期"}</span>
 						<span class="date-field-icon">📅</span>
 					</button>
 				</div>
 				<div class="detail-edit-row">
 					<span class="detail-edit-row-label">👤 负责人</span>
-					<input class="detail-edit-row-input talos-expand-assignee" data-task-id="${task.id}" value="${task.assignee || ""}" placeholder="未设置" />
+					<input class="detail-edit-row-input polaris-expand-assignee" data-task-id="${task.id}" value="${task.assignee || ""}" placeholder="未设置" />
 				</div>
 			</div>
 			<div class="detail-edit-list" style="margin:12px 0;">
@@ -935,8 +1156,8 @@ export class TalosDashboardView extends ItemView {
 				</div>
 			</div>
 			<div class="detail-actions" style="margin-top:12px;">
-				<button class="btn-primary talos-expand-complete" data-task-id="${task.id}">✓ 完成任务</button>
-				<button class="btn-secondary talos-expand-open-note" data-task-id="${task.id}">📝 编辑笔记</button>
+				<button class="btn-primary polaris-expand-complete" data-task-id="${task.id}">✓ 完成任务</button>
+				<button class="btn-secondary polaris-expand-open-note" data-task-id="${task.id}">📝 编辑笔记</button>
 			</div>
 		`;
 	}
@@ -970,7 +1191,7 @@ export class TalosDashboardView extends ItemView {
 			};
 		});
 		// 完成任务：完成后列表重排，展开块自然收起
-		const completeBtn = block.querySelector(".talos-expand-complete") as HTMLElement;
+		const completeBtn = block.querySelector(".polaris-expand-complete") as HTMLElement;
 		if (completeBtn) completeBtn.onclick = (e) => {
 			e.stopPropagation();
 			this.toggleTaskComplete(taskId);
@@ -979,7 +1200,7 @@ export class TalosDashboardView extends ItemView {
 			this.showToast("任务已完成");
 		};
 		// 打开关联笔记
-		const openNoteBtn = block.querySelector(".talos-expand-open-note") as HTMLElement;
+		const openNoteBtn = block.querySelector(".polaris-expand-open-note") as HTMLElement;
 		if (openNoteBtn) openNoteBtn.onclick = (e) => {
 			e.stopPropagation();
 			const task = this.workTasks.find((t) => t.id === taskId);
@@ -1023,17 +1244,17 @@ export class TalosDashboardView extends ItemView {
 				});
 			};
 		};
-		block.querySelectorAll<HTMLButtonElement>(".talos-expand-start").forEach((el) => bindExpandDate("startDate", el));
-		block.querySelectorAll<HTMLButtonElement>(".talos-expand-due").forEach((el) => bindExpandDate("dueDate", el));
+		block.querySelectorAll<HTMLButtonElement>(".polaris-expand-start").forEach((el) => bindExpandDate("startDate", el));
+		block.querySelectorAll<HTMLButtonElement>(".polaris-expand-due").forEach((el) => bindExpandDate("dueDate", el));
 		// 负责人：文本输入，修改后保存并保持展开
-		block.querySelectorAll<HTMLInputElement>(".talos-expand-assignee").forEach((el) => saveExpandField("assignee", el));
+		block.querySelectorAll<HTMLInputElement>(".polaris-expand-assignee").forEach((el) => saveExpandField("assignee", el));
 	}
 
 	// 面板重渲染后，重新就地展开指定任务（状态/优先级切换后保持展开）
 	private reopenTodoExpand(taskId: string) {
-		const container = this.rootEl?.querySelector(".talos-today-todos") as HTMLElement;
+		const container = this.rootEl?.querySelector(".polaris-today-todos") as HTMLElement;
 		if (!container) return;
-		const item = container.querySelector(`.talos-todo-item[data-task-id="${taskId}"]`) as HTMLElement | null;
+		const item = container.querySelector(`.polaris-todo-item[data-task-id="${taskId}"]`) as HTMLElement | null;
 		if (item) this.toggleTodoExpand(taskId, item);
 	}
 
@@ -1056,7 +1277,7 @@ export class TalosDashboardView extends ItemView {
 
 	// 渲染本周学习 HTML（层级：分组标题 + 子项缩进 + 进度条/百分比统一）
 	private renderWeeklyLearningHTML(showTitle = true): string {
-		let html = showTitle ? `<div class="detail-section-title" style="display:flex;align-items:center;margin-bottom:10px;"><span>📚 本周学习</span></div>` : "";
+		let html = showTitle ? `<div class="detail-section-title" style="display:flex;align-items:center;margin-bottom:8px;"><span>📚 本周学习</span></div>` : "";
 		// 从 Vault 读取真实的 PARA 文件夹笔记
 		const learningNotes = this.getRecentLearningNotes(5);
 		if (learningNotes.length === 0) {
@@ -1080,7 +1301,7 @@ export class TalosDashboardView extends ItemView {
 				groups[g].forEach((note: any) => {
 					const progress = note.progress || 0;
 					html += `
-						<div class="talos-learning-item" data-path="${note.path}" title="点击打开笔记">
+						<div class="polaris-learning-item" data-path="${note.path}" title="点击打开笔记">
 							<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;margin-bottom:6px;">
 								<span style="color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${note.name}</span>
 								<span style="color:${progress >= 100 ? "var(--text-brand)" : "var(--text-secondary)"};font-weight:600;flex-shrink:0;margin-left:8px;">${progress}%</span>
@@ -1134,15 +1355,15 @@ export class TalosDashboardView extends ItemView {
 	private openTaskDrawer(taskId: string) {
 		const task = this.workTasks.find((t) => t.id === taskId);
 		if (!task) return;
-		const drawer = this.rootEl!.querySelector("#talos-drawer") as HTMLElement;
-		const overlay = this.rootEl!.querySelector("#talos-drawer-overlay") as HTMLElement;
+		const drawer = this.rootEl!.querySelector("#polaris-drawer") as HTMLElement;
+		const overlay = this.rootEl!.querySelector("#polaris-drawer-overlay") as HTMLElement;
 		const priorityColor = task.priority === "P0" ? "#c084fc" : task.priority === "P1" ? "#fbbf24" : "#9ca3af";
 		const statusColor = task.status === "done" ? (this.themeIsLight() ? "#a8c040" : "#c8e060") : task.status === "doing" ? "#60a5fa" : "#9ca3af";
 		const statusText = task.status === "done" ? "已完成" : task.status === "doing" ? "进行中" : "待办";
 		drawer.innerHTML = `
-			<div class="talos-drawer-header">
-				<div class="talos-drawer-title">任务详情</div>
-				<button class="talos-drawer-close" onclick="document.getElementById('talos-drawer')?.classList.remove('open');document.getElementById('talos-drawer-overlay')?.classList.remove('open');">✕</button>
+			<div class="polaris-drawer-header">
+				<div class="polaris-drawer-title">任务详情</div>
+				<button class="polaris-drawer-close" onclick="document.getElementById('polaris-drawer')?.classList.remove('open');document.getElementById('polaris-drawer-overlay')?.classList.remove('open');">✕</button>
 			</div>
 			<div style="font-size:11px;color:var(--text-muted);letter-spacing:1px;margin-bottom:8px;">${task.id.toUpperCase()}</div>
 			<div style="font-size:20px;font-weight:700;line-height:1.4;margin-bottom:16px;">${task.title}</div>
@@ -1186,8 +1407,8 @@ export class TalosDashboardView extends ItemView {
 				</div>
 			</div>
 			<div class="detail-actions" style="margin-top:24px;">
-				<button class="btn-primary talos-drawer-complete" data-task-id="${task.id}">✓ 完成任务</button>
-				<button class="btn-secondary talos-drawer-open-note" data-task-id="${task.id}">📝 编辑笔记</button>
+				<button class="btn-primary polaris-drawer-complete" data-task-id="${task.id}">✓ 完成任务</button>
+				<button class="btn-secondary polaris-drawer-open-note" data-task-id="${task.id}">📝 编辑笔记</button>
 			</div>
 		`;
 		drawer.classList.add("open");
@@ -1219,7 +1440,7 @@ export class TalosDashboardView extends ItemView {
 			};
 		});
 		// 绑定完成按钮
-		const completeBtn = drawer.querySelector(".talos-drawer-complete") as HTMLElement;
+		const completeBtn = drawer.querySelector(".polaris-drawer-complete") as HTMLElement;
 		completeBtn.onclick = () => {
 			const id = completeBtn.dataset.taskId;
 			if (id) {
@@ -1231,7 +1452,7 @@ export class TalosDashboardView extends ItemView {
 			}
 		};
 		// 绑定打开笔记
-		const openNoteBtn = drawer.querySelector(".talos-drawer-open-note") as HTMLElement;
+		const openNoteBtn = drawer.querySelector(".polaris-drawer-open-note") as HTMLElement;
 		openNoteBtn.onclick = () => {
 			const id = openNoteBtn.dataset.taskId;
 			const task = this.workTasks.find((t) => t.id === id);
@@ -1245,8 +1466,8 @@ export class TalosDashboardView extends ItemView {
 
 	// 关闭抽屉
 	private closeDrawer() {
-		const drawer = this.rootEl?.querySelector("#talos-drawer");
-		const overlay = this.rootEl?.querySelector("#talos-drawer-overlay");
+		const drawer = this.rootEl?.querySelector("#polaris-drawer");
+		const overlay = this.rootEl?.querySelector("#polaris-drawer-overlay");
 		drawer?.classList.remove("open");
 		overlay?.classList.remove("open");
 	}
@@ -1372,6 +1593,7 @@ export class TalosDashboardView extends ItemView {
 		const offsetY = e.clientY - rect.top;
 		grid.replaceChild(ph, card);
 		card.classList.add("dragging");
+		this.snapshotCardVars(card);
 		card.style.position = "fixed";
 		card.style.left = rect.left + "px";
 		card.style.top = rect.top + "px";
@@ -1406,9 +1628,14 @@ export class TalosDashboardView extends ItemView {
 				else grid.insertBefore(ph, best.el);
 			}
 		};
-		const onUp = async () => {
-			document.removeEventListener("pointermove", onMove);
-			document.removeEventListener("pointerup", onUp);
+		const ac = new AbortController();
+		this._docAborters.push(ac);
+		const finish = (save: boolean) => {
+			ac.abort();
+			const ai = this._docAborters.indexOf(ac);
+			if (ai >= 0) this._docAborters.splice(ai, 1);
+			if (this._activeDragFinish === finish) this._activeDragFinish = null;
+			if (!ph.isConnected) { card.remove(); return; }
 			grid.replaceChild(card, ph);
 			card.style.position = "";
 			card.style.left = "";
@@ -1419,12 +1646,16 @@ export class TalosDashboardView extends ItemView {
 			card.style.zIndex = "";
 			card.style.pointerEvents = "";
 			card.classList.remove("dragging");
-			const order = Array.from(grid.querySelectorAll(".dash-card")).map((c) => (c as HTMLElement).dataset.cardId || "");
-			this.cardOrder[board] = order;
-			await this.saveCardLayout();
+			if (save) {
+				const order = Array.from(grid.querySelectorAll(".dash-card")).map((c) => (c as HTMLElement).dataset.cardId || "");
+				this.cardOrder[board] = order;
+				void this.saveCardLayout();
+			}
 		};
-		document.addEventListener("pointermove", onMove);
-		document.addEventListener("pointerup", onUp);
+		this._activeDragFinish = finish;
+		document.addEventListener("pointermove", onMove, { signal: ac.signal });
+		document.addEventListener("pointerup", () => finish(true), { signal: ac.signal });
+		document.addEventListener("pointercancel", () => finish(false), { signal: ac.signal });
 	}
 
 	// 卡片宽度调节（Pointer Events，档位 33/50/66/100%）
@@ -1450,22 +1681,28 @@ export class TalosDashboardView extends ItemView {
 			tip.style.left = `${ev.clientX + 12}px`;
 			tip.style.top = `${ev.clientY - 30}px`;
 		};
-		const onUp = async () => {
-			document.removeEventListener("pointermove", onMove);
-			document.removeEventListener("pointerup", onUp);
-			tip.remove();
+		const ac = new AbortController();
+		this._docAborters.push(ac);
+		const finish = (save: boolean) => {
+			ac.abort();
+			const ai = this._docAborters.indexOf(ac);
+			if (ai >= 0) this._docAborters.splice(ai, 1);
+			if (this._activeDragFinish === finish) this._activeDragFinish = null;
+			if (tip.isConnected) tip.remove();
 			const id = card.dataset.cardId || "";
-			if (curSpan !== startSpan) {
+			if (save && curSpan !== startSpan) {
 				this.cardWidth[id] = curSpan;
-				await this.saveCardLayout();
+				void this.saveCardLayout();
 			}
 		};
-		document.addEventListener("pointermove", onMove);
-		document.addEventListener("pointerup", onUp);
+		this._activeDragFinish = finish;
+		document.addEventListener("pointermove", onMove, { signal: ac.signal });
+		document.addEventListener("pointerup", () => finish(true), { signal: ac.signal });
+		document.addEventListener("pointercancel", () => finish(false), { signal: ac.signal });
 	}
 
 	private bindCardDragResize(board: string) {
-		const main = this.rootEl!.querySelector(".talos-main") as HTMLElement;
+		const main = this.rootEl!.querySelector(".polaris-main") as HTMLElement;
 		const grid = main.querySelector(`.dash-grid[data-board="${board}"]`) as HTMLElement;
 		if (!grid) return;
 		grid.querySelectorAll(".dash-card-drag").forEach((h) => {
@@ -1481,8 +1718,10 @@ export class TalosDashboardView extends ItemView {
 	}
 
 	private renderBoard() {
+		// 切换看板前取消进行中的拖拽（防止卡片引用失效）
+		if (this._activeDragFinish) { const f = this._activeDragFinish; f(); }
 		const root = this.rootEl!;
-		const main = root.querySelector(".talos-main") as HTMLElement;
+		const main = root.querySelector(".polaris-main") as HTMLElement;
 		// 日历一级看板已移除（改为日期信息条点击弹出月历）；
 		// 此守卫兼容旧版 data.json 中可能残留的 currentBoard="calendar"
 		if (this.currentBoard === "calendar") { this.currentBoard = "work"; }
@@ -1495,13 +1734,13 @@ export class TalosDashboardView extends ItemView {
 		const order = this.getCardOrder("work");
 		const shells: Record<string, string> = {
 			stats: this.statRowShell(),
-			focus: this.cardShell({ id: "focus", title: "今日焦点", icon: "🎯", bodyClass: "talos-work-focus" }),
-			gantt: this.cardShell({ id: "gantt", title: "项目时间线", icon: "📊", bodyClass: "talos-work-gantt", toolsHTML: this.ganttToolsHTML() }),
-			kanban: this.cardShell({ id: "kanban", title: "任务看板", icon: "🗂️", bodyClass: "talos-work-kanban", toolsHTML: this.kanbanToolsHTML() }),
+			focus: this.cardShell({ id: "focus", title: "今日焦点", icon: "🎯", bodyClass: "polaris-work-focus" }),
+			gantt: this.cardShell({ id: "gantt", title: "项目时间线", icon: "📊", bodyClass: "polaris-work-gantt", toolsHTML: this.ganttToolsHTML() }),
+			kanban: this.cardShell({ id: "kanban", title: "任务看板", icon: "🗂️", bodyClass: "polaris-work-kanban", toolsHTML: this.kanbanToolsHTML() }),
 		};
 		main.innerHTML = `
 			<div class="board-wrap">
-				<div class="canvas-header"><div class="canvas-header-title">💼 工作看板</div><button class="btn-primary talos-header-new">＋ 新建任务</button></div>
+				<div class="canvas-header"><div class="canvas-header-title">💼 工作看板</div><button class="btn-primary polaris-header-new">＋ 新建任务</button></div>
 				<div class="dash-grid" data-board="work">
 					${order.map((id) => shells[id] || "").join("")}
 				</div>
@@ -1512,13 +1751,13 @@ export class TalosDashboardView extends ItemView {
 		this.renderKanban(main);
 		this.bindKanbanToolsEvents(main);
 		this.bindCardDragResize("work");
-		(main.querySelector(".talos-header-new") as HTMLElement).onclick = () => this.openNewCardModal();
+		(main.querySelector(".polaris-header-new") as HTMLElement).onclick = () => this.openNewCardModal();
 	}
 
 	// 任务看板工具区（搜索 + 筛选，卡片壳头部右侧）
 	private kanbanToolsHTML(): string {
 		const filter = this.kanbanFilter;
-		return `<div class="kanban-tools" style="display:flex;align-items:center;gap:10px;">
+		return `<div class="kanban-tools" style="display:flex;align-items:center;gap:8px;">
 			<div class="kanban-search-wrap ${this.kanbanSearch ? "expanded" : ""}">
 				<button class="kanban-search-toggle" title="搜索任务"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg></button>
 				<div class="kanban-search-box">
@@ -1547,16 +1786,16 @@ export class TalosDashboardView extends ItemView {
 		const order = this.getCardOrder("knowledge");
 		const shells: Record<string, string> = {
 			stats: this.statRowShell(),
-			output: this.cardShell({ id: "output", title: "笔记产出", icon: "📈", bodyClass: "talos-kb-output", toolsHTML: this.outputToolsHTML() }),
-			para: this.cardShell({ id: "para", title: "PARA 分布", icon: "🗂️", bodyClass: "talos-kb-para" }),
-			heatmap: this.cardShell({ id: "heatmap", title: "活跃度热力图", icon: "🔥", bodyClass: "talos-kb-heatmap", toolsHTML: this.heatmapToolsHTML(this.getVaultStats().heatmapData) }),
-			tags: this.cardShell({ id: "tags", title: "标签 Top 10", icon: "🏷️", bodyClass: "talos-kb-tags" }),
-			recent: this.cardShell({ id: "recent", title: "最近笔记", icon: "🕐", bodyClass: "talos-kb-recent" }),
-			starred: this.cardShell({ id: "starred", title: "收藏笔记", icon: "⭐", bodyClass: "talos-kb-starred" }),
+			output: this.cardShell({ id: "output", title: "笔记产出", icon: "📈", bodyClass: "polaris-kb-output", toolsHTML: this.outputToolsHTML() }),
+			para: this.cardShell({ id: "para", title: "PARA 分布", icon: "🗂️", bodyClass: "polaris-kb-para" }),
+			heatmap: this.cardShell({ id: "heatmap", title: "活跃度热力图", icon: "🔥", bodyClass: "polaris-kb-heatmap", toolsHTML: this.heatmapToolsHTML(this.getVaultStats().heatmapData) }),
+			tags: this.cardShell({ id: "tags", title: "标签 Top 10", icon: "🏷️", bodyClass: "polaris-kb-tags" }),
+			recent: this.cardShell({ id: "recent", title: "最近笔记", icon: "🕐", bodyClass: "polaris-kb-recent" }),
+			starred: this.cardShell({ id: "starred", title: "收藏笔记", icon: "⭐", bodyClass: "polaris-kb-starred" }),
 		};
 		main.innerHTML = `
 			<div class="board-wrap">
-				<div class="canvas-header"><div class="canvas-header-title">📚 知识库看板</div><button class="btn-primary talos-header-new">＋ 新建笔记</button></div>
+				<div class="canvas-header"><div class="canvas-header-title">📚 知识库看板</div><button class="btn-primary polaris-header-new">＋ 新建笔记</button></div>
 				<div class="dash-grid" data-board="knowledge">
 					${order.map((id) => shells[id] || "").join("")}
 				</div>
@@ -1564,10 +1803,10 @@ export class TalosDashboardView extends ItemView {
 		// 内容渲染（各卡片 body）与卡片点击事件绑定
 		this.renderKnowledgeBoardContent(main);
 		this.bindCardDragResize("knowledge");
-		(main.querySelector(".talos-header-new") as HTMLElement).onclick = () => this.createNewNote();
+		(main.querySelector(".polaris-header-new") as HTMLElement).onclick = () => this.createNewNote();
 
 		// 刷新按钮：带旋转动效（仅骨架级绑定，Content 刷新不重建）
-		const refreshBtn = main.querySelector(".talos-star-refresh");
+		const refreshBtn = main.querySelector(".polaris-star-refresh");
 		if (refreshBtn) {
 			(refreshBtn as HTMLElement).onclick = () => {
 				// 添加旋转动画
@@ -1584,13 +1823,13 @@ export class TalosDashboardView extends ItemView {
 	// 知识库看板内容渲染（骨架已建好；文件增删改后调用以更新数据概览等，不重建布局）
 	private renderKnowledgeBoardContent(main: HTMLElement) {
 		this.renderKnowledgeStats(main);
-		(main.querySelector(".talos-kb-output") as HTMLElement).innerHTML = this.knowledgeOutputHTML();
-		(main.querySelector(".talos-kb-para") as HTMLElement).innerHTML = this.knowledgeParaHTML();
-		const heatmapCard = main.querySelector(".talos-kb-heatmap") as HTMLElement;
+		(main.querySelector(".polaris-kb-output") as HTMLElement).innerHTML = this.knowledgeOutputHTML();
+		(main.querySelector(".polaris-kb-para") as HTMLElement).innerHTML = this.knowledgeParaHTML();
+		const heatmapCard = main.querySelector(".polaris-kb-heatmap") as HTMLElement;
 		heatmapCard.innerHTML = this.renderHeatmap(this.getVaultStats().heatmapData, heatmapCard ? heatmapCard.offsetWidth : 0);
-		(main.querySelector(".talos-kb-tags") as HTMLElement).innerHTML = this.renderTagCloud(this.getVaultStats().topTags, this.getVaultStats().totalTags);
-		(main.querySelector(".talos-kb-recent") as HTMLElement).innerHTML = this.knowledgeRecentHTML();
-		(main.querySelector(".talos-kb-starred") as HTMLElement).innerHTML = this.knowledgeStarredHTML();
+		(main.querySelector(".polaris-kb-tags") as HTMLElement).innerHTML = this.renderTagCloud(this.getVaultStats().topTags, this.getVaultStats().totalTags);
+		(main.querySelector(".polaris-kb-recent") as HTMLElement).innerHTML = this.knowledgeRecentHTML();
+		(main.querySelector(".polaris-kb-starred") as HTMLElement).innerHTML = this.knowledgeStarredHTML();
 		// 热力图工具区统计（近90天活跃/连续打卡/本月笔记）随文件变化同步
 		const heatCard = main.querySelector('.dash-card[data-card-id="heatmap"]') as HTMLElement;
 		const heatTools = heatCard?.querySelector(".dash-card-tools") as HTMLElement;
@@ -1605,7 +1844,7 @@ export class TalosDashboardView extends ItemView {
 		});
 
 		// 收藏笔记：点击文字打开笔记
-		main.querySelectorAll(".talos-star-open").forEach((el) => {
+		main.querySelectorAll(".polaris-star-open").forEach((el) => {
 			(el as HTMLElement).onclick = (e) => {
 				e.stopPropagation();
 				const path = (el as HTMLElement).dataset.path;
@@ -1614,7 +1853,7 @@ export class TalosDashboardView extends ItemView {
 		});
 
 		// 收藏笔记：点击 × 取消收藏（带确认对话框）
-		main.querySelectorAll(".talos-star-remove").forEach((el) => {
+		main.querySelectorAll(".polaris-star-remove").forEach((el) => {
 			(el as HTMLElement).onclick = (e) => {
 				e.stopPropagation();
 				const path = (el as HTMLElement).dataset.path || "";
@@ -1627,7 +1866,7 @@ export class TalosDashboardView extends ItemView {
 		});
 
 		// 空状态点击：显示调试信息
-		const emptyEl = main.querySelector(".talos-star-empty");
+		const emptyEl = main.querySelector(".polaris-star-empty");
 		if (emptyEl) {
 			(emptyEl as HTMLElement).onclick = () => {
 				this.debugStarredPlugins();
@@ -1635,7 +1874,7 @@ export class TalosDashboardView extends ItemView {
 		}
 
 		// 标签点击：搜索该标签
-		main.querySelectorAll(".talos-tag-item").forEach((el) => {
+		main.querySelectorAll(".polaris-tag-item").forEach((el) => {
 			(el as HTMLElement).onclick = () => {
 				const tag = (el as HTMLElement).dataset.tag || "";
 				if (tag) {
@@ -1648,7 +1887,7 @@ export class TalosDashboardView extends ItemView {
 		});
 
 		// 查看全部标签：打开 Obsidian 标签面板
-		const viewAllTagsBtn = main.querySelector(".talos-view-all-tags");
+		const viewAllTagsBtn = main.querySelector(".polaris-view-all-tags");
 		if (viewAllTagsBtn) {
 			(viewAllTagsBtn as HTMLElement).onclick = () => {
 				this.openAllTagsPanel();
@@ -1656,7 +1895,7 @@ export class TalosDashboardView extends ItemView {
 		}
 
 		// 笔记产出视图切换：年/月/周
-		main.querySelectorAll(".talos-output-mode").forEach((el) => {
+		main.querySelectorAll(".polaris-output-mode").forEach((el) => {
 			(el as HTMLElement).onclick = () => {
 				const mode = (el as HTMLElement).dataset.mode || "month";
 				this.outputMode = mode;
@@ -1665,7 +1904,7 @@ export class TalosDashboardView extends ItemView {
 		});
 
 		// 热力图格子点击：打开当日日志
-		main.querySelectorAll(".talos-heatmap-cell").forEach((el) => {
+		main.querySelectorAll(".polaris-heatmap-cell").forEach((el) => {
 			(el as HTMLElement).onclick = () => {
 				const date = (el as HTMLElement).dataset.date || "";
 				if (date) {
@@ -1677,7 +1916,7 @@ export class TalosDashboardView extends ItemView {
 		});
 
 		// 热力图视图切换：年/月/周
-		main.querySelectorAll(".talos-heatmap-mode").forEach((el) => {
+		main.querySelectorAll(".polaris-heatmap-mode").forEach((el) => {
 			(el as HTMLElement).onclick = () => {
 				const mode = (el as HTMLElement).dataset.mode || "year";
 				this.heatmapMode = mode;
@@ -1702,7 +1941,7 @@ export class TalosDashboardView extends ItemView {
 		const stats = this.getVaultStats();
 		const el = main.querySelector(".dash-card-stat-row .dash-card-body") as HTMLElement;
 		if (!el) return;
-		el.className = "dash-card-body talos-stats-overview";
+		el.className = "dash-card-body polaris-stats-overview";
 		const lastMonthly = stats.monthly[stats.monthly.length - 1]?.count || 0;
 		const diffText = (() => {
 			const m = stats.monthly;
@@ -1752,30 +1991,30 @@ export class TalosDashboardView extends ItemView {
 		const renderRows = (list: { name: string; path: string; sub?: string }[]) => {
 			return list.map((it) => {
 				const enc = encodeURIComponent(it.path);
-				return `<div class="talos-note-list-item" role="button" tabindex="0" data-path="${enc}" style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 12px;border-radius:8px;cursor:pointer;transition:opacity 0.15s;" onmouseenter="this.style.opacity='0.65'" onmouseleave="this.style.opacity='1'">
+				return `<div class="polaris-note-list-item" role="button" tabindex="0" data-path="${enc}" style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 12px;border-radius:8px;cursor:pointer;transition:opacity 0.15s;" onmouseenter="this.style.opacity='0.65'" onmouseleave="this.style.opacity='1'">
 					<span style="font-size:13px;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${it.name}</span>
 					${it.sub ? `<span style="font-size:11px;color:var(--text-muted);flex-shrink:0;">${it.sub}</span>` : ""}
 				</div>`;
 			}).join("");
 		};
 		this.showModal(title, `
-			<div style="padding:10px 16px 0;">
+			<div style="padding:8px 16px 0;">
 				<div class="search-box">
-					<span class="search-icon talos-note-list-search-icon">🔍</span>
-					<input class="search-input talos-note-list-search" type="text" placeholder="搜索笔记名称或路径…">
+					<span class="search-icon polaris-note-list-search-icon">🔍</span>
+					<input class="search-input polaris-note-list-search" type="text" placeholder="搜索笔记名称或路径…">
 				</div>
 			</div>
-			<div class="talos-note-list-container" style="max-height:38vh;overflow:auto;display:flex;flex-direction:column;gap:2px;padding:8px 16px 2px;">${renderRows(items)}</div>
+			<div class="polaris-note-list-container" style="max-height:38vh;overflow:auto;display:flex;flex-direction:column;gap:2px;padding:8px 16px 2px;">${renderRows(items)}</div>
 			<div style="border-top:1px solid var(--background-modifier-border);margin:2px 16px 0;"></div>
 			<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px 0;">
-				<span class="talos-note-list-count" style="font-size:11px;color:var(--text-muted);"></span>
-				<button type="button" class="btn-secondary talos-modal-cancel">关闭</button>
+				<span class="polaris-note-list-count" style="font-size:11px;color:var(--text-muted);"></span>
+				<button type="button" class="btn-secondary polaris-modal-cancel">关闭</button>
 			</div>`);
-		const input = this.rootEl!.querySelector(".talos-note-list-search") as HTMLInputElement;
-		const container = this.rootEl!.querySelector(".talos-note-list-container") as HTMLElement;
-		const count = this.rootEl!.querySelector(".talos-note-list-count") as HTMLElement;
+		const input = this.rootEl!.querySelector(".polaris-note-list-search") as HTMLInputElement;
+		const container = this.rootEl!.querySelector(".polaris-note-list-container") as HTMLElement;
+		const count = this.rootEl!.querySelector(".polaris-note-list-count") as HTMLElement;
 		const bind = () => {
-			this.rootEl!.querySelectorAll(".talos-note-list-item").forEach((el) => {
+			this.rootEl!.querySelectorAll(".polaris-note-list-item").forEach((el) => {
 				(el as HTMLElement).onclick = () => {
 					const enc = (el as HTMLElement).dataset.path || "";
 					const path = decodeURIComponent(enc);
@@ -1808,7 +2047,7 @@ export class TalosDashboardView extends ItemView {
 			${["year", "month", "week"].map((m) => {
 				const label = m === "year" ? "年" : m === "month" ? "月" : "周";
 				const active = this.outputMode === m;
-				return `<button class="talos-output-mode" data-mode="${m}" style="padding:4px 12px;border-radius:var(--radius-sm);font-size:11px;cursor:pointer;transition:all 0.15s;border:none;font-family:inherit;${active ? "background:var(--brand-green);color:#0f0f13;font-weight:600;" : "color:var(--text-muted);background:transparent;"}">${label}</button>`;
+				return `<button class="polaris-output-mode" data-mode="${m}" style="padding:4px 12px;border-radius:var(--radius-sm);font-size:11px;cursor:pointer;transition:all 0.15s;border:none;font-family:inherit;${active ? "background:var(--brand-green);color:#0f0f13;font-weight:600;" : "color:var(--text-muted);background:transparent;"}">${label}</button>`;
 			}).join("")}
 		</div>`;
 	}
@@ -1834,7 +2073,7 @@ export class TalosDashboardView extends ItemView {
 	private knowledgeParaHTML(): string {
 		const stats = this.getVaultStats();
 		const paraTotal = stats.total || 1;
-		return `<div style="padding:16px 10px;display:flex;flex-direction:column;gap:14px;">
+		return `<div style="padding:16px 8px;display:flex;flex-direction:column;gap:12px;">
 			${stats.paraFolders.map((p) => {
 				const count = stats.paraCounts[p.key] || 0;
 				const pct = ((count / paraTotal) * 100).toFixed(1);
@@ -1872,43 +2111,43 @@ export class TalosDashboardView extends ItemView {
 	private knowledgeStarredHTML(): string {
 		const stats = this.getVaultStats();
 		if (stats.starredFiles.length > 0) {
-			return stats.starredFiles.map((f: any, i: number) => `<div class="list-item talos-star-item" data-path="${f.path}" data-idx="${i}" style="display:flex;align-items:center;position:relative;"><span class="list-item-icon">⭐</span><div class="list-item-info talos-star-open" data-path="${f.path}" style="flex:1;min-width:0;cursor:pointer;"><div class="list-item-name">${f.name}</div><div class="list-item-time">${stats.starSource === "bookmarks" ? "书签" : "星标"}</div></div><span class="talos-star-remove" data-path="${f.path}" style="cursor:pointer;color:var(--text-muted);padding:4px 10px;border-radius:4px;font-size:18px;opacity:0.6;transition:all 0.2s;flex-shrink:0;margin-left:8px;" title="取消收藏">×</span></div>`).join("");
+			return stats.starredFiles.map((f: any, i: number) => `<div class="list-item polaris-star-item" data-path="${f.path}" data-idx="${i}" style="display:flex;align-items:center;position:relative;"><span class="list-item-icon">⭐</span><div class="list-item-info polaris-star-open" data-path="${f.path}" style="flex:1;min-width:0;cursor:pointer;"><div class="list-item-name">${f.name}</div><div class="list-item-time">${stats.starSource === "bookmarks" ? "书签" : "星标"}</div></div><span class="polaris-star-remove" data-path="${f.path}" style="cursor:pointer;color:var(--text-muted);padding:4px 8px;border-radius:4px;font-size:18px;opacity:0.6;transition:all 0.2s;flex-shrink:0;margin-left:8px;" title="取消收藏">×</span></div>`).join("");
 		}
-		return `<div class="talos-star-empty" style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;line-height:1.6;cursor:pointer;" title="点击查看调试信息">暂无收藏笔记<br><span style="font-size:11px;">右键文件 → 添加到书签/星标<br>检测到：${stats.starSource || "未检测到插件"}（点击查看详情）</span></div>`;
+		return `<div class="polaris-star-empty" style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;line-height:1.6;cursor:pointer;" title="点击查看调试信息">暂无收藏笔记<br><span style="font-size:11px;">右键文件 → 添加到书签/星标<br>检测到：${stats.starSource || "未检测到插件"}（点击查看详情）</span></div>`;
 	}
 
 	private renderReviewBoard(main: HTMLElement) {
 		const order = this.getCardOrder("review");
 		const shells: Record<string, string> = {
 			stats: this.statRowShell(),
-			progress: this.cardShell({ id: "progress", title: "复习进度总览", icon: "🎯", bodyClass: "talos-rv-progress" }),
-			subjects: this.cardShell({ id: "subjects", title: "知识板块分布", icon: "📚", bodyClass: "talos-rv-subjects" }),
-			queue: this.cardShell({ id: "queue", title: "今日复习任务", icon: "📋", bodyClass: "talos-rv-queue" }),
-			trend: this.cardShell({ id: "trend", title: "近7天复习趋势", icon: "📈", bodyClass: "talos-rv-trend" }),
-			mastery: this.cardShell({ id: "mastery", title: "知识点掌握", icon: "🧠", bodyClass: "talos-rv-mastery" }),
-			learning: this.cardShell({ id: "learning", title: "本周学习", icon: "📖", bodyClass: "talos-rv-learning" }),
+			progress: this.cardShell({ id: "progress", title: "复习进度总览", icon: "🎯", bodyClass: "polaris-rv-progress" }),
+			subjects: this.cardShell({ id: "subjects", title: "知识板块分布", icon: "📚", bodyClass: "polaris-rv-subjects" }),
+			queue: this.cardShell({ id: "queue", title: "今日复习任务", icon: "📋", bodyClass: "polaris-rv-queue" }),
+			trend: this.cardShell({ id: "trend", title: "近7天复习趋势", icon: "📈", bodyClass: "polaris-rv-trend" }),
+			mastery: this.cardShell({ id: "mastery", title: "知识点掌握", icon: "🧠", bodyClass: "polaris-rv-mastery" }),
+			learning: this.cardShell({ id: "learning", title: "本周学习", icon: "📖", bodyClass: "polaris-rv-learning" }),
 		};
 		main.innerHTML = `
 			<div class="board-wrap">
-				<div class="canvas-header"><div class="canvas-header-title">🎯 复习看板</div><button class="btn-primary talos-header-new">＋ 新建复习</button></div>
+				<div class="canvas-header"><div class="canvas-header-title">🎯 复习看板</div><button class="btn-primary polaris-header-new">＋ 新建复习</button></div>
 				<div class="dash-grid" data-board="review">
 					${order.map((id) => shells[id] || "").join("")}
 				</div>
 			</div>`;
 		// 内容渲染（各卡片 body）
 		this.renderReviewStats(main);
-		(main.querySelector(".talos-rv-progress") as HTMLElement).innerHTML = this.reviewProgressHTML();
+		(main.querySelector(".polaris-rv-progress") as HTMLElement).innerHTML = this.reviewProgressHTML();
 		this.initReviewRing(main);
-		(main.querySelector(".talos-rv-subjects") as HTMLElement).innerHTML = this.reviewSubjectsHTML();
+		(main.querySelector(".polaris-rv-subjects") as HTMLElement).innerHTML = this.reviewSubjectsHTML();
 		this.bindSubjectCollapse(main);
-		(main.querySelector(".talos-rv-queue") as HTMLElement).innerHTML = this.reviewQueueHTML();
-		(main.querySelector(".talos-rv-trend") as HTMLElement).innerHTML = this.reviewTrendHTML();
+		(main.querySelector(".polaris-rv-queue") as HTMLElement).innerHTML = this.reviewQueueHTML();
+		(main.querySelector(".polaris-rv-trend") as HTMLElement).innerHTML = this.reviewTrendHTML();
 		this.initReviewTrend(main);
-		(main.querySelector(".talos-rv-mastery") as HTMLElement).innerHTML = this.reviewMasteryHTML();
-		const rvLearningEl = main.querySelector(".talos-rv-learning") as HTMLElement;
+		(main.querySelector(".polaris-rv-mastery") as HTMLElement).innerHTML = this.reviewMasteryHTML();
+		const rvLearningEl = main.querySelector(".polaris-rv-learning") as HTMLElement;
 		if (rvLearningEl) {
 			rvLearningEl.innerHTML = this.renderWeeklyLearningHTML(false);
-			rvLearningEl.querySelectorAll(".talos-learning-item").forEach((el) => {
+			rvLearningEl.querySelectorAll(".polaris-learning-item").forEach((el) => {
 				(el as HTMLElement).onclick = () => {
 					const path = (el as HTMLElement).dataset.path;
 					if (path) this.openNoteByPath(path);
@@ -1916,7 +2155,7 @@ export class TalosDashboardView extends ItemView {
 			});
 		}
 		this.bindCardDragResize("review");
-		(main.querySelector(".talos-header-new") as HTMLElement).onclick = () => this.openNewReviewModal();
+		(main.querySelector(".polaris-header-new") as HTMLElement).onclick = () => this.openNewReviewModal();
 		// 今日复习任务：勾选完成 / 跳过 / 点击打开笔记
 		main.querySelectorAll(".review-item").forEach((el) => {
 			const itemEl = el as HTMLElement;
@@ -1947,7 +2186,7 @@ export class TalosDashboardView extends ItemView {
 			itemEl.onclick = () => this.openNoteByPath(path);
 		});
 		// 错题本按钮
-		const mistakeBtn = main.querySelector(".talos-mistake-book") as HTMLElement;
+		const mistakeBtn = main.querySelector(".polaris-mistake-book") as HTMLElement;
 		if (mistakeBtn) mistakeBtn.onclick = () => this.openMistakeBook();
 
 	}
@@ -2184,15 +2423,15 @@ export class TalosDashboardView extends ItemView {
 			<div style="max-height:360px;overflow-y:auto;">
 				${wrongList.length === 0
 					? `<div style="padding:28px 16px;text-align:center;color:var(--text-muted);font-size:13px;">暂无错题 🎉 保持住</div>`
-					: wrongList.map((r) => `<div class="talos-mistake-item" data-path="${r.path}" style="padding:10px 12px;border-bottom:1px solid var(--divider-color);cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;">
+					: wrongList.map((r) => `<div class="polaris-mistake-item" data-path="${r.path}" style="padding:8px 12px;border-bottom:1px solid var(--divider-color);cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;">
 						<span style="font-size:12px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.path.split("/").pop()?.replace(".md", "") || r.path}</span>
 						<span style="font-size:11px;color:var(--text-muted);flex-shrink:0;">记错 ${r.wrongCount} 次 · ${r.subject}</span>
 					</div>`).join("")}
 			</div>
-			<div class="form-actions"><button type="button" class="btn-secondary talos-modal-cancel">关闭</button></div>`);
-		const modal = this.rootEl!.querySelector(".talos-modal-box") as HTMLElement;
-		(modal.querySelector(".talos-modal-cancel") as HTMLElement).onclick = () => this.closeModal();
-		modal.querySelectorAll(".talos-mistake-item").forEach((el) => {
+			<div class="form-actions"><button type="button" class="btn-secondary polaris-modal-cancel">关闭</button></div>`);
+		const modal = this.rootEl!.querySelector(".polaris-modal-box") as HTMLElement;
+		(modal.querySelector(".polaris-modal-cancel") as HTMLElement).onclick = () => this.closeModal();
+		modal.querySelectorAll(".polaris-mistake-item").forEach((el) => {
 			(el as HTMLElement).onclick = () => { this.closeModal(); this.openNoteByPath((el as HTMLElement).dataset.path || ""); };
 		});
 	}
@@ -2235,10 +2474,10 @@ export class TalosDashboardView extends ItemView {
 	private confirmRemoveStarred(path: string, name: string, main: HTMLElement) {
 		this.showModal("取消收藏", `
 			<div style="padding:8px 0 16px;font-size:13px;color:var(--text-secondary);">确定要从收藏中移除「${name}」吗？</div>
-			<div class="form-actions"><button type="button" class="btn-secondary talos-modal-cancel">取消</button><button type="button" class="talos-modal-confirm btn-danger" style="background:var(--danger-red);color:#fff;border:none;padding:8px 20px;border-radius:8px;cursor:pointer;font-size:13px;">移除</button></div>`);
-		const modal = this.rootEl!.querySelector(".talos-modal-box") as HTMLElement;
-		(modal.querySelector(".talos-modal-cancel") as HTMLElement).onclick = () => this.closeModal();
-		(modal.querySelector(".talos-modal-confirm") as HTMLElement).onclick = async () => {
+			<div class="form-actions"><button type="button" class="btn-secondary polaris-modal-cancel">取消</button><button type="button" class="polaris-modal-confirm btn-danger" style="background:var(--danger-red);color:#fff;border:none;padding:8px 20px;border-radius:8px;cursor:pointer;font-size:13px;">移除</button></div>`);
+		const modal = this.rootEl!.querySelector(".polaris-modal-box") as HTMLElement;
+		(modal.querySelector(".polaris-modal-cancel") as HTMLElement).onclick = () => this.closeModal();
+		(modal.querySelector(".polaris-modal-confirm") as HTMLElement).onclick = async () => {
 			try {
 				let removed = false;
 				const bm = (this.app as any).internalPlugins?.getPluginById?.("bookmarks");
@@ -2280,9 +2519,9 @@ export class TalosDashboardView extends ItemView {
 			`Starred 插件：${starred?.enabled ? "已启用" : "未启用/未检测到"}`,
 			starred?.enabled ? `  收藏项：${(starred.instance?.items || starred.instance?.starred || []).length}` : "",
 		].filter(Boolean);
-		this.showModal("收藏调试信息", `<div style="padding:8px 0 16px;font-size:12px;line-height:1.9;color:var(--text-secondary);white-space:pre-wrap;">${lines.join("\n")}</div><div class="form-actions"><button type="button" class="btn-secondary talos-modal-cancel">关闭</button></div>`);
-		const modal = this.rootEl!.querySelector(".talos-modal-box") as HTMLElement;
-		(modal.querySelector(".talos-modal-cancel") as HTMLElement).onclick = () => this.closeModal();
+		this.showModal("收藏调试信息", `<div style="padding:8px 0 16px;font-size:12px;line-height:1.9;color:var(--text-secondary);white-space:pre-wrap;">${lines.join("\n")}</div><div class="form-actions"><button type="button" class="btn-secondary polaris-modal-cancel">关闭</button></div>`);
+		const modal = this.rootEl!.querySelector(".polaris-modal-box") as HTMLElement;
+		(modal.querySelector(".polaris-modal-cancel") as HTMLElement).onclick = () => this.closeModal();
 	}
 
 	// 复习统计行（统一 stat-card 组件）
@@ -2292,7 +2531,7 @@ export class TalosDashboardView extends ItemView {
 		const totalItems = this.reviewSessions.reduce((s, x) => s + x.count, 0);
 		const el = main.querySelector(".dash-card-stat-row .dash-card-body") as HTMLElement;
 		if (!el) return;
-		el.className = "dash-card-body talos-stats-overview";
+		el.className = "dash-card-body polaris-stats-overview";
 		el.innerHTML =
 			this.statCardHTML("🎤", "green", `${progress}%`, "今日完成率", `${doneToday}/${totalToday} 条`, false, false, "reviewToday") +
 			this.statCardHTML("📅", "blue", `${weekDays}天`, "本周学习", "本周有复习记录", false, false, "reviewWeek") +
@@ -2329,15 +2568,15 @@ export class TalosDashboardView extends ItemView {
 			const minutes = this.getReviewConfig().minutesPerItem;
 			const totalMin = Math.round(totalCount * minutes);
 			const lines = rows.length
-				? rows.map((x: any) => `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 4px;border-bottom:1px solid var(--background-modifier-border);"><span style="font-size:13px;color:var(--text-primary);">${x.date}</span><span style="font-size:12px;color:var(--text-muted);">${x.count} 条</span></div>`).join("")
+				? rows.map((x: any) => `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 4px;border-bottom:1px solid var(--background-modifier-border);"><span style="font-size:13px;color:var(--text-primary);">${x.date}</span><span style="font-size:12px;color:var(--text-muted);">${x.count} 条</span></div>`).join("")
 				: `<div style="padding:20px;text-align:center;font-size:12px;color:var(--text-muted);">暂无复习记录</div>`;
 			this.showModal(title, `
 				<div style="max-height:40vh;overflow:auto;padding:8px 16px;">${lines}</div>
 				<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px 0;font-size:11px;color:var(--text-muted);">
 					<span>共 ${totalCount} 条 · 约 ${Math.floor(totalMin / 60)}h${totalMin % 60}m</span>
-					<button type="button" class="btn-secondary talos-modal-cancel">关闭</button>
+					<button type="button" class="btn-secondary polaris-modal-cancel">关闭</button>
 				</div>`);
-			(this.rootEl!.querySelector(".talos-modal-cancel") as HTMLElement)?.addEventListener("click", () => this.closeModal());
+			(this.rootEl!.querySelector(".polaris-modal-cancel") as HTMLElement)?.addEventListener("click", () => this.closeModal());
 		}
 	}
 
@@ -2359,8 +2598,8 @@ export class TalosDashboardView extends ItemView {
 		const stats = this.getReviewStats();
 		const { queue, doneToday, totalToday, progress, overdue } = stats;
 		return `<div style="display:flex;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:0 0 28px;min-height:0;">
-			<div class="talos-ring-wrap" style="position:relative;width:min(62%,230px);aspect-ratio:1;flex-shrink:0;">
-				<div class="talos-ring-echart" style="width:100%;height:100%;"></div>
+			<div class="polaris-ring-wrap" style="position:relative;width:min(62%,230px);aspect-ratio:1;flex-shrink:0;">
+				<div class="polaris-ring-echart" style="width:100%;height:100%;"></div>
 				<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;">
 					<span style="font-size:26px;font-weight:700;color:var(--text-brand);">${progress}%</span>
 					<span style="font-size:11px;color:var(--text-muted);margin-top:2px;">${doneToday}/${totalToday} 已完成</span>
@@ -2383,9 +2622,9 @@ export class TalosDashboardView extends ItemView {
 		</div>`;
 	}
 
-	// 初始化复习进度环（ECharts 环形分段图：粗环 22px + 断口 4px + 端头圆角 3px）
+	// 初始化复习进度环（ECharts 环形分段图：粗环 22px + 断口 4px + 端头圆角 4px）
 	private initReviewRing(main: HTMLElement) {
-		const el = main.querySelector(".talos-ring-echart") as HTMLElement | null;
+		const el = main.querySelector(".polaris-ring-echart") as HTMLElement | null;
 		if (!el) return;
 		const stats = this.getReviewStats();
 		const { queue, doneToday, totalToday, progress, overdue } = stats;
@@ -2393,7 +2632,7 @@ export class TalosDashboardView extends ItemView {
 		const pOver = totalToday > 0 ? Math.max(0, Math.min(overdue, totalToday)) / totalToday * 100 : 0;
 		const pRest = Math.max(0, 100 - pDone - pOver);
 		const cssVar = (name: string, fb: string) => {
-			// 变量定义在 .talos-dashboard（含 [data-theme=light] 覆盖）上，不在 documentElement，
+			// 变量定义在根容器（含 [data-theme=light] 覆盖）上，不在 documentElement，
 			// 必须从根容器读 computed style，否则回退默认色、浅色/暗色取值不生效。
 			const v = this.rootEl ? getComputedStyle(this.rootEl).getPropertyValue(name).trim() : "";
 			return v || fb;
@@ -2402,8 +2641,6 @@ export class TalosDashboardView extends ItemView {
 		if (pDone > 0) data.push({ value: pDone, name: "已完成", itemStyle: { color: cssVar("--brand-green", "#c8e060") } });
 		if (pRest > 0) data.push({ value: pRest, name: "待复习", itemStyle: { color: "#fbbf24" } });
 		if (pOver > 0) data.push({ value: pOver, name: "逾期", itemStyle: { color: cssVar("--danger-red", "#e5534b") } });
-		// 断口色随主题：浅色用接近卡片背景的白色，避免"黑色描边"
-		const gapColor = this.themeIsLight() ? "rgba(255,255,255,0.92)" : "#19191e";
 		const existing = echarts.getInstanceByDom(el);
 		if (existing) existing.dispose();
 		const chart = echarts.init(el);
@@ -2425,21 +2662,22 @@ export class TalosDashboardView extends ItemView {
 			},
 			series: [{
 				type: "pie",
-				radius: ["62.6%", "94%"], // 140px 容器 → 环宽仍为 22px；外径 94% 为 hover 放大（1.03）留余量，不再被画布边缘截断
+				radius: ["62.6%", "94%"], // 外径 94% 为 hover 放大（1.03）留余量，不再被画布边缘截断
 				center: ["50%", "50%"],
 				startAngle: 90,
 				clockwise: true,
+				padAngle: 2,           // 分段之间小间隔
 				avoidLabelOverlap: false,
 				label: { show: false },
 				labelLine: { show: false },
 				itemStyle: {
-					borderRadius: 6,       // 端头圆角
-					borderWidth: 3,        // 半宽 3px → 扇区间隙共 6px（断口）
-					borderColor: gapColor  // 随主题：浅色用近卡片白的断口，避免黑色描边
+					borderRadius: 4,       // 端头圆角
+					borderWidth: 0,        // 无描边
+					borderColor: "transparent"
 				},
 				emphasis: {
 					scale: 1.03,           // hover 温和放大（外径 94% × 1.03 ≈ 96.8%，不裁剪）
-					itemStyle: { borderWidth: 3, borderColor: gapColor }
+					itemStyle: { borderWidth: 0, borderColor: "transparent" }
 				},
 				data
 			}]
@@ -2451,6 +2689,9 @@ export class TalosDashboardView extends ItemView {
 		const wrap = el.parentElement as HTMLElement | null;
 		const holder = wrap ? wrap.parentElement as HTMLElement | null : null;
 		if (wrap && holder) {
+			// 清理上一版（手写 SVG 方案）可能残留的自绘提示节点
+			const staleTip = wrap.querySelector(".pr-tip");
+			if (staleTip) staleTip.remove();
 			const roHolder = new ResizeObserver(() => {
 				try {
 					// 预留：指标行约64px + gap 16 + 底部补偿28 + 余量8
@@ -2475,9 +2716,9 @@ export class TalosDashboardView extends ItemView {
 
 	// 近7天复习趋势柱状图：JS 测量图表区高度，按比例设置柱子像素高度（百分比高度链在弹性布局中不可靠）
 	private initReviewTrend(main: HTMLElement) {
-		const area = main.querySelector(".talos-trend-area") as HTMLElement | null;
+		const area = main.querySelector(".polaris-trend-area") as HTMLElement | null;
 		if (!area) return;
-		const bars = Array.from(area.querySelectorAll<HTMLElement>(".talos-trend-bar"));
+		const bars = Array.from(area.querySelectorAll<HTMLElement>(".polaris-trend-bar"));
 		if (!bars.length) return;
 		const apply = () => {
 			const H = area.clientHeight;
@@ -2508,16 +2749,16 @@ export class TalosDashboardView extends ItemView {
 
 			const hasKids = t.children.length > 1;
 			const arrow = hasKids
-				? `<svg class="talos-subj-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;transition:transform 0.2s ease;transform:rotate(-90deg);"><polyline points="6 9 12 15 18 9"></polyline></svg>`
+				? `<svg class="polaris-subj-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;transition:transform 0.2s ease;transform:rotate(-90deg);"><polyline points="6 9 12 15 18 9"></polyline></svg>`
 				: `<span style="display:inline-block;width:12px;flex-shrink:0;"></span>`;
 			// 有二级 → 点击折叠；无二级 → 点击下钻笔记列表
-			const toggleCls = hasKids ? "talos-subj-toggle" : "talos-subj-toggle talos-subj-open";
+			const toggleCls = hasKids ? "polaris-subj-toggle" : "polaris-subj-toggle polaris-subj-open";
 			const togglePath = hasKids ? "" : ` data-path="${t.root}/${t.name}"`;
-															html += `<div style="margin-bottom:14px;">
+															html += `<div style="margin-bottom:12px;">
 				<div class="${toggleCls}" data-subject="${t.name}"${togglePath} style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin:0 -8px;border-radius:8px;cursor:pointer;user-select:none;transition:background 0.15s ease;">
 					${arrow}
 					<span style="font-size:13px;font-weight:600;color:var(--text-primary);flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.name}</span>
-					${t.due > 0 ? `<span style="background:rgba(248,113,113,0.14);color:var(--danger-red);font-size:10px;line-height:1;padding:2px 5px;border-radius:5px;white-space:nowrap;flex-shrink:0;">${t.due}到期</span>` : ""}
+					${t.due > 0 ? `<span style="background:rgba(248,113,113,0.14);color:var(--danger-red);font-size:10px;line-height:1;padding:2px 4px;border-radius:5px;white-space:nowrap;flex-shrink:0;">${t.due}到期</span>` : ""}
 					<span style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${t.total}篇</span>
 					<span style="font-size:13px;font-weight:700;color:var(--text-primary);white-space:nowrap;font-variant-numeric:tabular-nums;">${pct}%</span>
 				</div>
@@ -2526,13 +2767,13 @@ export class TalosDashboardView extends ItemView {
 				</div>
 			</div>`;
 			if (hasKids) {
-				html += `<div class="talos-subj-children" data-subject="${t.name}" data-open="0" style="padding-left:28px;margin:4px 0 0;display:none;">`;
+				html += `<div class="polaris-subj-children" data-subject="${t.name}" data-open="0" style="padding-left:28px;margin:4px 0 0;display:none;">`;
 				t.children.forEach((k: any) => {
 					const kpct = subjectTotal > 0 ? Math.round((k.total / subjectTotal) * 100) : 0;
-					html += `<div class="talos-subj-open" data-path="${t.root}/${t.name}/${k.name}" style="display:flex;align-items:center;gap:6px;padding:4px 8px;margin:0 -8px;font-size:12px;border-radius:6px;cursor:pointer;transition:background 0.15s ease;" title="查看该板块笔记">
+					html += `<div class="polaris-subj-open" data-path="${t.root}/${t.name}/${k.name}" style="display:flex;align-items:center;gap:6px;padding:4px 8px;margin:0 -8px;font-size:12px;border-radius:6px;cursor:pointer;transition:background 0.15s ease;" title="查看该板块笔记">
 						<span style="width:6px;height:6px;border-radius:2px;background:rgba(200,224,96,0.4);flex-shrink:0;"></span>
 						<span style="color:var(--text-secondary);flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${k.name}</span>
-						${k.due > 0 ? `<span style="background:rgba(248,113,113,0.14);color:var(--danger-red);font-size:10px;line-height:1;padding:2px 5px;border-radius:5px;white-space:nowrap;flex-shrink:0;">${k.due}到期</span>` : ""}
+						${k.due > 0 ? `<span style="background:rgba(248,113,113,0.14);color:var(--danger-red);font-size:10px;line-height:1;padding:2px 4px;border-radius:5px;white-space:nowrap;flex-shrink:0;">${k.due}到期</span>` : ""}
 						<span style="color:var(--text-muted);white-space:nowrap;">${k.total}篇</span>
 						<span style="font-weight:600;color:var(--text-secondary);white-space:nowrap;font-variant-numeric:tabular-nums;">${kpct}%</span>
 					</div>
@@ -2549,24 +2790,24 @@ export class TalosDashboardView extends ItemView {
 
 	// 知识板块分布：领域点击展开/折叠二级板块（通用，无领域名特判）；板块/领域点击下钻笔记列表
 	private bindSubjectCollapse(main: HTMLElement) {
-		main.querySelectorAll<HTMLElement>(".talos-subj-toggle").forEach((el) => {
+		main.querySelectorAll<HTMLElement>(".polaris-subj-toggle").forEach((el) => {
 			el.onclick = () => {
 				const key = el.dataset.subject || "";
 				let group: HTMLElement | null = null;
 				// 用 for..of 而非 forEach：闭包内赋值会被 TS 窄化成 never（保留"最后匹配生效"的原语义）
-				for (const g of Array.from(main.querySelectorAll<HTMLElement>(".talos-subj-children"))) {
+				for (const g of Array.from(main.querySelectorAll<HTMLElement>(".polaris-subj-children"))) {
 					if (g.dataset.subject === key) group = g;
 				}
 				if (!group) return;
 				const open = group.dataset.open === "1";
 				group.dataset.open = open ? "0" : "1";
 				group.style.display = open ? "none" : "";
-				const arrow = el.querySelector(".talos-subj-arrow");
+				const arrow = el.querySelector(".polaris-subj-arrow");
 				if (arrow) (arrow as HTMLElement).style.transform = open ? "rotate(-90deg)" : "rotate(0deg)";
 			};
 		});
 		// 下钻：二级板块行 + 无二级的领域行 → 弹出该板块笔记列表
-		main.querySelectorAll<HTMLElement>(".talos-subj-open").forEach((el) => {
+		main.querySelectorAll<HTMLElement>(".polaris-subj-open").forEach((el) => {
 			el.onclick = () => {
 				const path = el.dataset.path || "";
 				if (path) this.openSubjectFilesModal(path);
@@ -2585,7 +2826,7 @@ export class TalosDashboardView extends ItemView {
 			? files.map((f, i) => {
 					const rel = f.path.slice(folderPath.length + 1);
 					const dir = rel.split("/").slice(0, -1).join("/") || "根目录";
-					return `<div class="talos-subj-file" data-idx="${i}" title="${esc(f.path)}" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 10px;border-radius:6px;cursor:pointer;font-size:13px;">
+					return `<div class="polaris-subj-file" data-idx="${i}" title="${esc(f.path)}" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 8px;border-radius:6px;cursor:pointer;font-size:13px;">
 						<span style="color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(f.basename)}</span>
 						<span style="color:var(--text-muted);font-size:11px;flex-shrink:0;">${esc(dir)}</span>
 					</div>`;
@@ -2593,24 +2834,24 @@ export class TalosDashboardView extends ItemView {
 			: `<div style="padding:24px 16px;text-align:center;color:var(--text-muted);font-size:13px;">该板块暂无笔记</div>`;
 		this.showModal(title, `
 			<div style="padding:12px 16px 16px;">
-				<input class="talos-subj-filter" type="text" placeholder="筛选笔记…（输入即过滤）" style="width:100%;box-sizing:border-box;">
-				<div style="margin:10px 2px 4px;font-size:11px;color:var(--text-muted);">${files.length} 篇 · 按最近修改排序 · 点击打开</div>
-				<div class="talos-subj-file-list" style="max-height:60vh;overflow-y:auto;margin-top:4px;">
+				<input class="polaris-subj-filter" type="text" placeholder="筛选笔记…（输入即过滤）" style="width:100%;box-sizing:border-box;">
+				<div style="margin:8px 2px 4px;font-size:11px;color:var(--text-muted);">${files.length} 篇 · 按最近修改排序 · 点击打开</div>
+				<div class="polaris-subj-file-list" style="max-height:60vh;overflow-y:auto;margin-top:4px;">
 					${rows}
 				</div>
 			</div>`);
-		const input = this.rootEl!.querySelector(".talos-subj-filter") as HTMLInputElement;
-		const list = this.rootEl!.querySelector(".talos-subj-file-list") as HTMLElement;
+		const input = this.rootEl!.querySelector(".polaris-subj-filter") as HTMLInputElement;
+		const list = this.rootEl!.querySelector(".polaris-subj-file-list") as HTMLElement;
 		if (input && list) {
 			input.oninput = () => {
 				const q = input.value.trim().toLowerCase();
-				list.querySelectorAll<HTMLElement>(".talos-subj-file").forEach((row) => {
+				list.querySelectorAll<HTMLElement>(".polaris-subj-file").forEach((row) => {
 					row.style.display = !q || (row.textContent || "").toLowerCase().includes(q) ? "" : "none";
 				});
 			};
 			input.focus();
 		}
-		this.rootEl!.querySelectorAll<HTMLElement>(".talos-subj-file").forEach((row) => {
+		this.rootEl!.querySelectorAll<HTMLElement>(".polaris-subj-file").forEach((row) => {
 			row.onclick = async () => {
 				const idx = parseInt(row.dataset.idx || "-1", 10);
 				const file = files[idx];
@@ -2646,12 +2887,12 @@ export class TalosDashboardView extends ItemView {
 		const { trend, doneToday } = stats;
 		const maxTrend = Math.max(...trend.map((t: any) => t.count), 1);
 		return `<div style="display:flex;flex:1;flex-direction:column;min-height:0;">
-			<div class="talos-trend-area" style="flex:1;display:flex;align-items:flex-end;justify-content:space-between;padding:12px 8px 8px;gap:4px;min-height:110px;box-sizing:border-box;">
+			<div class="polaris-trend-area" style="flex:1;display:flex;align-items:flex-end;justify-content:space-between;padding:12px 8px 8px;gap:4px;min-height:110px;box-sizing:border-box;">
 				${trend.map((v: any) => {
 					const h = Math.max(8, Math.min(70, (v.count / maxTrend) * 100));
 					return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0;height:100%;justify-content:flex-end;">
 						<span style="font-size:10px;color:${v.count > 0 ? "var(--text-brand)" : "var(--text-muted)"};font-weight:${v.count > 0 ? "600" : "400"};">${v.count > 0 ? v.count : ""}</span>
-						<div class="talos-trend-bar" data-h="${h.toFixed(1)}" style="width:100%;max-width:24px;background:${v.isToday ? "var(--brand-green)" : v.count > 0 ? "rgba(200,224,96,0.4)" : this.themeIsLight() ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.06)"};border-radius:3px 3px 0 0;transition:height 0.3s ease;flex-shrink:0;"></div>
+						<div class="polaris-trend-bar" data-h="${h.toFixed(1)}" style="width:100%;max-width:24px;background:${v.isToday ? "var(--brand-green)" : v.count > 0 ? "rgba(200,224,96,0.4)" : this.themeIsLight() ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.06)"};border-radius:3px 3px 0 0;transition:height 0.3s ease;flex-shrink:0;"></div>
 						<span style="font-size:10px;color:${v.isToday ? "var(--text-brand)" : "var(--text-muted)"};">${v.label}</span>
 					</div>`;
 				}).join("")}
@@ -2682,17 +2923,17 @@ export class TalosDashboardView extends ItemView {
 			</div>
 		</div>
 		<div style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:-4px;margin-bottom:12px;">走完 1→3→7→14→30 天五轮阶梯即视为已掌握</div>
-		<button class="btn-secondary talos-mistake-book" style="width:100%;padding:10px;font-size:13px;">📕 查看错题本${wrongTotal > 0 ? ` · <span style="color:var(--danger-red);font-weight:700;">${wrongTotal}</span>` : ""}</button>`;
+		<button class="btn-secondary polaris-mistake-book" style="width:100%;padding:8px;font-size:13px;">📕 查看错题本${wrongTotal > 0 ? ` · <span style="color:var(--danger-red);font-weight:700;">${wrongTotal}</span>` : ""}</button>`;
 	}
 
 	// 快速记录（右侧今日面板 body）
 	private renderQuickNoteHTML(): string {
-		return `<div class="detail-section-title" style="display:flex;align-items:center;margin-bottom:10px;"><span>⚡ 快速记录</span></div>
+		return `<div class="detail-section-title" style="display:flex;align-items:center;margin-bottom:8px;"><span class="rp-strip"></span><span class="rp-title">⚡ 快速记录</span></div>
 			<div style="padding:8px 0 4px;text-align:center;">
 				<div style="margin-bottom:8px;">💡</div>
 				<div style="font-size:13px;color:var(--text-secondary);margin-bottom:4px;">有灵感？快速记下来</div>
 				<div style="font-size:11px;color:var(--text-muted);margin-bottom:16px;">点击下方按钮，自动创建笔记到收集箱</div>
-				<button class="btn-primary talos-quick-note" style="padding:10px 24px;font-size:13px;">📝 新建快速笔记</button>
+				<button class="btn-primary polaris-quick-note" style="padding:6px 16px;font-size:12px;width:100%;">📝 新建快速笔记</button>
 			</div>`;
 	}
 
@@ -2717,7 +2958,7 @@ export class TalosDashboardView extends ItemView {
 	private renderWorkStats(main: HTMLElement) {
 		const el = main.querySelector(".dash-card-stat-row .dash-card-body") as HTMLElement;
 		if (!el) return;
-		el.className = "dash-card-body talos-stats-overview";
+		el.className = "dash-card-body polaris-stats-overview";
 		const doingCount = this.workTasks.filter((t) => t.status === "doing").length;
 		const todoCount = this.workTasks.filter((t) => t.status === "todo").length;
 		const doneCount = this.workTasks.filter((t) => t.status === "done").length;
@@ -2776,7 +3017,7 @@ export class TalosDashboardView extends ItemView {
 	}
 
 	private renderFocusCard(main: HTMLElement) {
-		const el = main.querySelector(".talos-work-focus") as HTMLElement;
+		const el = main.querySelector(".polaris-work-focus") as HTMLElement;
 		const task = this.getFocusTask();
 		if (!task) {
 			el.innerHTML = `
@@ -2793,16 +3034,16 @@ export class TalosDashboardView extends ItemView {
 				<div class="focus-meta"><div class="focus-tags">${this.isTaskOverdue(task) ? '<span class="badge badge-red"><span class="dot"></span>已逾期</span>' : ""}${tag}</div><span>负责人：${task.assignee || "未分配"}</span> · <span>截止日期：${task.dueDate || "—"}</span></div>
 				<div class="focus-title">${task.title}</div>
 				<div class="focus-progress-row"><div class="progress-track" style="height:10px"><div class="progress-fill" style="width:${task.progress}%"></div></div><span class="progress-text">${task.progress}%</span></div>
-				<div class="focus-actions"><button class="btn-primary talos-focus-edit">继续编辑</button><button class="talos-focus-detail">查看详情</button></div>
+				<div class="focus-actions"><button class="btn-primary polaris-focus-edit">继续编辑</button><button class="polaris-focus-detail">查看详情</button></div>
 			</div>`;
-		(el.querySelector(".talos-focus-edit") as HTMLElement).onclick = (e) => {
+		(el.querySelector(".polaris-focus-edit") as HTMLElement).onclick = (e) => {
 			e.stopPropagation();
 			if (task.notePath) { this.openNoteByPath(task.notePath); }
 			else { this.showToast("该任务未关联笔记"); }
 		};
 		const statusMap: Record<string, string> = { todo: "待开始", doing: "进行中", done: "已完成" };
 		const detailData = { id: task.id, title: task.title, priority: task.priority, status: statusMap[task.status], progress: task.progress, dueDate: task.dueDate, assignee: task.assignee || "未分配", notePath: task.notePath };
-		(el.querySelector(".talos-focus-detail") as HTMLElement).onclick = (e) => { e.stopPropagation(); this.showTaskDetail(detailData); };
+		(el.querySelector(".polaris-focus-detail") as HTMLElement).onclick = (e) => { e.stopPropagation(); this.showTaskDetail(detailData); };
 		(el.querySelector(".focus-card") as HTMLElement).onclick = () => this.showTaskDetail(detailData);
 	}
 
@@ -2902,7 +3143,7 @@ export class TalosDashboardView extends ItemView {
 
 	// 渲染打卡卡片（多习惯列表）
 	private renderCheckin(main: HTMLElement) {
-		const el = main.querySelector(".talos-work-checkin") as HTMLElement;
+		const el = main.querySelector(".polaris-work-checkin") as HTMLElement;
 		const todayStr = this.getTodayStr();
 		const activeHabits = this.getActiveHabits();
 		const progress = this.getTodayCheckinProgress();
@@ -2913,8 +3154,8 @@ export class TalosDashboardView extends ItemView {
 			<div class="module-title" style="display:flex;justify-content:space-between;align-items:center;">
 				<span>📅 每日打卡</span>
 				<div style="display:flex;gap:8px;">
-					<button class="talos-checkin-add" style="cursor:pointer;background:var(--control-bg);border:none;border-radius:6px;padding:3px 10px;font-size:11px;color:var(--text-secondary);">➕ 添加</button>
-					<button class="talos-checkin-manage" style="cursor:pointer;background:var(--control-bg);border:none;border-radius:6px;padding:3px 10px;font-size:11px;color:var(--text-secondary);">⚙️ 管理</button>
+					<button class="polaris-checkin-add" style="cursor:pointer;background:transparent;border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:3px 8px;font-size:11px;color:var(--text-secondary);">➕ 添加</button>
+					<button class="polaris-checkin-manage" style="cursor:pointer;background:transparent;border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:3px 8px;font-size:11px;color:var(--text-secondary);">⚙️ 管理</button>
 				</div>
 			</div>
 			<div class="checkin-top" style="margin-bottom:12px;">
@@ -2926,7 +3167,7 @@ export class TalosDashboardView extends ItemView {
 				activeHabits.map((habit) => {
 					const checked = this.isHabitChecked(habit.id, todayStr);
 					const streak = this.getHabitStreak(habit.id);
-					return `<div class="habit-item" data-habit-id="${habit.id}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;background:${checked ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.03)'};cursor:pointer;transition:background 0.15s;">
+					return `<div class="habit-item" data-habit-id="${habit.id}" style="display:flex;align-items:center;gap:8px;padding:8px 8px;border-radius:8px;background:${checked ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.03)'};cursor:pointer;transition:background 0.15s;">
 						<div class="habit-check-circle" data-habit-id="${habit.id}" style="width:22px;height:22px;border-radius:50%;border:2px solid ${checked ? habit.color : 'var(--text-muted)'};background:${checked ? habit.color : 'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
 							${checked ? '<span style="color:white;font-size:12px;font-weight:bold;">✓</span>' : ''}
 						</div>
@@ -2956,11 +3197,11 @@ export class TalosDashboardView extends ItemView {
 			};
 		});
 
-		(el.querySelector(".talos-checkin-add") as HTMLElement).onclick = () => {
+		(el.querySelector(".polaris-checkin-add") as HTMLElement).onclick = () => {
 			this.showAddHabitModal();
 		};
 
-		(el.querySelector(".talos-checkin-manage") as HTMLElement).onclick = () => {
+		(el.querySelector(".polaris-checkin-manage") as HTMLElement).onclick = () => {
 			this.showHabitManager();
 		};
 	}
@@ -3025,30 +3266,30 @@ export class TalosDashboardView extends ItemView {
 		const signNo = this.dailySignRecord[todayStr];
 		const drawnSign = signNo ? this.dailySigns[signNo - 1] : null;
 		const dateQuoteHtml = `
-			<div class="talos-date-quote-card" style="padding:12px 14px;border-radius:var(--radius-md);background:rgba(var(--card-bg-rgb),var(--card-opacity));border:1px solid var(--border-color);box-shadow:var(--shadow-card);">
+			<div class="polaris-date-quote-card" style="padding:12px 12px;border-radius:var(--radius-md);background:rgba(var(--card-bg-rgb),var(--card-opacity));backdrop-filter:blur(var(--card-blur));-webkit-backdrop-filter:blur(var(--card-blur));border:1px solid var(--border-color);box-shadow:var(--shadow-card);">
 				<div style="display:flex;align-items:center;justify-content:center;gap:8px;font-size:20px;font-weight:800;color:var(--date-text);letter-spacing:0.5px;line-height:1.2;">${today.getMonth()+1}月${today.getDate()}日<span style="display:inline-block;font-size:11px;font-weight:600;color:var(--tag-green-text);background:var(--tag-green-bg);border-radius:6px;padding:2px 8px;letter-spacing:0;line-height:1.4;">${dayLabels[today.getDay()]}</span></div>
 				<div style="font-size:11px;color:var(--text-muted);margin-top:4px;text-align:center;letter-spacing:0.5px;">${ganzhiPrefix}${lunar.lunarMonthName}${lunar.lunarDayName}${lunarExtra ? ` · ${lunarExtra}` : ""}</div>
 				${dc.yiJi ? `<div style="display:flex;justify-content:center;align-items:center;gap:8px;margin-top:4px;">
 					<span class="badge-green" style="font-size:11px;padding:2px 8px;border-radius:6px;line-height:1.4;">宜 ${yiText}</span>
 					<span class="badge-red" style="font-size:11px;padding:2px 8px;border-radius:6px;line-height:1.4;">忌 ${jiText}</span>
 				</div>` : ""}
-				${dc.dailySign ? (drawnSign ? `<div class="talos-sign-row" style="margin-top:5px;text-align:center;font-size:11px;color:var(--text-secondary);line-height:1.6;">
+				${dc.dailySign ? (drawnSign ? `<div class="polaris-sign-row" style="margin-top:4px;text-align:center;font-size:11px;color:var(--text-secondary);line-height:1.6;">
 					<span style="color:var(--text-muted);">🎋 第${signNo}签</span>
 					<span style="font-weight:700;color:var(--date-text);margin-left:6px;">${drawnSign.luck} · ${drawnSign.title}</span>
 					<div style="margin-top:1px;">${drawnSign.poem}</div>
-					<button type="button" class="talos-sign-toggle" style="margin-top:3px;cursor:pointer;background:var(--control-bg);border:1px solid var(--border-color);border-radius:6px;padding:2px 10px;font-size:11px;color:var(--text-secondary);">解签</button>
-					<div class="talos-sign-detail" style="display:none;margin-top:4px;color:var(--text-muted);background:rgba(var(--card-bg-rgb),0.5);border-radius:6px;padding:6px 10px;">${drawnSign.jie}</div>
-				</div>` : `<div class="talos-sign-entry" title="点击抽取今日一签" style="margin-top:5px;text-align:center;font-size:11px;color:var(--text-secondary);line-height:1.6;cursor:pointer;padding:4px 0;user-select:none;">🎋 <span style="font-weight:600;">抽今日一签</span></div>`) : ""}
-				${nextMilestone ? `<div style="font-size:11px;color:var(--brand-purple);font-weight:600;margin-top:5px;text-align:center;"><span style="margin-right:6px;">🔔</span>${nextMilestone.text}</div>` : ""}
-				<div style="height:1px;background:var(--border-color);margin:10px 0 8px;"></div>
-				<div class="talos-quote-click" title="点击管理每日一句" style="font-size:12px;color:var(--text-secondary);font-style:italic;line-height:1.7;text-align:center;cursor:pointer;transition:color 0.15s;">"${safeQuote.t}"</div>
+					<button type="button" class="polaris-sign-toggle" style="margin-top:3px;cursor:pointer;background:var(--control-bg);border:1px solid var(--border-color);border-radius:6px;padding:2px 8px;font-size:11px;color:var(--text-secondary);">解签</button>
+					<div class="polaris-sign-detail" style="display:none;margin-top:4px;color:var(--text-muted);background:rgba(var(--card-bg-rgb),0.5);border-radius:6px;padding:6px 8px;">${drawnSign.jie}</div>
+				</div>` : `<div class="polaris-sign-entry" title="点击抽取今日一签" style="margin-top:4px;text-align:center;font-size:11px;color:var(--text-secondary);line-height:1.6;cursor:pointer;padding:4px 0;user-select:none;">🎋 <span style="font-weight:600;">抽今日一签</span></div>`) : ""}
+				${nextMilestone ? `<div style="font-size:11px;color:var(--brand-purple);font-weight:600;margin-top:4px;text-align:center;"><span style="margin-right:6px;">🔔</span>${nextMilestone.text}</div>` : ""}
+				<div style="height:1px;background:var(--border-color);margin:8px 0 8px;"></div>
+				<div class="polaris-quote-click" title="点击管理每日一句" style="font-size:12px;color:var(--text-secondary);font-style:italic;line-height:1.7;text-align:center;cursor:pointer;transition:color 0.15s;">"${safeQuote.t}"</div>
 				${safeQuote.a ? `<div style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:4px;">— ${safeQuote.a}</div>` : ""}
 			</div>`;
 
 		const checkinHtml = `
-			<div class="detail-section talos-compact-checkin" style="padding:12px;border-radius:var(--radius-md);background:rgba(var(--card-bg-rgb),var(--card-opacity));border:1px solid var(--border-color);box-shadow:var(--shadow-card);">
-				<div class="detail-section-title" style="display:flex;align-items:center;margin-bottom:10px;">
-					<span>✅ 今日打卡</span>
+			<div class="detail-section polaris-compact-checkin" style="padding:12px;border-radius:var(--radius-md);background:rgba(var(--card-bg-rgb),var(--card-opacity));border:1px solid var(--border-color);box-shadow:var(--shadow-card);">
+				<div class="detail-section-title" style="display:flex;align-items:center;margin-bottom:8px;">
+					<span class="rp-strip"></span><span class="rp-title">✅ 今日打卡</span>
 					<div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
 						<button class="compact-calendar-open icon-btn" title="查看完整月历" style="width:26px;height:26px;padding:0;font-size:13px;">📅</button>
 						<button class="compact-checkin-add icon-btn" title="添加新习惯" style="width:26px;height:26px;padding:0;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
@@ -3059,7 +3300,7 @@ export class TalosDashboardView extends ItemView {
 					activeHabits.map((habit) => {
 						const checked = this.isHabitChecked(habit.id, todayStr);
 						const streak = this.getHabitStreak(habit.id);
-						return `<div class="compact-habit-item ${checked?'checked':''}" data-habit-id="${habit.id}" title="${checked ? "点击取消打卡" : "点击打卡"}" style="display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:6px;">
+						return `<div class="compact-habit-item ${checked?'checked':''}" data-habit-id="${habit.id}" title="${checked ? "点击取消打卡" : "点击打卡"}" style="display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:6px;">
 							<div class="compact-habit-check" data-habit-id="${habit.id}" style="border-color:${checked ? habit.color : 'var(--check-border)'};background:${checked ? habit.color : 'transparent'};">${checked ? '✓' : ''}</div>
 							<span style="font-size:13px;flex-shrink:0;">${habit.icon}</span>
 							<span class="compact-habit-name">${habit.name}</span>
@@ -3084,10 +3325,10 @@ export class TalosDashboardView extends ItemView {
 		// 插入「日期+每日一句」合并卡片 + 打卡模块到容器顶部
 		container.insertAdjacentHTML("afterbegin", dateQuoteHtml + checkinHtml);
 
-		const checkinSection = container.querySelector(".talos-compact-checkin") as HTMLElement;
+		const checkinSection = container.querySelector(".polaris-compact-checkin") as HTMLElement;
 
 		// 点击语录文本直接进入管理（低频操作收敛，默认不暴露）
-		const quoteClick = container.querySelector(".talos-quote-click") as HTMLElement;
+		const quoteClick = container.querySelector(".polaris-quote-click") as HTMLElement;
 		if (quoteClick) {
 			quoteClick.onclick = (e) => {
 				e.stopPropagation();
@@ -3096,10 +3337,10 @@ export class TalosDashboardView extends ItemView {
 		}
 
 		// 每日一签：解签按钮展开/收起解释
-		container.querySelectorAll(".talos-sign-toggle").forEach((btn) => {
+		container.querySelectorAll(".polaris-sign-toggle").forEach((btn) => {
 			(btn as HTMLElement).onclick = (e) => {
 				e.stopPropagation();
-				const detail = (btn as HTMLElement).closest(".talos-sign-row")?.querySelector(".talos-sign-detail") as HTMLElement;
+				const detail = (btn as HTMLElement).closest(".polaris-sign-row")?.querySelector(".polaris-sign-detail") as HTMLElement;
 				if (detail) {
 					const hidden = detail.style.display === "none";
 					detail.style.display = hidden ? "block" : "none";
@@ -3109,7 +3350,7 @@ export class TalosDashboardView extends ItemView {
 		});
 
 		// 每日一签：点击抽签入口 → 打开抽签弹窗（摇签揭晓 + 解签）→ 关闭后卡片显示结果
-		const signEntry = container.querySelector(".talos-sign-entry") as HTMLElement;
+		const signEntry = container.querySelector(".polaris-sign-entry") as HTMLElement;
 		if (signEntry) {
 			signEntry.onclick = async (e) => {
 				e.stopPropagation();
@@ -3145,7 +3386,7 @@ export class TalosDashboardView extends ItemView {
 				const habitId = (item as HTMLElement).dataset.habitId || "";
 				await this.toggleHabitCheckin(habitId, todayStr);
 				this.refreshRightPanel();
-				this.renderWorkStats(this.rootEl!.querySelector(".talos-work-main") as HTMLElement);
+				this.renderWorkStats(this.rootEl!.querySelector(".polaris-work-main") as HTMLElement);
 			};
 		});
 
@@ -3173,7 +3414,7 @@ export class TalosDashboardView extends ItemView {
 		if (!weekCal) return;
 
 		// 收起：移除展开块，恢复周历小视图；若期间选中日期变化，刷新面板同步小视图高亮
-		const existing = checkinSection.querySelector(".talos-calendar-expand") as HTMLElement;
+		const existing = checkinSection.querySelector(".polaris-calendar-expand") as HTMLElement;
 		if (existing) {
 			existing.remove();
 			weekCal.style.display = "";
@@ -3209,8 +3450,8 @@ export class TalosDashboardView extends ItemView {
 		const dayNames = ["日","一","二","三","四","五","六"];
 
 		const block = document.createElement("div");
-		block.className = "talos-calendar-expand";
-		block.style.cssText = "margin-top:10px;border-top:1px solid var(--border-color);padding-top:10px;";
+		block.className = "polaris-calendar-expand";
+		block.style.cssText = "margin-top:8px;border-top:1px solid var(--border-color);padding-top:8px;";
 
 		const render = () => {
 			const firstDay = new Date(viewYear, viewMonth, 1);
@@ -3228,13 +3469,13 @@ export class TalosDashboardView extends ItemView {
 				const isSel = dateStr === selStr;
 				const hasCheckin = checkedDates.has(dateStr);
 				const isFuture = new Date(dateStr + "T00:00:00") > now;
-				grid += `<div class="cal-day" data-date="${dateStr}" style="aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:8px;font-size:12px;cursor:${isFuture ? 'default' : 'pointer'};transition:all 0.15s;${isToday ? 'outline:2px solid var(--brand-green);' : ''}${isSel ? 'background:var(--brand-green);color:#1a1a1a;font-weight:700;' : ''}${!isSel && hasCheckin ? 'background:rgba(200,224,96,0.18);color:var(--text-brand);font-weight:600;' : ''}${!isSel && !hasCheckin ? 'color:var(--text-secondary);' : ''}${isFuture ? 'opacity:0.3;' : ''}">${day}</div>`;
+				grid += `<div class="cal-day" data-date="${dateStr}" style="aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:8px;font-size:12px;cursor:${isFuture ? 'default' : 'pointer'};transition:all 0.15s;${isToday ? 'outline:2px solid var(--brand-green);' : ''}${isSel ? 'background:var(--brand-green);color:#1a1a1f;font-weight:700;' : ''}${!isSel && hasCheckin ? 'background:rgba(200,224,96,0.18);color:var(--text-brand);font-weight:600;' : ''}${!isSel && !hasCheckin ? 'color:var(--text-secondary);' : ''}${isFuture ? 'opacity:0.3;' : ''}">${day}</div>`;
 			}
 
 			// 选中日打卡明细
 			let detailHtml = "";
 			if (activeHabits.length === 0) {
-				detailHtml = `<div style="text-align:center;padding:14px;color:var(--text-muted);font-size:12px;">暂无习惯</div>`;
+				detailHtml = `<div style="text-align:center;padding:12px;color:var(--text-muted);font-size:12px;">暂无习惯</div>`;
 			} else {
 				detailHtml = activeHabits.map((habit) => {
 					const checked = this.isHabitChecked(habit.id, selStr);
@@ -3248,15 +3489,15 @@ export class TalosDashboardView extends ItemView {
 			}
 
 			block.innerHTML = `
-				<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-					<button class="cal-prev" style="cursor:pointer;background:var(--control-bg);border:none;border-radius:6px;padding:4px 10px;font-size:14px;color:var(--text-secondary);">‹</button>
+				<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+					<button class="cal-prev" style="cursor:pointer;background:var(--control-bg);border:none;border-radius:6px;padding:4px 8px;font-size:14px;color:var(--text-secondary);">‹</button>
 					<span style="font-size:14px;font-weight:600;color:var(--text-primary);">${viewYear}年${monthNames[viewMonth]}</span>
-					<button class="cal-next" style="cursor:pointer;background:var(--control-bg);border:none;border-radius:6px;padding:4px 10px;font-size:14px;color:var(--text-secondary);">›</button>
+					<button class="cal-next" style="cursor:pointer;background:var(--control-bg);border:none;border-radius:6px;padding:4px 8px;font-size:14px;color:var(--text-secondary);">›</button>
 				</div>
 				<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px;">
 					${dayNames.map((d) => `<div style="text-align:center;font-size:11px;color:var(--text-muted);padding:3px 0;">${d}</div>`).join("")}
 				</div>
-				<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:10px;">${grid}</div>
+				<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:8px;">${grid}</div>
 				<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 2px 6px;border-top:1px solid var(--background-modifier-border);">
 					<button class="cal-day-prev" style="cursor:pointer;background:transparent;border:none;color:var(--text-secondary);font-size:13px;padding:2px 8px;border-radius:6px;">‹ 前一天</button>
 					<span style="font-size:13px;font-weight:600;color:var(--text-primary);">${selected.getMonth()+1}月${selected.getDate()}日 ${dayLabels[selected.getDay()]}</span>
@@ -3332,7 +3573,7 @@ export class TalosDashboardView extends ItemView {
 		const monthNames = ["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];
 
 		const pop = document.createElement("div");
-		pop.className = "talos-date-pop";
+		pop.className = "polaris-date-pop";
 		pop.setAttribute("data-theme", this.theme);
 		// 内联注入主题变量：浮层挂在 body 下，CSS 变量继承链不可靠，
 		// 用内联 style.setProperty 保证浮层及内部元素（‹ › / 今天 / 清除 / 日期格）始终吃到当前主题 token
@@ -3363,21 +3604,21 @@ export class TalosDashboardView extends ItemView {
 			for (let day = 1; day <= daysInMonth; day++) {
 				const dateStr = `${viewYear}-${String(viewMonth+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
 				const cls = dateStr === selStr ? " sel" : dateStr === todayStr ? " today" : "";
-				grid += `<div class="talos-date-cell${cls}" data-date="${dateStr}">${day}</div>`;
+				grid += `<div class="polaris-date-cell${cls}" data-date="${dateStr}">${day}</div>`;
 			}
 			pop.innerHTML = `
-				<div class="talos-date-pop-head">
-					<button type="button" class="talos-date-nav" data-nav="-1">‹</button>
-					<span class="talos-date-pop-title">${viewYear}年${monthNames[viewMonth]}</span>
-					<button type="button" class="talos-date-nav" data-nav="1">›</button>
+				<div class="polaris-date-pop-head">
+					<button type="button" class="polaris-date-nav" data-nav="-1">‹</button>
+					<span class="polaris-date-pop-title">${viewYear}年${monthNames[viewMonth]}</span>
+					<button type="button" class="polaris-date-nav" data-nav="1">›</button>
 				</div>
-				<div class="talos-date-pop-week">${dayNames.map((d) => `<span>${d}</span>`).join("")}</div>
-				<div class="talos-date-pop-grid">${grid}</div>
-				<div class="talos-date-pop-foot">
-					<button type="button" class="talos-date-today">今天</button>
-					<button type="button" class="talos-date-clear">清除</button>
+				<div class="polaris-date-pop-week">${dayNames.map((d) => `<span>${d}</span>`).join("")}</div>
+				<div class="polaris-date-pop-grid">${grid}</div>
+				<div class="polaris-date-pop-foot">
+					<button type="button" class="polaris-date-today">今天</button>
+					<button type="button" class="polaris-date-clear">清除</button>
 				</div>`;
-			pop.querySelectorAll(".talos-date-nav").forEach((el) => {
+			pop.querySelectorAll(".polaris-date-nav").forEach((el) => {
 				(el as HTMLElement).onclick = (e) => {
 					e.stopPropagation();
 					viewMonth += Number((el as HTMLElement).dataset.nav);
@@ -3386,7 +3627,7 @@ export class TalosDashboardView extends ItemView {
 					render();
 				};
 			});
-			pop.querySelectorAll(".talos-date-cell").forEach((el) => {
+			pop.querySelectorAll(".polaris-date-cell").forEach((el) => {
 				(el as HTMLElement).onclick = (e) => {
 					e.stopPropagation();
 					const ds = (el as HTMLElement).dataset.date || "";
@@ -3395,8 +3636,8 @@ export class TalosDashboardView extends ItemView {
 					onSelect(toMMDD(sel));
 				};
 			});
-			const todayBtn = pop.querySelector(".talos-date-today") as HTMLElement;
-			const clearBtn = pop.querySelector(".talos-date-clear") as HTMLElement;
+			const todayBtn = pop.querySelector(".polaris-date-today") as HTMLElement;
+			const clearBtn = pop.querySelector(".polaris-date-clear") as HTMLElement;
 			if (todayBtn) todayBtn.onclick = (e) => {
 				e.stopPropagation();
 				this.closeDatePicker();
@@ -3465,7 +3706,7 @@ export class TalosDashboardView extends ItemView {
 		const icons = ["💧","🏃","🌙","📖","🧘","✍️","🎯","🥗","😴","🚭","💊","🧹","💰","📱","🎨","🎵","🌱","☕","🚶"];
 		const colors = ["#3b82f6","#22c55e","#a855f7","#f59e0b","#ec4899","#ef4444","#14b8a6","#f97316"];
 		this.showModal(`➕ 新建习惯`, `
-			<form id="talos-add-habit-form">
+			<form id="polaris-add-habit-form">
 				<div class="form-field">
 					<label class="form-label">习惯名称 <span class="required">*</span></label>
 					<input class="form-input" name="name" type="text" placeholder="如：喝水、跑步、早睡..." required>
@@ -3483,11 +3724,11 @@ export class TalosDashboardView extends ItemView {
 					</div>
 				</div>
 				<div class="form-actions">
-					<button type="button" class="btn-secondary talos-modal-cancel">取消</button>
+					<button type="button" class="btn-secondary polaris-modal-cancel">取消</button>
 					<button type="submit" class="btn-primary">创建</button>
 				</div>
 			</form>`);
-		const modal = this.rootEl!.querySelector(".talos-modal-box") as HTMLElement;
+		const modal = this.rootEl!.querySelector(".polaris-modal-box") as HTMLElement;
 		let selectedIcon = icons[0];
 		let selectedColor = colors[0];
 		modal.querySelectorAll(".habit-icon-option").forEach((btn) => {
@@ -3510,7 +3751,7 @@ export class TalosDashboardView extends ItemView {
 				(btn as HTMLElement).style.border = "3px solid white";
 			};
 		});
-		(modal.querySelector("#talos-add-habit-form") as HTMLFormElement).onsubmit = async (e) => {
+		(modal.querySelector("#polaris-add-habit-form") as HTMLFormElement).onsubmit = async (e) => {
 			e.preventDefault();
 			const form = e.target as HTMLFormElement;
 			const name = (form.querySelector('[name="name"]') as HTMLInputElement).value.trim();
@@ -3523,18 +3764,18 @@ export class TalosDashboardView extends ItemView {
 	}
 
 	private showHabitManager() {
-		const detail = this.rootEl!.querySelector(".talos-detail-content") as HTMLElement;
-		detail.className = "talos-detail-content detail-body";
+		const detail = this.rootEl!.querySelector(".polaris-detail-content") as HTMLElement;
+		detail.className = "polaris-detail-content detail-body";
 		detail.innerHTML = `
 			<div class="detail-section">
 				<div class="detail-section-title" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
 					<span>⚙️ 习惯管理</span>
-					<button class="talos-history-back" style="cursor:pointer;background:var(--control-bg);border:none;border-radius:6px;padding:3px 10px;font-size:11px;color:var(--text-secondary);">← 返回</button>
+					<button class="polaris-history-back" style="cursor:pointer;background:var(--control-bg);border:none;border-radius:6px;padding:3px 8px;font-size:11px;color:var(--text-secondary);">← 返回</button>
 				</div>
 				${this.buildHabitManagerHTML()}
 			</div>`;
 
-		(detail.querySelector(".talos-history-back") as HTMLElement).onclick = () => this.resetDetail();
+		(detail.querySelector(".polaris-history-back") as HTMLElement).onclick = () => this.resetDetail();
 		this.bindHabitManagerEvents(detail, () => this.showHabitManager());
 	}
 
@@ -3548,17 +3789,17 @@ export class TalosDashboardView extends ItemView {
 				${activeHabits.length === 0 ? '<div style="text-align:center;padding:12px;color:var(--text-muted);font-size:12px;">暂无进行中的习惯</div>' :
 				activeHabits.map((habit) => {
 					const streak = this.getHabitStreak(habit.id);
-					return `<div class="habit-manage-item" data-habit-id="${habit.id}" style="padding:10px;border-radius:8px;background:rgba(255,255,255,0.03);margin-bottom:8px;">
+					return `<div class="habit-manage-item" data-habit-id="${habit.id}" style="padding:8px;border-radius:8px;background:rgba(255,255,255,0.03);margin-bottom:8px;">
 						<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
 							<span style="font-size:18px;flex-shrink:0;">${habit.icon}</span>
 							<span style="flex:1;font-size:13px;font-weight:600;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${habit.name}</span>
 							<span style="font-size:10px;color:var(--text-muted);flex-shrink:0;">🔥${streak}天</span>
 						</div>
-						<div style="font-size:10px;color:var(--text-muted);margin-bottom:8px;padding-left:26px;">创建于 ${habit.createdAt}</div>
-						<div style="display:flex;gap:6px;padding-left:26px;">
-							<button class="habit-edit-btn" data-habit-id="${habit.id}" title="编辑习惯的名称、图标、颜色" style="flex:1;padding:5px 4px;border-radius:4px;border:1px solid var(--background-modifier-border);background:transparent;color:var(--text-secondary);font-size:11px;cursor:pointer;white-space:nowrap;">✏️ 编辑</button>
-							<button class="habit-archive-btn" data-habit-id="${habit.id}" title="归档：不在今日列表显示，历史记录永久保留，可随时恢复" style="flex:1;padding:5px 4px;border-radius:4px;border:1px solid var(--background-modifier-border);background:transparent;color:var(--text-secondary);font-size:11px;cursor:pointer;white-space:nowrap;">📦 归档</button>
-							<button class="habit-delete-btn" data-habit-id="${habit.id}" title="彻底删除：该习惯的所有打卡记录将永久删除，无法恢复" style="flex:1;padding:5px 4px;border-radius:4px;border:1px solid #ef4444;background:transparent;color:#ef4444;font-size:11px;cursor:pointer;white-space:nowrap;">🗑️ 删除</button>
+						<div style="font-size:10px;color:var(--text-muted);margin-bottom:8px;padding-left:24px;">创建于 ${habit.createdAt}</div>
+						<div style="display:flex;gap:6px;padding-left:24px;">
+							<button class="habit-edit-btn" data-habit-id="${habit.id}" title="编辑习惯的名称、图标、颜色" style="flex:1;padding:4px 4px;border-radius:4px;border:1px solid var(--background-modifier-border);background:transparent;color:var(--text-secondary);font-size:11px;cursor:pointer;white-space:nowrap;">✏️ 编辑</button>
+							<button class="habit-archive-btn" data-habit-id="${habit.id}" title="归档：不在今日列表显示，历史记录永久保留，可随时恢复" style="flex:1;padding:4px 4px;border-radius:4px;border:1px solid var(--background-modifier-border);background:transparent;color:var(--text-secondary);font-size:11px;cursor:pointer;white-space:nowrap;">📦 归档</button>
+							<button class="habit-delete-btn" data-habit-id="${habit.id}" title="彻底删除：该习惯的所有打卡记录将永久删除，无法恢复" style="flex:1;padding:4px 4px;border-radius:4px;border:1px solid #f87171;background:transparent;color:#f87171;font-size:11px;cursor:pointer;white-space:nowrap;">🗑️ 删除</button>
 						</div>
 					</div>`;
 				}).join("")}
@@ -3567,25 +3808,25 @@ export class TalosDashboardView extends ItemView {
 			<div style="margin-bottom:16px;">
 				<div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:8px;">📦 已归档（${archivedHabits.length}个）</div>
 				${archivedHabits.map((habit) => {
-					return `<div class="habit-manage-item" data-habit-id="${habit.id}" style="padding:10px;border-radius:8px;background:rgba(255,255,255,0.02);margin-bottom:8px;opacity:0.7;">
+					return `<div class="habit-manage-item" data-habit-id="${habit.id}" style="padding:8px;border-radius:8px;background:rgba(255,255,255,0.02);margin-bottom:8px;opacity:0.7;">
 						<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
 							<span style="font-size:18px;flex-shrink:0;">${habit.icon}</span>
 							<span style="flex:1;font-size:13px;font-weight:600;color:var(--text-muted);text-decoration:line-through;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${habit.name}</span>
 						</div>
-						<div style="font-size:10px;color:var(--text-muted);margin-bottom:8px;padding-left:26px;">创建于 ${habit.createdAt}</div>
-						<div style="display:flex;gap:6px;padding-left:26px;">
-							<button class="habit-unarchive-btn" data-habit-id="${habit.id}" title="恢复：重新在今日打卡列表中显示" style="flex:1;padding:5px 4px;border-radius:4px;border:1px solid var(--background-modifier-border);background:transparent;color:var(--text-secondary);font-size:11px;cursor:pointer;white-space:nowrap;">↩️ 恢复</button>
-							<button class="habit-delete-btn" data-habit-id="${habit.id}" title="彻底删除：该习惯的所有打卡记录将永久删除，无法恢复" style="flex:1;padding:5px 4px;border-radius:4px;border:1px solid #ef4444;background:transparent;color:#ef4444;font-size:11px;cursor:pointer;white-space:nowrap;">🗑️ 删除</button>
+						<div style="font-size:10px;color:var(--text-muted);margin-bottom:8px;padding-left:24px;">创建于 ${habit.createdAt}</div>
+						<div style="display:flex;gap:6px;padding-left:24px;">
+							<button class="habit-unarchive-btn" data-habit-id="${habit.id}" title="恢复：重新在今日打卡列表中显示" style="flex:1;padding:4px 4px;border-radius:4px;border:1px solid var(--background-modifier-border);background:transparent;color:var(--text-secondary);font-size:11px;cursor:pointer;white-space:nowrap;">↩️ 恢复</button>
+							<button class="habit-delete-btn" data-habit-id="${habit.id}" title="彻底删除：该习惯的所有打卡记录将永久删除，无法恢复" style="flex:1;padding:4px 4px;border-radius:4px;border:1px solid #f87171;background:transparent;color:#f87171;font-size:11px;cursor:pointer;white-space:nowrap;">🗑️ 删除</button>
 						</div>
 					</div>`;
 				}).join("")}
 			</div>` : ""}
-			<button class="talos-add-habit-btn" style="width:100%;padding:10px;border-radius:8px;border:2px dashed var(--background-modifier-border);background:transparent;color:var(--text-secondary);font-size:13px;cursor:pointer;">➕ 添加新习惯</button>`;
+			<button class="polaris-add-habit-btn" style="width:100%;padding:8px;border-radius:8px;border:2px dashed var(--background-modifier-border);background:transparent;color:var(--text-secondary);font-size:13px;cursor:pointer;">➕ 添加新习惯</button>`;
 	}
 
 	// 习惯管理事件绑定（detail 版与设置弹窗版共用，refresh 决定操作后如何刷新当前界面）
 	private bindHabitManagerEvents(root: HTMLElement, refresh: () => void) {
-		(root.querySelector(".talos-add-habit-btn") as HTMLElement).onclick = () => this.showAddHabitModal();
+		(root.querySelector(".polaris-add-habit-btn") as HTMLElement).onclick = () => this.showAddHabitModal();
 
 		root.querySelectorAll(".habit-archive-btn").forEach((btn) => {
 			(btn as HTMLElement).onclick = async () => {
@@ -3638,7 +3879,7 @@ export class TalosDashboardView extends ItemView {
 	// 习惯管理（设置弹窗版：独立弹窗，不占用右侧详情栏）
 	private openHabitManager() {
 		this.showModal("🏃 打卡习惯管理", `<div style="max-height:62vh;overflow-y:auto;padding:4px 20px 20px;">${this.buildHabitManagerHTML()}</div>`);
-		const modal = document.querySelector(".modal-box.talos-modal-box") as HTMLElement;
+		const modal = document.querySelector(".modal-box.polaris-modal-box") as HTMLElement;
 		if (!modal) return;
 		this.bindHabitManagerEvents(modal, () => this.openHabitManager());
 	}
@@ -3647,7 +3888,7 @@ export class TalosDashboardView extends ItemView {
 		const icons = ["💧","🏃","🌙","📖","🧘","✍️","🎯","🥗","😴","🚭","💊","🧹","💰","📱","🎨","🎵","🌱","☕","🚶"];
 		const colors = ["#3b82f6","#22c55e","#a855f7","#f59e0b","#ec4899","#ef4444","#14b8a6","#f97316"];
 		this.showModal(`✏️ 编辑习惯`, `
-			<form id="talos-edit-habit-form">
+			<form id="polaris-edit-habit-form">
 				<div class="form-field">
 					<label class="form-label">习惯名称 <span class="required">*</span></label>
 					<input class="form-input" name="name" type="text" value="${habit.name}" required>
@@ -3665,11 +3906,11 @@ export class TalosDashboardView extends ItemView {
 					</div>
 				</div>
 				<div class="form-actions">
-					<button type="button" class="btn-secondary talos-modal-cancel">取消</button>
+					<button type="button" class="btn-secondary polaris-modal-cancel">取消</button>
 					<button type="submit" class="btn-primary">保存</button>
 				</div>
 			</form>`);
-		const modal = this.rootEl!.querySelector(".talos-modal-box") as HTMLElement;
+		const modal = this.rootEl!.querySelector(".polaris-modal-box") as HTMLElement;
 		let selectedIcon = habit.icon;
 		let selectedColor = habit.color;
 		modal.querySelectorAll(".habit-icon-option").forEach((btn) => {
@@ -3692,7 +3933,7 @@ export class TalosDashboardView extends ItemView {
 				(btn as HTMLElement).style.border = "3px solid white";
 			};
 		});
-		(modal.querySelector("#talos-edit-habit-form") as HTMLFormElement).onsubmit = async (e) => {
+		(modal.querySelector("#polaris-edit-habit-form") as HTMLFormElement).onsubmit = async (e) => {
 			e.preventDefault();
 			const form = e.target as HTMLFormElement;
 			const name = (form.querySelector('[name="name"]') as HTMLInputElement).value.trim();
@@ -3729,8 +3970,8 @@ export class TalosDashboardView extends ItemView {
 
 	private getTaskStatusColor(task: WorkTask): string {
 		if (task.status === "done") return this.themeIsLight() ? "#c8e060" : "#a8c040";
-		if (this.isTaskOverdue(task)) return "#ef4444";
-		if (task.status === "doing") return "#3b82f6";
+		if (this.isTaskOverdue(task)) return "#f87171";
+		if (task.status === "doing") return "#60a5fa";
 		return "#9ca3af"; // todo
 	}
 
@@ -3742,7 +3983,7 @@ export class TalosDashboardView extends ItemView {
 	}
 
 	private renderGantt(main: HTMLElement) {
-		const el = main.querySelector(".talos-work-gantt") as HTMLElement;
+		const el = main.querySelector(".polaris-work-gantt") as HTMLElement;
 		const mode = this.ganttMode;
 		const now = new Date();
 		const currentYear = now.getFullYear();
@@ -3856,7 +4097,7 @@ export class TalosDashboardView extends ItemView {
 						const textColor = progress > 40 ? "white" : "var(--text-secondary)";
 						return `<div class="gantt-row-label">${t.title.length > 8 ? t.title.slice(0,8)+"..." : t.title}</div>
 						<div class="gantt-row-track">
-							<div class="gantt-bar talos-gantt-task" data-task-id="${t.id}" title="${t.title} | ${statusLabel} | 进度${progress}% | 截止${t.dueDate}（拖动调整日期）" style="left:${left}%;width:${width}%;background:var(--control-bg);border-radius:10px;cursor:grab;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.2);position:relative;user-select:none;touch-action:none;">
+							<div class="gantt-bar polaris-gantt-task" data-task-id="${t.id}" title="${t.title} | ${statusLabel} | 进度${progress}% | 截止${t.dueDate}（拖动调整日期）" style="left:${left}%;width:${width}%;background:var(--control-bg);border-radius:10px;cursor:grab;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.2);position:relative;user-select:none;touch-action:none;">
 								<div class="gantt-bar-progress" style="width:${progress}%;height:100%;background:${color};border-radius:10px;min-width:${progress > 0 ? '8px' : '0'};"></div>
 								<span class="gantt-handle gantt-handle-left"></span>
 								<span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--text-primary);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:calc(100% - 16px);z-index:1;pointer-events:none;">${t.title}</span>
@@ -3870,9 +4111,9 @@ export class TalosDashboardView extends ItemView {
 			<!-- 图例 -->
 			<div style="display:flex;gap:16px;margin-top:8px;padding-top:8px;border-top:1px solid var(--divider-line);font-size:10px;color:var(--text-muted);flex-wrap:wrap;">
 				<span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:8px;border-radius:2px;background:#9ca3af;"></span>待开始</span>
-				<span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:8px;border-radius:2px;background:#3b82f6;"></span>进行中</span>
+				<span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:8px;border-radius:2px;background:#60a5fa;"></span>进行中</span>
 				<span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:8px;border-radius:2px;background:${this.themeIsLight() ? '#c8e060' : '#a8c040'};"></span>已完成</span>
-				<span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:8px;border-radius:2px;background:#ef4444;"></span>已逾期</span>
+				<span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:8px;border-radius:2px;background:#f87171;"></span>已逾期</span>
 			</div>
 			<div style="margin-top:6px;font-size:10px;color:var(--text-muted);opacity:0.8;">↔ 拖动任务条整体平移起止日期 · 拖动条左右边缘可单独调整开始 / 截止</div>`;
 
@@ -3882,7 +4123,7 @@ export class TalosDashboardView extends ItemView {
 				this.renderBoard();
 			};
 		});
-		el.querySelectorAll(".talos-gantt-task").forEach((bar) => {
+		el.querySelectorAll(".polaris-gantt-task").forEach((bar) => {
 			this.initGanttDrag(bar as HTMLElement, main, rangeStart, rangeEnd, totalDays);
 		});
 	}
@@ -3918,7 +4159,7 @@ export class TalosDashboardView extends ItemView {
 			if (!tipEl) {
 				tipEl = document.createElement("div");
 				tipEl.className = "gantt-drag-tip";
-				tipEl.style.cssText = "position:fixed;z-index:9999;background:rgba(15,15,19,0.95);color:#f0f0f3;font-size:11px;font-weight:600;padding:4px 9px;border-radius:6px;border:1px solid rgba(255,255,255,0.14);pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,0.35);white-space:nowrap;font-family:inherit;";
+				tipEl.style.cssText = "position:fixed;z-index:9999;background:rgba(15,15,19,0.95);color:#f0f0f3;font-size:11px;font-weight:600;padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.14);pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,0.35);white-space:nowrap;font-family:inherit;";
 				document.body.appendChild(tipEl);
 			}
 			const today0 = new Date(); today0.setHours(0, 0, 0, 0);
@@ -4025,7 +4266,7 @@ export class TalosDashboardView extends ItemView {
 					</div>`;
 				}).join("")}
 			</div>
-			${`<div style="display:flex;gap:6px;margin-top:10px;padding-top:8px;border-top:1px solid var(--divider-line);font-size:10px;color:var(--text-muted);flex-wrap:wrap;align-items:center;">
+			${`<div style="display:flex;gap:6px;margin-top:8px;padding-top:8px;border-top:1px solid var(--divider-line);font-size:10px;color:var(--text-muted);flex-wrap:wrap;align-items:center;">
 				<span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:#c084fc;"></span>最高优先 P0</span>
 				<span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:#fbbf24;"></span>高优先 P1</span>
 				<span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:#9ca3af;"></span>普通 P2</span>
@@ -4037,7 +4278,7 @@ export class TalosDashboardView extends ItemView {
 	}
 
 	private renderKanban(main: HTMLElement) {
-		const el = main.querySelector(".talos-work-kanban") as HTMLElement;
+		const el = main.querySelector(".polaris-work-kanban") as HTMLElement;
 		el.innerHTML = this.kanbanResultsHTML();
 		this.bindKanbanResultsEvents(el);
 	}
@@ -4048,7 +4289,7 @@ export class TalosDashboardView extends ItemView {
 		if (!cardEl) return;
 		const tools = cardEl.querySelector(".dash-card-tools") as HTMLElement;
 		if (!tools) return;
-		const el = main.querySelector(".talos-work-kanban") as HTMLElement;
+		const el = main.querySelector(".polaris-work-kanban") as HTMLElement;
 		// 筛选标签点击：切换筛选（更新高亮 + 结果区）
 		tools.querySelectorAll(".filter-tab").forEach((tab) => {
 			(tab as HTMLElement).onclick = () => {
@@ -4180,7 +4421,7 @@ export class TalosDashboardView extends ItemView {
 		});
 
 		// 进度数字点击：弹出档位选择器（精确选择备用入口）
-		el.querySelectorAll(".talos-task-progress").forEach((progressEl) => {
+		el.querySelectorAll(".polaris-task-progress").forEach((progressEl) => {
 			(progressEl as HTMLElement).onclick = (e) => {
 				e.stopPropagation(); // 阻止冒泡，避免触发卡片点击
 				const taskId = (progressEl as HTMLElement).dataset.taskId || "";
@@ -4281,7 +4522,7 @@ export class TalosDashboardView extends ItemView {
 				<div class="progress-segmented" data-task-id="${t.id}">
 					${segments.map((val) => `<div class="seg ${t.progress>=val?"active":""}" data-value="${val}" title="${val}%"></div>`).join("")}
 				</div>
-				<span class="progress-text talos-task-progress" data-task-id="${t.id}" title="点击精确选择">${t.progress}%</span>
+				<span class="progress-text polaris-task-progress" data-task-id="${t.id}" title="点击精确选择">${t.progress}%</span>
 			</div>
 		</div>`;
 	}
@@ -4336,8 +4577,8 @@ export class TalosDashboardView extends ItemView {
 		this.currentDetailTaskId = t.id;
 		const tsk = this.workTasks.find((w) => w.id === t.id);
 		const startD = t.startDate || (tsk ? tsk.startDate : undefined);
-		const detail = this.rootEl!.querySelector(".talos-detail-content") as HTMLElement;
-		detail.className = "talos-detail-content detail-body";
+		const detail = this.rootEl!.querySelector(".polaris-detail-content") as HTMLElement;
+		detail.className = "polaris-detail-content detail-body";
 
 		// 状态/优先级选项（分段按钮硬编码在模板中）
 		const currentStatusValue = t.status === "已完成" ? "done" : t.status === "进行中" ? "doing" : "todo";
@@ -4346,7 +4587,7 @@ export class TalosDashboardView extends ItemView {
 			<div class="detail-section">
 				<div class="detail-section-title" style="display:flex;justify-content:space-between;align-items:center;">
 					<span>🎯 焦点任务</span>
-					<button class="btn-secondary talos-detail-back" style="padding:3px 10px;font-size:11px;">← 返回今日待办</button>
+					<button class="btn-secondary polaris-detail-back" style="padding:3px 8px;font-size:11px;">← 返回今日待办</button>
 				</div>
 				<div class="detail-task-id">${t.id}</div>
 				<div class="detail-task-title">${t.title}</div>
@@ -4356,21 +4597,21 @@ export class TalosDashboardView extends ItemView {
 				<div class="detail-edit-list">
 					<div class="detail-edit-row">
 						<span class="detail-edit-row-label">📅 开始日期</span>
-						<button type="button" class="detail-edit-row-input date-field talos-detail-start" data-task-id="${t.id}">
+						<button type="button" class="detail-edit-row-input date-field polaris-detail-start" data-task-id="${t.id}">
 							<span class="date-field-value ${startD ? "" : "empty"}">${startD || "选择日期"}</span>
 							<span class="date-field-icon">📅</span>
 						</button>
 					</div>
 					<div class="detail-edit-row">
 						<span class="detail-edit-row-label">🕐 截止日期</span>
-						<button type="button" class="detail-edit-row-input date-field talos-detail-due" data-task-id="${t.id}">
+						<button type="button" class="detail-edit-row-input date-field polaris-detail-due" data-task-id="${t.id}">
 							<span class="date-field-value ${t.dueDate ? "" : "empty"}">${t.dueDate || "选择日期"}</span>
 							<span class="date-field-icon">📅</span>
 						</button>
 					</div>
 					<div class="detail-edit-row">
 						<span class="detail-edit-row-label">👤 负责人</span>
-						<input class="detail-edit-row-input talos-detail-assignee" data-task-id="${t.id}" value="${t.assignee || ""}" placeholder="未设置" />
+						<input class="detail-edit-row-input polaris-detail-assignee" data-task-id="${t.id}" value="${t.assignee || ""}" placeholder="未设置" />
 					</div>
 				</div>
 				<div class="detail-edit-list" style="margin:12px 0;">
@@ -4392,15 +4633,15 @@ export class TalosDashboardView extends ItemView {
 					</div>
 				</div>
 				<div class="detail-actions">
-					<button class="btn-secondary talos-detail-open-note">📄 打开笔记</button>
-					<button class="btn-primary talos-detail-edit-task">✎ 编辑任务</button>
+					<button class="btn-secondary polaris-detail-open-note">📄 打开笔记</button>
+					<button class="btn-primary polaris-detail-edit-task">✎ 编辑任务</button>
 				</div>
 			</div>
 			</div>`;
 
 
 		// 打开笔记按钮
-		(detail.querySelector(".talos-detail-open-note") as HTMLElement).onclick = () => {
+		(detail.querySelector(".polaris-detail-open-note") as HTMLElement).onclick = () => {
 			if (t.notePath) {
 				this.openNoteByPath(t.notePath);
 			} else {
@@ -4409,7 +4650,7 @@ export class TalosDashboardView extends ItemView {
 		};
 
 		// 编辑任务按钮
-		(detail.querySelector(".talos-detail-edit-task") as HTMLElement).onclick = () => {
+		(detail.querySelector(".polaris-detail-edit-task") as HTMLElement).onclick = () => {
 			this.openEditTaskModal(t.id);
 		};
 
@@ -4460,7 +4701,7 @@ export class TalosDashboardView extends ItemView {
 		});
 
 		// 返回今日待办：恢复右侧常驻面板
-		const backBtn = detail.querySelector(".talos-detail-back") as HTMLElement;
+		const backBtn = detail.querySelector(".polaris-detail-back") as HTMLElement;
 		if (backBtn) backBtn.onclick = (e) => {
 			e.stopPropagation();
 			this.currentDetailTaskId = null;
@@ -4498,10 +4739,10 @@ export class TalosDashboardView extends ItemView {
 				});
 			};
 		};
-		detail.querySelectorAll<HTMLButtonElement>(".talos-detail-start").forEach((el) => bindDetailDate("startDate", el));
-		detail.querySelectorAll<HTMLButtonElement>(".talos-detail-due").forEach((el) => bindDetailDate("dueDate", el));
+		detail.querySelectorAll<HTMLButtonElement>(".polaris-detail-start").forEach((el) => bindDetailDate("startDate", el));
+		detail.querySelectorAll<HTMLButtonElement>(".polaris-detail-due").forEach((el) => bindDetailDate("dueDate", el));
 		// 负责人：文本输入，修改后保存并保持详情视图
-		detail.querySelectorAll<HTMLInputElement>(".talos-detail-assignee").forEach((el) => saveDetailField("assignee", el));
+		detail.querySelectorAll<HTMLInputElement>(".polaris-detail-assignee").forEach((el) => saveDetailField("assignee", el));
 	}
 
 
@@ -4515,18 +4756,18 @@ export class TalosDashboardView extends ItemView {
 		this.showModal("＋ 加入今日复习", `
 			<div class="form-field">
 				<label class="form-label">搜索笔记</label>
-				<div class="search-box"><span class="search-icon talos-note-list-search-icon">🔍</span><input class="search-input talos-note-list-search talos-review-search" type="text" placeholder="输入笔记标题或路径关键词..." autocomplete="off"></div>
+				<div class="search-box"><span class="search-icon polaris-note-list-search-icon">🔍</span><input class="search-input polaris-note-list-search polaris-review-search" type="text" placeholder="输入笔记标题或路径关键词..." autocomplete="off"></div>
 			</div>
-			<div class="talos-review-list" style="max-height:280px;overflow-y:auto;border:1px solid var(--border-color);border-radius:var(--radius-md);margin-bottom:12px;"></div>
-			<div class="talos-review-selected" style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;min-height:18px;"></div>
-			<div class="form-actions"><button type="button" class="btn-secondary talos-modal-cancel">取消</button><button type="button" class="btn-primary talos-review-confirm" disabled>加入今日复习</button></div>`);
+			<div class="polaris-review-list" style="max-height:280px;overflow-y:auto;border:1px solid var(--border-color);border-radius:var(--radius-md);margin-bottom:12px;"></div>
+			<div class="polaris-review-selected" style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;min-height:18px;"></div>
+			<div class="form-actions"><button type="button" class="btn-secondary polaris-modal-cancel">取消</button><button type="button" class="btn-primary polaris-review-confirm" disabled>加入今日复习</button></div>`);
 
-		const modal = this.rootEl!.querySelector(".talos-modal-box") as HTMLElement;
-		const search = modal.querySelector(".talos-review-search") as HTMLInputElement;
-		const listEl = modal.querySelector(".talos-review-list") as HTMLElement;
-		const selEl = modal.querySelector(".talos-review-selected") as HTMLElement;
-		const confirmBtn = modal.querySelector(".talos-review-confirm") as HTMLButtonElement;
-		(modal.querySelector(".talos-modal-cancel") as HTMLElement).onclick = () => this.closeModal();
+		const modal = this.rootEl!.querySelector(".polaris-modal-box") as HTMLElement;
+		const search = modal.querySelector(".polaris-review-search") as HTMLInputElement;
+		const listEl = modal.querySelector(".polaris-review-list") as HTMLElement;
+		const selEl = modal.querySelector(".polaris-review-selected") as HTMLElement;
+		const confirmBtn = modal.querySelector(".polaris-review-confirm") as HTMLButtonElement;
+		(modal.querySelector(".polaris-modal-cancel") as HTMLElement).onclick = () => this.closeModal();
 
 		let selectedPath = "";
 		const renderList = (kw: string) => {
@@ -4542,14 +4783,14 @@ export class TalosDashboardView extends ItemView {
 					: r.skipped ? '<span style="color:var(--text-muted);font-size:11px;">已跳过</span>'
 					: r.status === "mastered" ? '<span style="color:var(--text-brand);font-size:11px;">已掌握</span>'
 					: '<span style="color:var(--text-secondary);font-size:11px;">下次 ' + (r.nextDue === "9999-12-31" ? "—" : r.nextDue) + '</span>';
-				return '<div class="talos-review-item" data-path="' + f.path + '" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--divider-color);display:flex;justify-content:space-between;gap:8px;align-items:center;">'
+				return '<div class="polaris-review-item" data-path="' + f.path + '" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--divider-color);display:flex;justify-content:space-between;gap:8px;align-items:center;">'
 					+ '<span style="font-size:12px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + f.path + '</span>'
 					+ '<span style="flex-shrink:0;">' + badge + '</span></div>';
 			}).join("");
-			listEl.querySelectorAll(".talos-review-item").forEach((el) => {
+			listEl.querySelectorAll(".polaris-review-item").forEach((el) => {
 				const item = el as HTMLElement;
 				item.onclick = () => {
-					listEl.querySelectorAll(".talos-review-item").forEach((x) => { (x as HTMLElement).style.background = ""; });
+					listEl.querySelectorAll(".polaris-review-item").forEach((x) => { (x as HTMLElement).style.background = ""; });
 					item.style.background = "rgba(200,224,96,0.12)";
 					selectedPath = item.dataset.path || "";
 					const f = files.find((x) => x.path === selectedPath);
@@ -4593,18 +4834,18 @@ export class TalosDashboardView extends ItemView {
 	// ==================== 模态框 ====================
 	private openNewCardModal() {
 		this.showModal("新建任务", `
-			<form id="talos-new-card-form">
+			<form id="polaris-new-card-form">
 				<div class="form-field"><label class="form-label">任务标题 <span class="required">*</span></label><input class="form-input" name="title" type="text" placeholder="输入任务标题..." required></div>
 				<div class="form-field"><label class="form-label">描述</label><textarea class="form-textarea" name="description" placeholder="补充描述（可选）..."></textarea></div>
 				<div class="form-field"><label class="form-label">优先级</label><div class="status-segmented form-priority-seg" role="group" aria-label="优先级"><button type="button" class="status-seg" data-priority="P0">P0</button><button type="button" class="status-seg active" data-priority="P1">P1</button><button type="button" class="status-seg" data-priority="P2">P2</button></div></div>
 				<div class="form-row">
-					<div class="form-field"><label class="form-label">开始日期</label><div class="form-date-wrap"><input type="hidden" name="startDate" id="talos-form-start"><button type="button" class="form-input form-date-field" data-target="talos-form-start"><span class="form-date-value empty">选择日期</span><span class="form-date-icon">📅</span></button></div></div>
-					<div class="form-field"><label class="form-label">截止日期</label><div class="form-date-wrap"><input type="hidden" name="dueDate" id="talos-form-due"><button type="button" class="form-input form-date-field" data-target="talos-form-due"><span class="form-date-value empty">选择日期</span><span class="form-date-icon">📅</span></button></div></div>
+					<div class="form-field"><label class="form-label">开始日期</label><div class="form-date-wrap"><input type="hidden" name="startDate" id="polaris-form-start"><button type="button" class="form-input form-date-field" data-target="polaris-form-start"><span class="form-date-value empty">选择日期</span><span class="form-date-icon">📅</span></button></div></div>
+					<div class="form-field"><label class="form-label">截止日期</label><div class="form-date-wrap"><input type="hidden" name="dueDate" id="polaris-form-due"><button type="button" class="form-input form-date-field" data-target="polaris-form-due"><span class="form-date-value empty">选择日期</span><span class="form-date-icon">📅</span></button></div></div>
 				</div>
-				<div class="form-actions"><button type="button" class="btn-secondary talos-modal-cancel">取消</button><button type="submit" class="btn-primary">创建</button></div>
+				<div class="form-actions"><button type="button" class="btn-secondary polaris-modal-cancel">取消</button><button type="submit" class="btn-primary">创建</button></div>
 			</form>`);
-		const modal = this.rootEl!.querySelector(".talos-modal-box") as HTMLElement;
-		(modal.querySelector(".talos-modal-cancel") as HTMLElement).onclick = () => this.closeModal();
+		const modal = this.rootEl!.querySelector(".polaris-modal-box") as HTMLElement;
+		(modal.querySelector(".polaris-modal-cancel") as HTMLElement).onclick = () => this.closeModal();
 		this.bindFormDateFields(modal);
 		// 优先级：平铺分段控件，点击切换选中态
 		modal.querySelectorAll(".form-priority-seg .status-seg").forEach((b) => {
@@ -4613,7 +4854,7 @@ export class TalosDashboardView extends ItemView {
 				(b as HTMLElement).classList.add("active");
 			};
 		});
-		(modal.querySelector("#talos-new-card-form") as HTMLFormElement).onsubmit = (e) => {
+		(modal.querySelector("#polaris-new-card-form") as HTMLFormElement).onsubmit = (e) => {
 			e.preventDefault();
 			const form = e.target as HTMLFormElement;
 			const fd = new FormData(form);
@@ -4644,7 +4885,7 @@ export class TalosDashboardView extends ItemView {
 		const startDateValue = task.startDate || "";
 
 		this.showModal("编辑任务", `
-			<form id="talos-edit-task-form">
+			<form id="polaris-edit-task-form">
 				<div class="form-field">
 					<label class="form-label">任务标题 <span class="required">*</span></label>
 					<input class="form-input" name="title" type="text" value="${task.title}" required>
@@ -4652,11 +4893,11 @@ export class TalosDashboardView extends ItemView {
 				<div class="form-row">
 					<div class="form-field">
 						<label class="form-label">开始日期</label>
-						<div class="form-date-wrap"><input type="hidden" name="startDate" id="talos-edit-start" value="${startDateValue}"><button type="button" class="form-input form-date-field" data-target="talos-edit-start"><span class="form-date-value ${startDateValue ? "" : "empty"}">${startDateValue || "选择日期"}</span><span class="form-date-icon">📅</span></button></div>
+						<div class="form-date-wrap"><input type="hidden" name="startDate" id="polaris-edit-start" value="${startDateValue}"><button type="button" class="form-input form-date-field" data-target="polaris-edit-start"><span class="form-date-value ${startDateValue ? "" : "empty"}">${startDateValue || "选择日期"}</span><span class="form-date-icon">📅</span></button></div>
 					</div>
 					<div class="form-field">
 						<label class="form-label">截止日期</label>
-						<div class="form-date-wrap"><input type="hidden" name="dueDate" id="talos-edit-due" value="${dueDateValue}"><button type="button" class="form-input form-date-field" data-target="talos-edit-due"><span class="form-date-value ${dueDateValue ? "" : "empty"}">${dueDateValue || "选择日期"}</span><span class="form-date-icon">📅</span></button></div>
+						<div class="form-date-wrap"><input type="hidden" name="dueDate" id="polaris-edit-due" value="${dueDateValue}"><button type="button" class="form-input form-date-field" data-target="polaris-edit-due"><span class="form-date-value ${dueDateValue ? "" : "empty"}">${dueDateValue || "选择日期"}</span><span class="form-date-icon">📅</span></button></div>
 					</div>
 				</div>
 				<div class="form-field">
@@ -4668,17 +4909,17 @@ export class TalosDashboardView extends ItemView {
 					<input class="form-input" name="notePath" type="text" value="${task.notePath||""}" placeholder="如：01-Projects-项目/任务笔记.md">
 				</div>
 				<div class="form-actions">
-					<button type="button" class="btn-secondary talos-modal-cancel">取消</button>
+					<button type="button" class="btn-secondary polaris-modal-cancel">取消</button>
 					<button type="submit" class="btn-primary">保存</button>
-					<button type="button" class="btn-danger talos-delete-task" style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);color:#f87171;padding:8px 14px;border-radius:8px;font-size:12px;cursor:pointer;transition:all 0.15s;">🗑️ 删除任务</button>
+					<button type="button" class="btn-danger polaris-delete-task" style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);color:#f87171;padding:8px 12px;border-radius:8px;font-size:12px;cursor:pointer;transition:all 0.15s;">🗑️ 删除任务</button>
 				</div>
 			</form>`);
 
-		const modal = this.rootEl!.querySelector(".talos-modal-box") as HTMLElement;
-		(modal.querySelector(".talos-modal-cancel") as HTMLElement).onclick = () => this.closeModal();
+		const modal = this.rootEl!.querySelector(".polaris-modal-box") as HTMLElement;
+		(modal.querySelector(".polaris-modal-cancel") as HTMLElement).onclick = () => this.closeModal();
 		this.bindFormDateFields(modal);
 		// 删除任务（危险操作，二次确认）
-		(modal.querySelector(".talos-delete-task") as HTMLElement).onclick = () => {
+		(modal.querySelector(".polaris-delete-task") as HTMLElement).onclick = () => {
 			const ok = confirm(`确定删除任务「${task.title}」？\n\n此操作不可恢复。`);
 			if (!ok) return;
 			const idx = this.workTasks.findIndex((t) => t.id === task.id);
@@ -4690,7 +4931,7 @@ export class TalosDashboardView extends ItemView {
 			if (this.currentDetailTaskId === task.id) this.currentDetailTaskId = null;
 			this.showToast(`任务「${task.title}」已删除`);
 		};
-		(modal.querySelector("#talos-edit-task-form") as HTMLFormElement).onsubmit = (e) => {
+		(modal.querySelector("#polaris-edit-task-form") as HTMLFormElement).onsubmit = (e) => {
 			e.preventDefault();
 			const form = e.target as HTMLFormElement;
 			const fd = new FormData(form);
@@ -4739,109 +4980,109 @@ export class TalosDashboardView extends ItemView {
 		this.showModal("仪表盘设置", `
 			<div class="setting-section-title">外观</div>
 			<div class="setting-row">
-				<div class="setting-label-row"><span>卡片透明度</span><span class="setting-value" id="talos-opacity-value">75%</span></div>
-				<div class="tslider" id="talos-opacity-slider" data-min="0.1" data-max="1" data-step="0.05" data-value="0.75"></div>
+				<div class="setting-label-row"><span>卡片透明度</span><span class="setting-value" id="polaris-opacity-value">75%</span></div>
+				<div class="tslider" id="polaris-opacity-slider" data-min="0.1" data-max="1" data-step="0.05" data-value="0.75"></div>
 			</div>
 			<div class="setting-row">
-				<div class="setting-label-row"><span>毛玻璃模糊强度</span><span class="setting-value" id="talos-blur-value">20px</span></div>
-				<div class="tslider" id="talos-blur-slider" data-min="0" data-max="40" data-step="1" data-value="20"></div>
+				<div class="setting-label-row"><span>毛玻璃模糊强度</span><span class="setting-value" id="polaris-blur-value">20px</span></div>
+				<div class="tslider" id="polaris-blur-slider" data-min="0" data-max="40" data-step="1" data-value="20"></div>
 			</div>
 			<div class="setting-row" style="flex-direction:column;align-items:stretch;gap:6px;">
 				<div class="setting-label-row"><span>背景壁纸</span><span class="setting-value" style="font-size:11px;">深色主题生效</span></div>
-				<div class="talos-wp-grid">
-					<button type="button" class="talos-wp-card" data-wp="aurora">
-						<span class="talos-wp-thumb" style="background-image:url('https://images.unsplash.com/photo-1531366936337-7c912a4589a7?w=400&q=70&auto=format&fit=crop')"></span>
-						<span class="talos-wp-name">极光</span>
+				<div class="polaris-wp-grid">
+					<button type="button" class="polaris-wp-card" data-wp="none">
+						<div class="polaris-wp-thumb polaris-wp-thumb-none"></div>
+						<span class="polaris-wp-name">默认</span>
 					</button>
-					<button type="button" class="talos-wp-card" data-wp="sunset">
-						<span class="talos-wp-thumb" style="background-image:url('https://images.unsplash.com/photo-1493246507139-91e8fad9978e?w=400&q=70&auto=format&fit=crop')"></span>
-						<span class="talos-wp-name">落日</span>
+					<button type="button" class="polaris-wp-card" data-wp="aurora">
+						<div class="polaris-wp-thumb" style="background-image:url('https://images.unsplash.com/photo-1531366936337-7c912a4589a7?w=400&q=70&auto=format&fit=crop')"></div>
+						<span class="polaris-wp-name">极光</span>
 					</button>
-					<button type="button" class="talos-wp-card" data-wp="ocean">
-						<span class="talos-wp-thumb" style="background-image:url('https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=400&q=70&auto=format&fit=crop')"></span>
-						<span class="talos-wp-name">深海</span>
+					<button type="button" class="polaris-wp-card" data-wp="sunset">
+						<div class="polaris-wp-thumb" style="background-image:url('https://images.unsplash.com/photo-1493246507139-91e8fad9978e?w=400&q=70&auto=format&fit=crop')"></div>
+						<span class="polaris-wp-name">落日</span>
 					</button>
-					<button type="button" class="talos-wp-card" data-wp="forest">
-						<span class="talos-wp-thumb" style="background-image:url('https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400&q=70&auto=format&fit=crop')"></span>
-						<span class="talos-wp-name">森林</span>
+					<button type="button" class="polaris-wp-card" data-wp="ocean">
+						<div class="polaris-wp-thumb" style="background-image:url('https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=400&q=70&auto=format&fit=crop')"></div>
+						<span class="polaris-wp-name">深海</span>
 					</button>
-					<button type="button" class="talos-wp-card" data-wp="image">
-						<span class="talos-wp-thumb talos-wp-thumb-custom" id="talos-wp-custom-thumb"><span class="talos-wp-plus">＋</span></span>
-						<span class="talos-wp-name">自定义</span>
+					<button type="button" class="polaris-wp-card" data-wp="forest">
+						<div class="polaris-wp-thumb" style="background-image:url('https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400&q=70&auto=format&fit=crop')"></div>
+						<span class="polaris-wp-name">森林</span>
 					</button>
-					<button type="button" class="talos-wp-card" data-wp="none">
-						<span class="talos-wp-thumb talos-wp-thumb-none"></span>
-						<span class="talos-wp-name">默认</span>
+					<button type="button" class="polaris-wp-card" data-wp="image">
+						<div class="polaris-wp-thumb polaris-wp-thumb-custom" id="polaris-wp-custom-thumb"><img class="polaris-wp-custom-img" id="polaris-wp-custom-img" alt="" /><span class="polaris-wp-plus">＋</span></div>
+						<span class="polaris-wp-name">自定义</span>
 					</button>
 				</div>
-				<input type="file" id="talos-wp-file" accept="image/*" style="display:none;" />
+				<input type="file" id="polaris-wp-file" accept="image/*" style="display:none;" />
 			</div>
 			<div class="setting-row theme-switch-row">
 				<span>主题模式</span>
-				<label class="theme-switch"><input type="checkbox" id="talos-theme-toggle" ${this.theme==="light"?"checked":""}><span class="switch-slider"></span></label>
+				<label class="theme-switch"><input type="checkbox" id="polaris-theme-toggle" ${this.theme==="light"?"checked":""}><span class="switch-slider"></span></label>
 			</div>
 			<div class="setting-section-title">内容管理</div>
 			<div class="setting-row" style="display:flex;justify-content:space-between;align-items:center;">
 				<span>📝 每日一句文案</span>
-				<button type="button" class="btn-secondary talos-settings-quote" style="padding:6px 14px;font-size:12px;">管理</button>
+				<button type="button" class="btn-secondary polaris-settings-quote" style="padding:6px 12px;font-size:12px;">管理</button>
 			</div>
 			<div class="setting-row" style="display:flex;justify-content:space-between;align-items:center;">
 				<span>🔔 生日 / 纪念日</span>
-				<button type="button" class="btn-secondary talos-settings-milestone" style="padding:6px 14px;font-size:12px;">管理</button>
+				<button type="button" class="btn-secondary polaris-settings-milestone" style="padding:6px 12px;font-size:12px;">管理</button>
 			</div>
 			<div class="setting-row" style="display:flex;justify-content:space-between;align-items:center;">
 				<span>🏃 打卡习惯</span>
-				<button type="button" class="btn-secondary talos-settings-habits" style="padding:6px 14px;font-size:12px;">管理</button>
+				<button type="button" class="btn-secondary polaris-settings-habits" style="padding:6px 12px;font-size:12px;">管理</button>
 			</div>
 			<div class="setting-section-title">日历卡片</div>
 			<div class="setting-hint" style="margin:0 0 6px;">控制右侧栏日期卡显示哪些传统信息</div>
-			<div class="setting-row theme-switch-row"><span>干支年与生肖（如“丙午马年”）</span><label class="theme-switch"><input type="checkbox" id="talos-dc-ganzhi"><span class="switch-slider"></span></label></div>
-			<div class="setting-row theme-switch-row"><span>每日宜忌</span><label class="theme-switch"><input type="checkbox" id="talos-dc-yiji"><span class="switch-slider"></span></label></div>
-			<div class="setting-row theme-switch-row"><span>每日一签（抽签式）</span><label class="theme-switch"><input type="checkbox" id="talos-dc-sign"><span class="switch-slider"></span></label></div>
+			<div class="setting-row theme-switch-row"><span>干支年与生肖（如“丙午马年”）</span><label class="theme-switch"><input type="checkbox" id="polaris-dc-ganzhi"><span class="switch-slider"></span></label></div>
+			<div class="setting-row theme-switch-row"><span>每日宜忌</span><label class="theme-switch"><input type="checkbox" id="polaris-dc-yiji"><span class="switch-slider"></span></label></div>
+			<div class="setting-row theme-switch-row"><span>每日一签（抽签式）</span><label class="theme-switch"><input type="checkbox" id="polaris-dc-sign"><span class="switch-slider"></span></label></div>
 			<div class="setting-hint" style="margin:2px 0 0;">每日限抽一次，抽后当日固定，次日自动重置</div>
 			<div class="setting-section-title">右侧栏板块</div>
 			<div class="setting-hint" style="margin:0 0 6px;">控制右侧详情栏显示哪些卡片（关闭后立即生效）</div>
-			<div class="setting-row theme-switch-row"><span>✅ 今日打卡</span><label class="theme-switch"><input type="checkbox" id="talos-rp-checkin" ${!this.plugin.pluginData.rightPanel?.hidden?.includes("checkin")?"checked":""}><span class="switch-slider"></span></label></div>
-			<div class="setting-row theme-switch-row"><span>🍅 番茄时钟</span><label class="theme-switch"><input type="checkbox" id="talos-rp-pomo" ${!this.plugin.pluginData.rightPanel?.hidden?.includes("pomo")?"checked":""}><span class="switch-slider"></span></label></div>
-			<div class="setting-row theme-switch-row"><span>📝 今日待办</span><label class="theme-switch"><input type="checkbox" id="talos-rp-todos" ${!this.plugin.pluginData.rightPanel?.hidden?.includes("todos")?"checked":""}><span class="switch-slider"></span></label></div>
-			<div class="setting-row theme-switch-row"><span>⚡ 快速记录</span><label class="theme-switch"><input type="checkbox" id="talos-rp-quicknote" ${!this.plugin.pluginData.rightPanel?.hidden?.includes("quicknote")?"checked":""}><span class="switch-slider"></span></label></div>
+			<div class="setting-row theme-switch-row"><span>✅ 今日打卡</span><label class="theme-switch"><input type="checkbox" id="polaris-rp-checkin" ${!this.plugin.pluginData.rightPanel?.hidden?.includes("checkin")?"checked":""}><span class="switch-slider"></span></label></div>
+			<div class="setting-row theme-switch-row"><span>🍅 番茄时钟</span><label class="theme-switch"><input type="checkbox" id="polaris-rp-pomo" ${!this.plugin.pluginData.rightPanel?.hidden?.includes("pomo")?"checked":""}><span class="switch-slider"></span></label></div>
+			<div class="setting-row theme-switch-row"><span>📝 今日待办</span><label class="theme-switch"><input type="checkbox" id="polaris-rp-todos" ${!this.plugin.pluginData.rightPanel?.hidden?.includes("todos")?"checked":""}><span class="switch-slider"></span></label></div>
+			<div class="setting-row theme-switch-row"><span>⚡ 快速记录</span><label class="theme-switch"><input type="checkbox" id="polaris-rp-quicknote" ${!this.plugin.pluginData.rightPanel?.hidden?.includes("quicknote")?"checked":""}><span class="switch-slider"></span></label></div>
 			<div class="setting-section-title">复习引擎参数</div>
 			<div class="setting-row">
-				<div class="setting-label-row"><span>新笔记自动纳入窗口</span><span class="setting-value" id="talos-review-window-value">30天</span></div>
-				<div class="tslider" id="talos-review-window" data-min="7" data-max="90" data-step="1" data-value="30"></div>
+				<div class="setting-label-row"><span>新笔记自动纳入窗口</span><span class="setting-value" id="polaris-review-window-value">30天</span></div>
+				<div class="tslider" id="polaris-review-window" data-min="7" data-max="90" data-step="1" data-value="30"></div>
 				<div class="setting-hint">最近 7~90 天内新建的笔记会自动进入复习队列</div>
 			</div>
 			<div class="setting-row">
-				<div class="setting-label-row"><span>每日复习队列上限</span><span class="setting-value" id="talos-review-limit-value">15条</span></div>
-				<div class="tslider" id="talos-review-limit" data-min="5" data-max="30" data-step="1" data-value="15"></div>
+				<div class="setting-label-row"><span>每日复习队列上限</span><span class="setting-value" id="polaris-review-limit-value">15条</span></div>
+				<div class="tslider" id="polaris-review-limit" data-min="5" data-max="30" data-step="1" data-value="15"></div>
 				<div class="setting-hint">每天最多安排多少条笔记进入复习，防止堆积</div>
 			</div>
 			<div class="setting-row">
-				<div class="setting-label-row"><span>单条复习估算时长</span><span class="setting-value" id="talos-review-minutes-value">5分钟</span></div>
-				<div class="tslider" id="talos-review-minutes" data-min="5" data-max="30" data-step="1" data-value="5"></div>
+				<div class="setting-label-row"><span>单条复习估算时长</span><span class="setting-value" id="polaris-review-minutes-value">5分钟</span></div>
+				<div class="tslider" id="polaris-review-minutes" data-min="5" data-max="30" data-step="1" data-value="5"></div>
 				<div class="setting-hint">用于估算每日复习总耗时（队列上限 × 单条时长）</div>
 			</div>
-			<div class="form-actions"><button type="button" class="btn-secondary talos-modal-cancel">取消</button><button type="button" class="btn-primary talos-settings-apply">应用</button></div>`);
-		const modal = this.rootEl!.querySelector(".talos-modal-box") as HTMLElement;
+			<div class="form-actions"><button type="button" class="btn-secondary polaris-modal-cancel">取消</button><button type="button" class="btn-primary polaris-settings-apply">应用</button></div>`);
+		const modal = this.rootEl!.querySelector(".polaris-modal-box") as HTMLElement;
 		const dashboard = this.rootEl!;
-		(modal.querySelector(".talos-modal-cancel") as HTMLElement).onclick = () => { this.closeModal(); this.applyWallpaper(); };
+		(modal.querySelector(".polaris-modal-cancel") as HTMLElement).onclick = () => { this.closeModal(); this.applyWallpaper(); };
 		// 内容管理入口：先关闭设置，再打开对应管理弹窗
-		(modal.querySelector(".talos-settings-quote") as HTMLElement).onclick = () => {
+		(modal.querySelector(".polaris-settings-quote") as HTMLElement).onclick = () => {
 			this.closeModal();
 			this.openQuoteManager();
 		};
-		(modal.querySelector(".talos-settings-milestone") as HTMLElement).onclick = () => {
+		(modal.querySelector(".polaris-settings-milestone") as HTMLElement).onclick = () => {
 			this.closeModal();
 			this.openMilestoneManager();
 		};
-		(modal.querySelector(".talos-settings-habits") as HTMLElement).onclick = () => {
+		(modal.querySelector(".polaris-settings-habits") as HTMLElement).onclick = () => {
 			this.closeModal();
 			this.openHabitManager();
 		};
-		(modal.querySelector(".talos-settings-apply") as HTMLElement).onclick = async () => {
-			const w = modal.querySelector("#talos-review-window") as HTMLInputElement;
-			const l = modal.querySelector("#talos-review-limit") as HTMLInputElement;
-			const m = modal.querySelector("#talos-review-minutes") as HTMLInputElement;
+		(modal.querySelector(".polaris-settings-apply") as HTMLElement).onclick = async () => {
+			const w = modal.querySelector("#polaris-review-window") as HTMLInputElement;
+			const l = modal.querySelector("#polaris-review-limit") as HTMLInputElement;
+			const m = modal.querySelector("#polaris-review-minutes") as HTMLInputElement;
 			if (this.plugin && w && l && m) {
 				this.plugin.pluginData.reviewConfig = {
 					newWindowDays: parseInt(w.value) || 30,
@@ -4855,7 +5096,7 @@ export class TalosDashboardView extends ItemView {
 				const keys = ["checkin","pomo","todos","quicknote"];
 				const hidden: string[] = [];
 				keys.forEach((k) => {
-					const cb = modal.querySelector("#talos-rp-" + k) as HTMLInputElement;
+					const cb = modal.querySelector("#polaris-rp-" + k) as HTMLInputElement;
 					if (cb && !cb.checked) hidden.push(k);
 				});
 				this.plugin.pluginData.rightPanel = { hidden };
@@ -4863,9 +5104,9 @@ export class TalosDashboardView extends ItemView {
 			}
 			// 保存日历卡片内容开关
 			if (this.plugin) {
-				const dcG2 = modal.querySelector("#talos-dc-ganzhi") as HTMLInputElement;
-				const dcY2 = modal.querySelector("#talos-dc-yiji") as HTMLInputElement;
-				const dcS2 = modal.querySelector("#talos-dc-sign") as HTMLInputElement;
+				const dcG2 = modal.querySelector("#polaris-dc-ganzhi") as HTMLInputElement;
+				const dcY2 = modal.querySelector("#polaris-dc-yiji") as HTMLInputElement;
+				const dcS2 = modal.querySelector("#polaris-dc-sign") as HTMLInputElement;
 				if (dcG2 && dcY2 && dcS2) {
 					this.plugin.pluginData.dateCard = {
 						ganzhi: dcG2.checked,
@@ -4887,31 +5128,35 @@ export class TalosDashboardView extends ItemView {
 			this.resetDetail();
 			this.showToast("设置已应用（复习参数已保存）");
 		};
-		const themeToggle = modal.querySelector("#talos-theme-toggle") as HTMLInputElement;
+		const themeToggle = modal.querySelector("#polaris-theme-toggle") as HTMLInputElement;
 		this.wireCustomSliders(modal);
 		const getS = (id: string) => modal.querySelector("#" + id) as HTMLElement;
 		const setS = (id: string, val: number) => { const el = getS(id); if (el) { el.dataset.value = String(val); this.renderCustomSlider(el); } };
 		const pd = this.plugin?.pluginData;
 		// 壁纸选择（草稿预览，应用时才持久化）
-		const wpOpts = modal.querySelectorAll<HTMLElement>(".talos-wp-card");
-		const wpFile = modal.querySelector("#talos-wp-file") as HTMLInputElement;
+		const wpOpts = modal.querySelectorAll<HTMLElement>(".polaris-wp-card");
+		const wpFile = modal.querySelector("#polaris-wp-file") as HTMLInputElement;
 		let wpDraft: { type: string; value: string } = { type: "none", value: "" };
 		const curWp = pd?.wallpaper;
-		if (curWp) wpDraft = { type: curWp.type, value: curWp.value || "" };
+		if (curWp) {
+			wpDraft = { type: curWp.type, value: curWp.value || "" };
+			if (wpDraft.type !== "image" && wpDraft.type !== "none" && WALLPAPER_PRESETS[wpDraft.value]) wpDraft.type = "preset";
+		}
 		const paintWp = () => {
 			wpOpts.forEach((b) => {
 				const t = b.dataset.wp || "";
-				const active = t === wpDraft.type && (t !== "image" || !!wpDraft.value);
+				const active = wpDraft.type === "preset" ? t === wpDraft.value : (t === wpDraft.type && (t !== "image" || !!wpDraft.value));
 				b.classList.toggle("active", active);
 			});
-			const customThumb = modal.querySelector("#talos-wp-custom-thumb") as HTMLElement;
+			const customThumb = modal.querySelector("#polaris-wp-custom-thumb") as HTMLElement;
 			if (customThumb) {
-				const plus = customThumb.querySelector(".talos-wp-plus") as HTMLElement;
+				const plus = customThumb.querySelector(".polaris-wp-plus") as HTMLElement;
+				const customImg = customThumb.querySelector(".polaris-wp-custom-img") as HTMLImageElement;
 				if (wpDraft.type === "image" && wpDraft.value) {
-					customThumb.style.backgroundImage = `url('${wpDraft.value}')`;
+					if (customImg) { customImg.src = wpDraft.value; customImg.style.display = "block"; }
 					if (plus) plus.style.display = "none";
 				} else {
-					customThumb.style.backgroundImage = "";
+					if (customImg) { customImg.removeAttribute("src"); customImg.style.display = "none"; }
 					if (plus) plus.style.display = "";
 				}
 			}
@@ -4923,51 +5168,83 @@ export class TalosDashboardView extends ItemView {
 			b.onclick = () => {
 				const t = b.dataset.wp || "";
 				if (t === "image") { wpFile?.click(); }
-				else { wpDraft = { type: t, value: t === "none" ? "" : (WALLPAPER_PRESETS[t] ? t : "") }; paintWp(); }
+				else if (t === "none") { wpDraft = { type: "none", value: "" }; paintWp(); }
+				else if (WALLPAPER_PRESETS[t]) { wpDraft = { type: "preset", value: t }; paintWp(); }
+				else { wpDraft = { type: t, value: "" }; paintWp(); }
 			};
 		});
 		if (wpFile) wpFile.onchange = () => {
 			const f = wpFile.files && wpFile.files[0];
 			if (!f) return;
 			const reader = new FileReader();
-			reader.onload = () => { wpDraft = { type: "image", value: String(reader.result || "") }; paintWp(); };
+			reader.onload = () => {
+				const raw = String(reader.result || "");
+				// 压缩到最长边 1920px / JPEG 质量 0.85，避免超大 base64 导致保存与应用失败
+				try {
+					const img = new Image();
+					img.onload = () => {
+						const MAX = 1920;
+						let w = img.width, h = img.height;
+						if (w > MAX || h > MAX) {
+							const scale = MAX / Math.max(w, h);
+							w = Math.round(w * scale);
+							h = Math.round(h * scale);
+						}
+						const canvas = document.createElement("canvas");
+						canvas.width = w; canvas.height = h;
+						const ctx = canvas.getContext("2d");
+						if (ctx) {
+							ctx.drawImage(img, 0, 0, w, h);
+							wpDraft = { type: "image", value: canvas.toDataURL("image/jpeg", 0.85) };
+						} else {
+							wpDraft = { type: "image", value: raw };
+						}
+						paintWp();
+					};
+					img.onerror = () => { wpDraft = { type: "image", value: raw }; paintWp(); };
+					img.src = raw;
+				} catch {
+					wpDraft = { type: "image", value: raw };
+					paintWp();
+				}
+			};
 			reader.readAsDataURL(f);
 		};
 		paintWp();
 		if (pd?.cardOpacity != null) {
-			setS("talos-opacity-slider", pd.cardOpacity);
-			const v = modal.querySelector("#talos-opacity-value"); if (v) v.textContent = Math.round(pd.cardOpacity * 100) + "%";
+			setS("polaris-opacity-slider", pd.cardOpacity);
+			const v = modal.querySelector("#polaris-opacity-value"); if (v) v.textContent = Math.round(pd.cardOpacity * 100) + "%";
 		}
 		if (pd?.cardBlur != null) {
-			setS("talos-blur-slider", pd.cardBlur);
-			const v = modal.querySelector("#talos-blur-value"); if (v) v.textContent = pd.cardBlur + "px";
+			setS("polaris-blur-slider", pd.cardBlur);
+			const v = modal.querySelector("#polaris-blur-value"); if (v) v.textContent = pd.cardBlur + "px";
 		}
 		if (themeToggle && pd?.theme) themeToggle.checked = pd.theme === "light";
 		// 回填日历卡片内容开关
 		const dc = pd?.dateCard || {};
-		const dcG = modal.querySelector("#talos-dc-ganzhi") as HTMLInputElement;
-		const dcY = modal.querySelector("#talos-dc-yiji") as HTMLInputElement;
-		const dcS = modal.querySelector("#talos-dc-sign") as HTMLInputElement;
+		const dcG = modal.querySelector("#polaris-dc-ganzhi") as HTMLInputElement;
+		const dcY = modal.querySelector("#polaris-dc-yiji") as HTMLInputElement;
+		const dcS = modal.querySelector("#polaris-dc-sign") as HTMLInputElement;
 		if (dcG) dcG.checked = dc.ganzhi === true;
 		if (dcY) dcY.checked = dc.yiJi !== false;
 		if (dcS) dcS.checked = dc.dailySign === true;
 		// 回填复习参数当前值
-		const rw = getS("talos-review-window"), rl = getS("talos-review-limit"), rm = getS("talos-review-minutes");
+		const rw = getS("polaris-review-window"), rl = getS("polaris-review-limit"), rm = getS("polaris-review-minutes");
 		const rcfg = this.getReviewConfig();
-		setS("talos-review-window", rcfg.newWindowDays);
-		let v = modal.querySelector("#talos-review-window-value"); if (v) v.textContent = rcfg.newWindowDays + "天";
-		setS("talos-review-limit", rcfg.queueLimit);
-		v = modal.querySelector("#talos-review-limit-value"); if (v) v.textContent = rcfg.queueLimit + "条";
-		setS("talos-review-minutes", rcfg.minutesPerItem);
-		v = modal.querySelector("#talos-review-minutes-value"); if (v) v.textContent = rcfg.minutesPerItem + "分钟";
-		rw.addEventListener("input", () => { const el = getS("talos-review-window-value"); if (el) el.textContent = rw.dataset.value + "天"; });
-		rl.addEventListener("input", () => { const el = getS("talos-review-limit-value"); if (el) el.textContent = rl.dataset.value + "条"; });
-		rm.addEventListener("input", () => { const el = getS("talos-review-minutes-value"); if (el) el.textContent = rm.dataset.value + "分钟"; });
-		const opEl = getS("talos-opacity-slider");
-		opEl.addEventListener("input", () => { const val = parseFloat(opEl.dataset.value || "0"); dashboard.style.setProperty("--card-opacity", String(val)); const el = getS("talos-opacity-value"); if (el) el.textContent = Math.round(val*100)+"%"; });
+		setS("polaris-review-window", rcfg.newWindowDays);
+		let v = modal.querySelector("#polaris-review-window-value"); if (v) v.textContent = rcfg.newWindowDays + "天";
+		setS("polaris-review-limit", rcfg.queueLimit);
+		v = modal.querySelector("#polaris-review-limit-value"); if (v) v.textContent = rcfg.queueLimit + "条";
+		setS("polaris-review-minutes", rcfg.minutesPerItem);
+		v = modal.querySelector("#polaris-review-minutes-value"); if (v) v.textContent = rcfg.minutesPerItem + "分钟";
+		rw.addEventListener("input", () => { const el = getS("polaris-review-window-value"); if (el) el.textContent = rw.dataset.value + "天"; });
+		rl.addEventListener("input", () => { const el = getS("polaris-review-limit-value"); if (el) el.textContent = rl.dataset.value + "条"; });
+		rm.addEventListener("input", () => { const el = getS("polaris-review-minutes-value"); if (el) el.textContent = rm.dataset.value + "分钟"; });
+		const opEl = getS("polaris-opacity-slider");
+		opEl.addEventListener("input", () => { const val = parseFloat(opEl.dataset.value || "0"); dashboard.style.setProperty("--card-opacity", String(val)); const el = getS("polaris-opacity-value"); if (el) el.textContent = Math.round(val*100)+"%"; });
 		opEl.addEventListener("change", async () => { if (this.plugin) { this.plugin.pluginData.cardOpacity = parseFloat(opEl.dataset.value || "0"); await this.plugin.savePluginData(); } });
-		const blEl = getS("talos-blur-slider");
-		blEl.addEventListener("input", () => { const val = parseFloat(blEl.dataset.value || "0"); dashboard.style.setProperty("--card-blur", val+"px"); const el = getS("talos-blur-value"); if (el) el.textContent = val+"px"; });
+		const blEl = getS("polaris-blur-slider");
+		blEl.addEventListener("input", () => { const val = parseFloat(blEl.dataset.value || "0"); dashboard.style.setProperty("--card-blur", val+"px"); const el = getS("polaris-blur-value"); if (el) el.textContent = val+"px"; });
 		blEl.addEventListener("change", async () => { if (this.plugin) { this.plugin.pluginData.cardBlur = parseInt(blEl.dataset.value || "0"); await this.plugin.savePluginData(); } });
 		themeToggle.onchange = async () => {
 			this.theme = themeToggle.checked ? "light" : "dark";
@@ -5014,34 +5291,34 @@ export class TalosDashboardView extends ItemView {
 		});
 	}
 	private showModal(title: string, contentHTML: string) {
-		this.rootEl!.querySelector(".talos-modal-root")?.remove();
-		const modalRoot = this.rootEl!.createDiv({ cls: "talos-modal-root open" });
-		modalRoot.innerHTML = `<div class="modal-overlay talos-modal-overlay"></div><div class="modal-box talos-modal-box" role="dialog" aria-modal="true"><div class="modal-header"><div class="modal-title">${title}</div><button class="modal-close" aria-label="关闭">✕</button></div>${contentHTML}</div>`;
+		this.rootEl!.querySelector(".polaris-modal-root")?.remove();
+		const modalRoot = this.rootEl!.createDiv({ cls: "polaris-modal-root open" });
+		modalRoot.innerHTML = `<div class="modal-overlay polaris-modal-overlay"></div><div class="modal-box polaris-modal-box" role="dialog" aria-modal="true"><div class="modal-header"><div class="modal-title">${title}</div><button class="modal-close" aria-label="关闭">✕</button></div>${contentHTML}</div>`;
 		(modalRoot.querySelector(".modal-close") as HTMLElement).onclick = () => this.closeModal();
-		(modalRoot.querySelector(".talos-modal-overlay") as HTMLElement).onclick = () => this.closeModal();
-		// 通用取消按钮：弹窗内任意 .talos-modal-cancel 点击即关闭（各弹窗可再单独覆盖）
-		(modalRoot.querySelector(".talos-modal-cancel") as HTMLElement).onclick = () => this.closeModal();
+		(modalRoot.querySelector(".polaris-modal-overlay") as HTMLElement).onclick = () => this.closeModal();
+		// 通用取消按钮：弹窗内任意 .polaris-modal-cancel 点击即关闭（各弹窗可再单独覆盖）
+		(modalRoot.querySelector(".polaris-modal-cancel") as HTMLElement).onclick = () => this.closeModal();
 	}
 
 	// 每日一签抽签页：摇签动画 → 揭晓签文 → 解签按钮（关闭后卡片显示结果）
 	private openSignModal(drawn: { no: number; luck: string; title: string; poem: string; jie: string }) {
 		this.showModal("🎋 每日一签", `
-			<div class="talos-sign-modal" style="text-align:center;padding:10px 6px;">
-				<div class="talos-sign-shake" style="font-size:56px;line-height:1.2;">🎋</div>
-				<div style="font-size:12px;color:var(--text-muted);margin-top:10px;">正在摇签…</div>
+			<div class="polaris-sign-modal" style="text-align:center;padding:8px 6px;">
+				<div class="polaris-sign-shake" style="font-size:56px;line-height:1.2;">🎋</div>
+				<div style="font-size:12px;color:var(--text-muted);margin-top:8px;">正在摇签…</div>
 			</div>`);
-		const box = this.rootEl!.querySelector(".talos-modal-box") as HTMLElement;
-		const body = box.querySelector(".talos-sign-modal") as HTMLElement;
+		const box = this.rootEl!.querySelector(".polaris-modal-box") as HTMLElement;
+		const body = box.querySelector(".polaris-sign-modal") as HTMLElement;
 		if (!body) return;
 		setTimeout(() => {
 			body.innerHTML = `
 				<div style="font-size:22px;font-weight:800;color:var(--date-text);letter-spacing:0.5px;">第${drawn.no}签 · ${drawn.luck}</div>
-				<div style="font-size:14px;font-weight:600;color:var(--text-secondary);margin-top:5px;">${drawn.title}</div>
-				<div style="font-size:13px;color:var(--text-primary);margin-top:10px;line-height:1.9;">${drawn.poem}</div>
-				<button type="button" class="talos-sign-modal-toggle" style="margin-top:14px;cursor:pointer;background:var(--control-bg);border:1px solid var(--border-color);border-radius:8px;padding:7px 22px;font-size:12px;color:var(--text-secondary);">解签</button>
-				<div class="talos-sign-modal-detail" style="display:none;margin-top:12px;color:var(--text-muted);font-size:12px;line-height:1.9;background:rgba(var(--card-bg-rgb),0.5);border-radius:8px;padding:10px 14px;text-align:left;">${drawn.jie}</div>`;
-			const toggle = body.querySelector(".talos-sign-modal-toggle") as HTMLElement;
-			const detail = body.querySelector(".talos-sign-modal-detail") as HTMLElement;
+				<div style="font-size:14px;font-weight:600;color:var(--text-secondary);margin-top:4px;">${drawn.title}</div>
+				<div style="font-size:13px;color:var(--text-primary);margin-top:8px;line-height:1.9;">${drawn.poem}</div>
+				<button type="button" class="polaris-sign-modal-toggle" style="margin-top:12px;cursor:pointer;background:var(--control-bg);border:1px solid var(--border-color);border-radius:8px;padding:8px 20px;font-size:12px;color:var(--text-secondary);">解签</button>
+				<div class="polaris-sign-modal-detail" style="display:none;margin-top:12px;color:var(--text-muted);font-size:12px;line-height:1.9;background:rgba(var(--card-bg-rgb),0.5);border-radius:8px;padding:8px 12px;text-align:left;">${drawn.jie}</div>`;
+			const toggle = body.querySelector(".polaris-sign-modal-toggle") as HTMLElement;
+			const detail = body.querySelector(".polaris-sign-modal-detail") as HTMLElement;
 			if (toggle && detail) {
 				toggle.onclick = () => {
 					const hidden = detail.style.display === "none";
@@ -5052,7 +5329,7 @@ export class TalosDashboardView extends ItemView {
 		}, 750);
 	}
 
-	private closeModal() { this.rootEl!.querySelector(".talos-modal-root")?.remove(); }
+	private closeModal() { this.rootEl!.querySelector(".polaris-modal-root")?.remove(); }
 
 	/** 应用背景壁纸（预设/自定义图片/关闭），仅深色主题生效（浅色保持原浅色渐变以保证可读性） */
 	private applyWallpaper() {
@@ -5064,7 +5341,7 @@ export class TalosDashboardView extends ItemView {
 			return;
 		}
 		let bg: string;
-		if (wp.type === "preset") {
+		if (wp.type === "preset" || WALLPAPER_PRESETS[wp.value]) {
 			bg = WALLPAPER_PRESETS[wp.value] || "";
 			if (!bg) { root.style.removeProperty("--wallpaper-bg"); return; }
 		} else {
@@ -5080,7 +5357,7 @@ export class TalosDashboardView extends ItemView {
 
 	private showToast(message: string) {
 		new Notice(message, 3000);
-		const container = this.rootEl?.querySelector("#talos-toast-container") as HTMLElement;
+		const container = this.rootEl?.querySelector("#polaris-toast-container") as HTMLElement;
 		if (!container) return;
 		const toast = document.createElement("div");
 		toast.className = "toast";
@@ -5128,14 +5405,14 @@ export class TalosDashboardView extends ItemView {
 
 	private async createNewNote() {
 		this.showModal("新建笔记", `
-			<form id="talos-new-note-form">
+			<form id="polaris-new-note-form">
 				<div class="form-field"><label class="form-label">笔记标题 <span class="required">*</span></label><input class="form-input" name="title" type="text" placeholder="输入笔记标题..." required autofocus></div>
 				<div class="form-field"><label class="form-label">内容（可选）</label><textarea class="form-textarea" name="content" placeholder="输入笔记内容..."></textarea></div>
-				<div class="form-actions"><button type="button" class="btn-secondary talos-modal-cancel">取消</button><button type="submit" class="btn-primary">创建并打开</button></div>
+				<div class="form-actions"><button type="button" class="btn-secondary polaris-modal-cancel">取消</button><button type="submit" class="btn-primary">创建并打开</button></div>
 			</form>`);
-		const modal = this.rootEl!.querySelector(".talos-modal-box") as HTMLElement;
-		(modal.querySelector(".talos-modal-cancel") as HTMLElement).onclick = () => this.closeModal();
-		(modal.querySelector("#talos-new-note-form") as HTMLFormElement).onsubmit = async (e) => {
+		const modal = this.rootEl!.querySelector(".polaris-modal-box") as HTMLElement;
+		(modal.querySelector(".polaris-modal-cancel") as HTMLElement).onclick = () => this.closeModal();
+		(modal.querySelector("#polaris-new-note-form") as HTMLFormElement).onsubmit = async (e) => {
 			e.preventDefault();
 			const form = e.target as HTMLFormElement;
 			const fd = new FormData(form);
@@ -5253,9 +5530,9 @@ export class TalosDashboardView extends ItemView {
 			// PARA分布统计
 			const paraFolders = [
 				{ key: "projects", name: "Projects 项目", path: "01-Projects-项目", color: "#22c55e" },
-				{ key: "areas", name: "Areas 领域", path: "02-Areas-领域", color: "#3b82f6" },
-				{ key: "resources", name: "Resources 资源", path: "03-Resources-资源", color: "#eab308" },
-				{ key: "archives", name: "Archives 归档", path: "04-Archives-归档", color: "#a855f7" },
+				{ key: "areas", name: "Areas 领域", path: "02-Areas-领域", color: "#60a5fa" },
+				{ key: "resources", name: "Resources 资源", path: "03-Resources-资源", color: "#fbbf24" },
+				{ key: "archives", name: "Archives 归档", path: "04-Archives-归档", color: "#a78bfa" },
 			];
 			const paraCounts: Record<string, number> = { projects: 0, areas: 0, resources: 0, archives: 0, other: 0 };
 			files.forEach((f) => {
@@ -5697,7 +5974,7 @@ export class TalosDashboardView extends ItemView {
 		const modeButtons = ["month", "year"].map((m) => {
 			const label = m === "year" ? "年" : "月";
 			const active = this.heatmapMode === m;
-			return `<span class="talos-heatmap-mode" data-mode="${m}" style="padding:4px 14px;border-radius:var(--radius-sm);font-size:11px;cursor:pointer;transition:all 0.15s;${active ? 'background:var(--brand-green);color:#0f0f13;font-weight:600;' : 'color:var(--text-muted);background:rgba(255,255,255,0.05);'}">${label}</span>`;
+			return `<span class="polaris-heatmap-mode" data-mode="${m}" style="padding:4px 12px;border-radius:var(--radius-sm);font-size:11px;cursor:pointer;transition:all 0.15s;${active ? 'background:var(--brand-green);color:#0f0f13;font-weight:600;' : 'color:var(--text-muted);background:rgba(255,255,255,0.05);'}">${label}</span>`;
 		}).join("");
 		return `<div style="display:flex;gap:4px;background:rgba(255,255,255,0.04);border-radius:var(--radius-md);padding:3px;">${modeButtons}</div>`;
 	}
@@ -5710,7 +5987,7 @@ export class TalosDashboardView extends ItemView {
 
 		const mode = this.heatmapMode;
 		// 统一使用品牌淡黄绿色系；无记录格按主题给浅色底（深色=微亮灰，浅色=浅灰，保证格子都有可见底色）
-		const isLight = (document.querySelector(".talos-dashboard") as HTMLElement)?.getAttribute("data-theme") === "light";
+		const isLight = (document.querySelector(".polaris-dashboard") as HTMLElement)?.getAttribute("data-theme") === "light";
 		const colors = isLight
 			? ["rgba(0,0,0,0.06)", "rgba(200,224,96,0.2)", "rgba(200,224,96,0.4)", "rgba(200,224,96,0.7)", "#c8e060"]
 			: ["rgba(255,255,255,0.06)", "rgba(200,224,96,0.2)", "rgba(200,224,96,0.4)", "rgba(200,224,96,0.7)", "#c8e060"];
@@ -5775,12 +6052,12 @@ export class TalosDashboardView extends ItemView {
 					const isToday = dateStr === todayStr;
 					const isFuture = new Date(dateStr) > now;
 					const tip = count > 0 ? `笔记 ${count} 篇` : "无活动";
-					h += `<div class="talos-heatmap-cell" data-date="${dateStr}" data-count="${count}" title="${dateStr} 周${weekCN[new Date(y,m,d).getDay()]} · ${tip}" style="flex:0 0 calc((100% - 18px)/7);aspect-ratio:1;border-radius:${cardW < 420 ? 3 : cardW < 800 ? 4 : 6}px;background:${colors[level]||colors[0]};display:flex;align-items:center;justify-content:center;font-size:9px;overflow:hidden;color:${level>=3?"#0f0f13":level>0?"var(--text-primary)":emptyTextColor};font-weight:${level>=3?"600":"400"};cursor:pointer;transition:all 0.15s;${isFuture?"opacity:0.35;":""}${isToday?"outline:1px solid var(--brand-green);outline-offset:-1px;":""}">${cardW >= 300 ? d : ""}</div>`;
+					h += `<div class="polaris-heatmap-cell" data-date="${dateStr}" data-count="${count}" title="${dateStr} 周${weekCN[new Date(y,m,d).getDay()]} · ${tip}" style="flex:0 0 calc((100% - 18px)/7);aspect-ratio:1;border-radius:${cardW < 420 ? 3 : cardW < 800 ? 4 : 6}px;background:${colors[level]||colors[0]};display:flex;align-items:center;justify-content:center;font-size:9px;overflow:hidden;color:${level>=3?"#0f0f13":level>0?"var(--text-primary)":emptyTextColor};font-weight:${level>=3?"600":"400"};cursor:pointer;transition:all 0.15s;${isFuture?"opacity:0.35;":""}${isToday?"outline:1px solid var(--brand-green);outline-offset:-1px;":""}">${cardW >= 300 ? d : ""}</div>`;
 				}
 				h += `</div></div>`;
 				monthBlocks.push(h);
 			}
-			bodyHtml = `<div style="display:flex;flex-wrap:wrap;gap:18px;">${monthBlocks.join("")}</div>`;
+			bodyHtml = `<div style="display:flex;flex-wrap:wrap;gap:16px;">${monthBlocks.join("")}</div>`;
 		} else {
 			// 年视图：全年 12 个月整体概览（色块 + 月度汇总，hover 看单日详情）
 			const year = now.getFullYear();
@@ -5802,12 +6079,12 @@ export class TalosDashboardView extends ItemView {
 					const count = dayData ? dayData.count : 0;
 					const isToday = dateStr === todayStr;
 					const tip = count > 0 ? `笔记 ${count} 篇` : "无活动";
-					h += `<div class="talos-heatmap-cell" data-date="${dateStr}" data-count="${count}" title="${dateStr} 周${weekCN[new Date(year,m-1,d).getDay()]} · ${tip}" style="width:calc((100% - 12px)/7);aspect-ratio:1;border-radius:${cardW < 420 ? 3 : cardW < 800 ? 4 : 6}px;background:${colors[level]||colors[0]};cursor:pointer;transition:all 0.15s;${isToday?"outline:1px solid var(--brand-green);outline-offset:-1px;":""}"></div>`;
+					h += `<div class="polaris-heatmap-cell" data-date="${dateStr}" data-count="${count}" title="${dateStr} 周${weekCN[new Date(year,m-1,d).getDay()]} · ${tip}" style="width:calc((100% - 12px)/7);aspect-ratio:1;border-radius:${cardW < 420 ? 3 : cardW < 800 ? 4 : 6}px;background:${colors[level]||colors[0]};cursor:pointer;transition:all 0.15s;${isToday?"outline:1px solid var(--brand-green);outline-offset:-1px;":""}"></div>`;
 				}
 				h += `</div></div>`;
 				yearBlocks.push(h);
 			}
-			bodyHtml = `<div style="display:flex;flex-wrap:wrap;gap:14px;">${yearBlocks.join("")}</div>`;
+			bodyHtml = `<div style="display:flex;flex-wrap:wrap;gap:12px;">${yearBlocks.join("")}</div>`;
 		}
 
 		return `
@@ -5829,8 +6106,8 @@ export class TalosDashboardView extends ItemView {
 		};
 		const modeColors: Record<string, string> = {
 			focus: "#22c55e",
-			shortBreak: "#3b82f6",
-			longBreak: "#a855f7",
+			shortBreak: "#60a5fa",
+			longBreak: "#a78bfa",
 		};
 		const currentColor = modeColors[this.pomodoroMode];
 		const totalTime = this.pomodoroMode === "focus" ? this.pomodoroSettings.focus * 60 :
@@ -5844,21 +6121,21 @@ export class TalosDashboardView extends ItemView {
 		const focusMinutes = Math.floor((this.pomodoroTodayFocus % 3600) / 60);
 
 		return `<div class="glass-card-static">
-			<div class="detail-section-title" style="display:flex;align-items:center;margin-bottom:10px;">
-				<span>🍅 番茄时钟</span>
+			<div class="detail-section-title" style="display:flex;align-items:center;margin-bottom:8px;">
+				<span class="rp-strip"></span><span class="rp-title">🍅 番茄时钟</span>
 				<div style="display:flex;gap:8px;align-items:center;margin-left:auto;">
-					<span class="talos-pomo-history" style="cursor:pointer;font-size:12px;color:${this.showPomodoroHistory ? 'var(--text-brand)' : 'var(--text-muted)'};display:flex;align-items:center;" title="历史记录">📊</span>
-					<span class="talos-pomo-settings" style="cursor:pointer;font-size:16px;color:var(--text-muted);display:flex;align-items:center;" title="设置">⚙️</span>
+					<span class="polaris-pomo-history" style="cursor:pointer;font-size:12px;color:${this.showPomodoroHistory ? 'var(--text-brand)' : 'var(--text-muted)'};display:flex;align-items:center;" title="历史记录">📊</span>
+					<span class="polaris-pomo-settings" style="cursor:pointer;font-size:16px;color:var(--text-muted);display:flex;align-items:center;" title="设置">⚙️</span>
 				</div>
 			</div>
 			<div style="text-align:center;">
 				<!-- 关联任务显示 -->
-				<div class="talos-pomo-task" style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:6px;padding:6px 10px;background:rgba(255,255,255,0.05);border-radius:8px;cursor:pointer;font-size:12px;color:var(--text-secondary);">
+				<div class="polaris-pomo-task" style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:6px;padding:6px 8px;background:rgba(255,255,255,0.05);border-radius:8px;cursor:pointer;font-size:12px;color:var(--text-secondary);">
 					<span style="font-size:14px;">📌</span>
 					<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${this.currentPomodoroTaskTitle}</span>
 					<span style="font-size:10px;color:var(--text-muted);">切换</span>
 				</div>
-				<div style="position:relative;width:120px;height:120px;margin:0 auto 10px;">
+				<div style="position:relative;width:120px;height:120px;margin:0 auto 8px;">
 					<svg width="120" height="120" viewBox="0 0 120 120" style="transform:rotate(-90deg);">
 						<circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="8"/>
 						<circle cx="60" cy="60" r="52" fill="none" stroke="${currentColor}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${2 * Math.PI * 52}" stroke-dashoffset="${2 * Math.PI * 52 * (1 - progress/100)}" style="transition:stroke-dashoffset 1s linear;"/>
@@ -5869,9 +6146,9 @@ export class TalosDashboardView extends ItemView {
 					</div>
 				</div>
 				<div style="display:flex;gap:8px;justify-content:center;margin-bottom:8px;">
-					<button class="talos-pomo-toggle" style="background:${currentColor};">${this.pomodoroRunning ? "暂停" : "开始"}</button>
-					<button class="talos-pomo-reset">重置</button>
-					<button class="talos-pomo-skip">跳过</button>
+					<button class="polaris-pomo-toggle">${this.pomodoroRunning ? "暂停" : "开始"}</button>
+					<button class="polaris-pomo-reset">重置</button>
+					<button class="polaris-pomo-skip">跳过</button>
 				</div>
 				<div style="display:flex;flex-direction:column;align-items:center;gap:3px;margin-bottom:8px;">
 					<div style="display:flex;gap:4px;justify-content:center;">
@@ -5885,7 +6162,7 @@ export class TalosDashboardView extends ItemView {
 						<div style="font-size:10px;color:var(--text-muted);">今日番茄</div>
 					</div>
 					<div style="text-align:center;">
-						<div style="font-size:18px;font-weight:700;color:#3b82f6;">${focusHours > 0 ? focusHours + "h" : ""}${focusMinutes}m</div>
+						<div style="font-size:18px;font-weight:700;color:#60a5fa;">${focusHours > 0 ? focusHours + "h" : ""}${focusMinutes}m</div>
 						<div style="font-size:10px;color:var(--text-muted);">专注时长</div>
 					</div>
 				</div>
@@ -6025,16 +6302,16 @@ export class TalosDashboardView extends ItemView {
 	// 更新番茄时钟显示
 	private updatePomodoroDisplay() {
 		// 查找左侧边栏的番茄时钟并更新
-		const detailPanel = this.rootEl?.querySelector(".talos-detail-content");
+		const detailPanel = this.rootEl?.querySelector(".polaris-detail-content");
 		if (!detailPanel) return;
-		const pomoCard = detailPanel.querySelector(".talos-pomo-card");
+		const pomoCard = detailPanel.querySelector(".polaris-pomo-card");
 		if (pomoCard) {
 			// 重新渲染整个卡片
 			const wrapper = document.createElement("div");
 			wrapper.innerHTML = this.renderPomodoro();
 			const newCard = wrapper.firstElementChild;
 			if (newCard) {
-				newCard.classList.add("talos-pomo-card");
+				newCard.classList.add("polaris-pomo-card");
 				pomoCard.replaceWith(newCard);
 				this.bindPomodoroEvents(newCard as HTMLElement);
 			}
@@ -6043,19 +6320,19 @@ export class TalosDashboardView extends ItemView {
 
 	// 绑定番茄时钟事件
 	private bindPomodoroEvents(container: HTMLElement) {
-		const toggleBtn = container.querySelector(".talos-pomo-toggle");
+		const toggleBtn = container.querySelector(".polaris-pomo-toggle");
 		if (toggleBtn) (toggleBtn as HTMLElement).onclick = () => this.togglePomodoro();
-		const resetBtn = container.querySelector(".talos-pomo-reset");
+		const resetBtn = container.querySelector(".polaris-pomo-reset");
 		if (resetBtn) (resetBtn as HTMLElement).onclick = () => this.resetPomodoro();
-		const skipBtn = container.querySelector(".talos-pomo-skip");
+		const skipBtn = container.querySelector(".polaris-pomo-skip");
 		if (skipBtn) (skipBtn as HTMLElement).onclick = () => this.skipPomodoro();
-		const settingsBtn = container.querySelector(".talos-pomo-settings");
+		const settingsBtn = container.querySelector(".polaris-pomo-settings");
 		if (settingsBtn) (settingsBtn as HTMLElement).onclick = () => this.showPomodoroSettings();
 		// 选择关联任务
-		const taskBtn = container.querySelector(".talos-pomo-task");
+		const taskBtn = container.querySelector(".polaris-pomo-task");
 		if (taskBtn) (taskBtn as HTMLElement).onclick = (e) => this.showPomodoroTaskPicker(e);
 		// 切换历史记录显示
-		const historyBtn = container.querySelector(".talos-pomo-history");
+		const historyBtn = container.querySelector(".polaris-pomo-history");
 		if (historyBtn) (historyBtn as HTMLElement).onclick = () => {
 			this.showPomodoroHistory = !this.showPomodoroHistory;
 			this.renderTodayPanel();
@@ -6104,38 +6381,38 @@ export class TalosDashboardView extends ItemView {
 	// 番茄时钟设置
 	private showPomodoroSettings() {
 		const modal = document.createElement("div");
-		modal.className = "talos-modal";
+		modal.className = "polaris-modal";
 		modal.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;";
 		modal.innerHTML = `
-			<div class="talos-modal-box" style="background:var(--background-primary);border-radius:12px;padding:24px;max-width:360px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+			<div class="polaris-modal-box" style="background:var(--background-primary);border-radius:12px;padding:24px;max-width:360px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
 				<div style="font-size:18px;font-weight:700;margin-bottom:16px;">🍅 番茄时钟设置</div>
 				<div style="margin-bottom:12px;">
 					<div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;">专注时长（分钟）</div>
 					<div style="display:flex;gap:6px;">
-						${[15,25,50].map((m) => `<button class="talos-pomo-preset" data-value="${m}" data-field="focus" style="flex:1;padding:6px;border-radius:6px;border:1px solid ${this.pomodoroSettings.focus===m?"var(--brand-green)":"var(--background-modifier-border)"};background:${this.pomodoroSettings.focus===m?"var(--brand-green)":"transparent"};color:${this.pomodoroSettings.focus===m?"white":"var(--text-secondary)"};cursor:pointer;font-size:12px;">${m}分钟</button>`).join("")}
+						${[15,25,50].map((m) => `<button class="polaris-pomo-preset" data-value="${m}" data-field="focus" style="flex:1;padding:6px;border-radius:6px;border:1px solid ${this.pomodoroSettings.focus===m?"var(--brand-green)":"var(--background-modifier-border)"};background:${this.pomodoroSettings.focus===m?"var(--brand-green)":"transparent"};color:${this.pomodoroSettings.focus===m?"white":"var(--text-secondary)"};cursor:pointer;font-size:12px;">${m}分钟</button>`).join("")}
 					</div>
 				</div>
 				<div style="margin-bottom:12px;">
 					<div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;">短休息（分钟）</div>
 					<div style="display:flex;gap:6px;">
-						${[3,5,10].map((m) => `<button class="talos-pomo-preset" data-value="${m}" data-field="shortBreak" style="flex:1;padding:6px;border-radius:6px;border:1px solid ${this.pomodoroSettings.shortBreak===m?"var(--brand-green)":"var(--background-modifier-border)"};background:${this.pomodoroSettings.shortBreak===m?"var(--brand-green)":"transparent"};color:${this.pomodoroSettings.shortBreak===m?"white":"var(--text-secondary)"};cursor:pointer;font-size:12px;">${m}分钟</button>`).join("")}
+						${[3,5,10].map((m) => `<button class="polaris-pomo-preset" data-value="${m}" data-field="shortBreak" style="flex:1;padding:6px;border-radius:6px;border:1px solid ${this.pomodoroSettings.shortBreak===m?"var(--brand-green)":"var(--background-modifier-border)"};background:${this.pomodoroSettings.shortBreak===m?"var(--brand-green)":"transparent"};color:${this.pomodoroSettings.shortBreak===m?"white":"var(--text-secondary)"};cursor:pointer;font-size:12px;">${m}分钟</button>`).join("")}
 					</div>
 				</div>
 				<div style="margin-bottom:16px;">
 					<div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;">长休息（分钟）</div>
 					<div style="display:flex;gap:6px;">
-						${[10,15,20].map((m) => `<button class="talos-pomo-preset" data-value="${m}" data-field="longBreak" style="flex:1;padding:6px;border-radius:6px;border:1px solid ${this.pomodoroSettings.longBreak===m?"var(--brand-green)":"var(--background-modifier-border)"};background:${this.pomodoroSettings.longBreak===m?"var(--brand-green)":"transparent"};color:${this.pomodoroSettings.longBreak===m?"white":"var(--text-secondary)"};cursor:pointer;font-size:12px;">${m}分钟</button>`).join("")}
+						${[10,15,20].map((m) => `<button class="polaris-pomo-preset" data-value="${m}" data-field="longBreak" style="flex:1;padding:6px;border-radius:6px;border:1px solid ${this.pomodoroSettings.longBreak===m?"var(--brand-green)":"var(--background-modifier-border)"};background:${this.pomodoroSettings.longBreak===m?"var(--brand-green)":"transparent"};color:${this.pomodoroSettings.longBreak===m?"white":"var(--text-secondary)"};cursor:pointer;font-size:12px;">${m}分钟</button>`).join("")}
 					</div>
 				</div>
 				<div style="display:flex;gap:12px;justify-content:flex-end;">
-					<button class="talos-pomo-close" style="padding:8px 20px;border-radius:8px;border:1px solid var(--background-modifier-border);background:transparent;color:var(--text-secondary);cursor:pointer;font-size:13px;">关闭</button>
+					<button class="polaris-pomo-close" style="padding:8px 20px;border-radius:8px;border:1px solid var(--background-modifier-border);background:transparent;color:var(--text-secondary);cursor:pointer;font-size:13px;">关闭</button>
 				</div>
 			</div>`;
 		document.body.appendChild(modal);
 		const close = () => { modal.remove(); };
-		modal.querySelector(".talos-pomo-close")?.addEventListener("click", close);
+		modal.querySelector(".polaris-pomo-close")?.addEventListener("click", close);
 		modal.addEventListener("click", (e) => { if (e.target === modal) close(); });
-		modal.querySelectorAll(".talos-pomo-preset").forEach((btn) => {
+		modal.querySelectorAll(".polaris-pomo-preset").forEach((btn) => {
 			(btn as HTMLElement).onclick = () => {
 				const field = (btn as HTMLElement).dataset.field as keyof typeof this.pomodoroSettings;
 				const value = parseInt((btn as HTMLElement).dataset.value || "25");
@@ -6492,52 +6769,52 @@ export class TalosDashboardView extends ItemView {
 		const usingCustom = this.userQuotes.length > 0;
 		const rows = this.userQuotes.map((q) => `
 			<div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
-				<input class="talos-q-input" value="${q.replace(/"/g, "&quot;")}" style="flex:1;"/>
-				<button class="talos-q-del" style="background:rgba(239,68,68,0.15);border:none;border-radius:6px;padding:6px 10px;color:#f87171;font-size:12px;cursor:pointer;">删除</button>
+				<input class="polaris-q-input" value="${q.replace(/"/g, "&quot;")}" style="flex:1;"/>
+				<button class="polaris-q-del" style="background:rgba(239,68,68,0.15);border:none;border-radius:6px;padding:6px 8px;color:#f87171;font-size:12px;cursor:pointer;">删除</button>
 			</div>`).join("");
 		const content = `
 			<div style="padding:4px 24px 20px;">
-				<div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">${usingCustom ? `当前使用自定义文案库（${this.userQuotes.length} 条），按日期稳定轮换` : "当前使用内置文案（部分含出处署名）；添加自定义文案后自动切换"}</div>
-				<div id="talos-q-list" style="max-height:46vh;overflow-y:auto;">${rows}</div>
-				<button class="talos-q-add" style="width:100%;margin-top:10px;padding:8px;background:rgba(34,197,94,0.1);border:1px dashed rgba(34,197,94,0.4);border-radius:8px;color:#22c55e;font-size:13px;cursor:pointer;">＋ 添加一条</button>
-				<div style="display:flex;gap:10px;margin-top:14px;">
-					<button class="talos-q-save btn-primary" style="flex:1;">保存</button>
-					<button class="talos-q-reset" style="flex:1;background:transparent;border:1px solid rgba(255,255,255,0.15);border-radius:12px;color:var(--text-secondary);font-size:13px;cursor:pointer;padding:10px 0;">重置为内置</button>
+				<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">${usingCustom ? `当前使用自定义文案库（${this.userQuotes.length} 条），按日期稳定轮换` : "当前使用内置文案（部分含出处署名）；添加自定义文案后自动切换"}</div>
+				<div id="polaris-q-list" style="max-height:46vh;overflow-y:auto;">${rows}</div>
+				<button class="polaris-q-add" style="width:100%;margin-top:8px;padding:8px;background:rgba(34,197,94,0.1);border:1px dashed rgba(34,197,94,0.4);border-radius:8px;color:#22c55e;font-size:13px;cursor:pointer;">＋ 添加一条</button>
+				<div style="display:flex;gap:8px;margin-top:12px;">
+					<button class="polaris-q-save btn-primary" style="flex:1;">保存</button>
+					<button class="polaris-q-reset" style="flex:1;background:transparent;border:1px solid rgba(255,255,255,0.15);border-radius:12px;color:var(--text-secondary);font-size:13px;cursor:pointer;padding:8px 0;">重置为内置</button>
 				</div>
 			</div>`;
 		this.showModal(`✎ 每日一句管理`, content);
-		const modal = document.querySelector(".modal-box.talos-modal-box") as HTMLElement;
+		const modal = document.querySelector(".modal-box.polaris-modal-box") as HTMLElement;
 		if (!modal) return;
 		const bindDel = () => {
-			modal.querySelectorAll(".talos-q-del").forEach((el) => {
+			modal.querySelectorAll(".polaris-q-del").forEach((el) => {
 				(el as HTMLElement).onclick = () => {
 					const row = (el as HTMLElement).closest("div");
-					if (row && row.parentElement === modal.querySelector("#talos-q-list")) row.remove();
+					if (row && row.parentElement === modal.querySelector("#polaris-q-list")) row.remove();
 				};
 			});
 		};
 		bindDel();
-		(modal.querySelector(".talos-q-add") as HTMLElement).onclick = () => {
-			const list = modal.querySelector("#talos-q-list") as HTMLElement;
+		(modal.querySelector(".polaris-q-add") as HTMLElement).onclick = () => {
+			const list = modal.querySelector("#polaris-q-list") as HTMLElement;
 			if (!list) return;
 			list.insertAdjacentHTML("beforeend", `
 				<div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
-					<input class="talos-q-input" style="flex:1;"/>
-					<button class="talos-q-del" style="background:rgba(239,68,68,0.15);border:none;border-radius:6px;padding:6px 10px;color:#f87171;font-size:12px;cursor:pointer;">删除</button>
+					<input class="polaris-q-input" style="flex:1;"/>
+					<button class="polaris-q-del" style="background:rgba(239,68,68,0.15);border:none;border-radius:6px;padding:6px 8px;color:#f87171;font-size:12px;cursor:pointer;">删除</button>
 				</div>`);
 			bindDel();
 			const last = list.lastElementChild?.querySelector("input");
 			if (last) (last as HTMLInputElement).focus();
 		};
-		(modal.querySelector(".talos-q-save") as HTMLElement).onclick = async () => {
-			const inputs = Array.from(modal.querySelectorAll("#talos-q-list .talos-q-input")) as HTMLInputElement[];
+		(modal.querySelector(".polaris-q-save") as HTMLElement).onclick = async () => {
+			const inputs = Array.from(modal.querySelectorAll("#polaris-q-list .polaris-q-input")) as HTMLInputElement[];
 			this.userQuotes = inputs.map((i) => i.value.trim()).filter((v) => v.length > 0);
 			await this.saveQuotes();
 			this.closeModal();
 			this.refreshRightPanel();
 			this.showToast(`文案库已保存：${this.userQuotes.length} 条${this.userQuotes.length === 0 ? "（将使用内置文案）" : ""}`);
 		};
-		(modal.querySelector(".talos-q-reset") as HTMLElement).onclick = async () => {
+		(modal.querySelector(".polaris-q-reset") as HTMLElement).onclick = async () => {
 			this.userQuotes = [];
 			await this.saveQuotes();
 			this.closeModal();
@@ -6557,64 +6834,64 @@ export class TalosDashboardView extends ItemView {
 	private openMilestoneManager() {
 		const rows = this.userMilestones.map((m) => `
 			<div data-idx="${m.name.replace(/"/g, "&quot;")}-${m.month}-${m.day}-${m.lunar ? 1 : 0}" style="display:flex;gap:6px;margin-bottom:8px;align-items:center;flex-wrap:wrap;">
-				<input class="talos-m-name" value="${m.name.replace(/"/g, "&quot;")}" placeholder="名称（如：妈妈生日）" style="width:118px;"/>
-				<input class="talos-m-month" type="number" min="1" max="12" value="${m.month}" placeholder="月" style="width:52px;"/>
+				<input class="polaris-m-name" value="${m.name.replace(/"/g, "&quot;")}" placeholder="名称（如：妈妈生日）" style="width:118px;"/>
+				<input class="polaris-m-month" type="number" min="1" max="12" value="${m.month}" placeholder="月" style="width:52px;"/>
 				<span style="font-size:12px;color:var(--text-muted);">月</span>
-				<input class="talos-m-day" type="number" min="1" max="31" value="${m.day}" placeholder="日" style="width:52px;"/>
+				<input class="polaris-m-day" type="number" min="1" max="31" value="${m.day}" placeholder="日" style="width:52px;"/>
 				<span style="font-size:12px;color:var(--text-muted);">日</span>
 				<label style="display:flex;align-items:center;gap:3px;font-size:11px;color:var(--text-muted);cursor:pointer;margin-left:2px;">
-					<input class="talos-m-lunar" type="checkbox" ${m.lunar ? "checked" : ""}/>农历
+					<input class="polaris-m-lunar" type="checkbox" ${m.lunar ? "checked" : ""}/>农历
 				</label>
-				<button class="talos-m-del" style="background:rgba(239,68,68,0.15);border:none;border-radius:6px;padding:6px 10px;color:#f87171;font-size:12px;cursor:pointer;">删除</button>
+				<button class="polaris-m-del" style="background:rgba(239,68,68,0.15);border:none;border-radius:6px;padding:6px 8px;color:#f87171;font-size:12px;cursor:pointer;">删除</button>
 			</div>`).join("");
 		const content = `
 			<div style="padding:4px 24px 20px;">
-				<div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">记录生日、纪念日等日期，右侧卡片会显示「距××还有 N 天」；勾选「农历」则按农历日期计算（如农历生日）。</div>
-				<div id="talos-m-list" style="max-height:42vh;overflow-y:auto;">${rows}</div>
-				<button class="talos-m-add" style="width:100%;margin-top:10px;padding:8px;background:rgba(34,197,94,0.1);border:1px dashed rgba(34,197,94,0.4);border-radius:8px;color:#22c55e;font-size:13px;cursor:pointer;">＋ 添加一个</button>
-				<div style="display:flex;gap:10px;margin-top:14px;">
-					<button class="talos-m-save btn-primary" style="flex:1;">保存</button>
+				<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">记录生日、纪念日等日期，右侧卡片会显示「距××还有 N 天」；勾选「农历」则按农历日期计算（如农历生日）。</div>
+				<div id="polaris-m-list" style="max-height:42vh;overflow-y:auto;">${rows}</div>
+				<button class="polaris-m-add" style="width:100%;margin-top:8px;padding:8px;background:rgba(34,197,94,0.1);border:1px dashed rgba(34,197,94,0.4);border-radius:8px;color:#22c55e;font-size:13px;cursor:pointer;">＋ 添加一个</button>
+				<div style="display:flex;gap:8px;margin-top:12px;">
+					<button class="polaris-m-save btn-primary" style="flex:1;">保存</button>
 				</div>
 			</div>`;
 		this.showModal(`🔔 生日/纪念日管理`, content);
-		const modal = document.querySelector(".modal-box.talos-modal-box") as HTMLElement;
+		const modal = document.querySelector(".modal-box.polaris-modal-box") as HTMLElement;
 		if (!modal) return;
 		const bindDel = () => {
-			modal.querySelectorAll(".talos-m-del").forEach((el) => {
+			modal.querySelectorAll(".polaris-m-del").forEach((el) => {
 				(el as HTMLElement).onclick = () => {
 					const row = (el as HTMLElement).closest("div[data-idx]");
-					if (row && row.parentElement === modal.querySelector("#talos-m-list")) row.remove();
+					if (row && row.parentElement === modal.querySelector("#polaris-m-list")) row.remove();
 				};
 			});
 		};
 		bindDel();
-		(modal.querySelector(".talos-m-add") as HTMLElement).onclick = () => {
-			const list = modal.querySelector("#talos-m-list") as HTMLElement;
+		(modal.querySelector(".polaris-m-add") as HTMLElement).onclick = () => {
+			const list = modal.querySelector("#polaris-m-list") as HTMLElement;
 			if (!list) return;
 			list.insertAdjacentHTML("beforeend", `
 				<div data-idx="new" style="display:flex;gap:6px;margin-bottom:8px;align-items:center;flex-wrap:wrap;">
-					<input class="talos-m-name" placeholder="名称（如：妈妈生日）" style="width:118px;"/>
-					<input class="talos-m-month" type="number" min="1" max="12" placeholder="月" style="width:52px;"/>
+					<input class="polaris-m-name" placeholder="名称（如：妈妈生日）" style="width:118px;"/>
+					<input class="polaris-m-month" type="number" min="1" max="12" placeholder="月" style="width:52px;"/>
 					<span style="font-size:12px;color:var(--text-muted);">月</span>
-					<input class="talos-m-day" type="number" min="1" max="31" placeholder="日" style="width:52px;"/>
+					<input class="polaris-m-day" type="number" min="1" max="31" placeholder="日" style="width:52px;"/>
 					<span style="font-size:12px;color:var(--text-muted);">日</span>
 					<label style="display:flex;align-items:center;gap:3px;font-size:11px;color:var(--text-muted);cursor:pointer;margin-left:2px;">
-						<input class="talos-m-lunar" type="checkbox"/>农历
+						<input class="polaris-m-lunar" type="checkbox"/>农历
 					</label>
-					<button class="talos-m-del" style="background:rgba(239,68,68,0.15);border:none;border-radius:6px;padding:6px 10px;color:#f87171;font-size:12px;cursor:pointer;">删除</button>
+					<button class="polaris-m-del" style="background:rgba(239,68,68,0.15);border:none;border-radius:6px;padding:6px 8px;color:#f87171;font-size:12px;cursor:pointer;">删除</button>
 				</div>`);
 			bindDel();
 			const last = list.lastElementChild?.querySelector("input");
 			if (last) (last as HTMLInputElement).focus();
 		};
-		(modal.querySelector(".talos-m-save") as HTMLElement).onclick = async () => {
-			const list = modal.querySelector("#talos-m-list") as HTMLElement;
+		(modal.querySelector(".polaris-m-save") as HTMLElement).onclick = async () => {
+			const list = modal.querySelector("#polaris-m-list") as HTMLElement;
 			const result: { name: string; month: number; day: number; lunar?: boolean }[] = [];
 			list.querySelectorAll("div[data-idx]").forEach((row) => {
-				const name = (row.querySelector(".talos-m-name") as HTMLInputElement).value.trim();
-				const month = parseInt((row.querySelector(".talos-m-month") as HTMLInputElement).value, 10);
-				const day = parseInt((row.querySelector(".talos-m-day") as HTMLInputElement).value, 10);
-				const lunar = (row.querySelector(".talos-m-lunar") as HTMLInputElement).checked;
+				const name = (row.querySelector(".polaris-m-name") as HTMLInputElement).value.trim();
+				const month = parseInt((row.querySelector(".polaris-m-month") as HTMLInputElement).value, 10);
+				const day = parseInt((row.querySelector(".polaris-m-day") as HTMLInputElement).value, 10);
+				const lunar = (row.querySelector(".polaris-m-lunar") as HTMLInputElement).checked;
 				if (name && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
 					result.push({ name, month, day, lunar: lunar || undefined });
 				}
@@ -6636,18 +6913,18 @@ export class TalosDashboardView extends ItemView {
 			const size = 12 + (item.count / maxCount) * 10; // 12px-22px
 			const color = colors[i % colors.length];
 			const opacity = 0.6 + (item.count / maxCount) * 0.4;
-			return `<span class="talos-tag-item" data-tag="${item.tag}" style="display:inline-block;padding:4px 12px;margin:4px;border-radius:16px;background:${color}15;color:${color};font-size:${size}px;font-weight:600;cursor:pointer;transition:all 0.2s;opacity:${opacity};" title="${item.tag}：${item.count} 篇笔记">#${item.tag} <span style="font-size:10px;opacity:0.7;">${item.count}</span></span>`;
+			return `<span class="polaris-tag-item" data-tag="${item.tag}" style="display:inline-block;padding:4px 12px;margin:4px;border-radius:16px;background:${color}15;color:${color};font-size:${size}px;font-weight:600;cursor:pointer;transition:all 0.2s;opacity:${opacity};" title="${item.tag}：${item.count} 篇笔记">#${item.tag} <span style="font-size:10px;opacity:0.7;">${item.count}</span></span>`;
 		}).join("");
 
-		return `<div style="display:flex;justify-content:flex-end;margin-bottom:4px;"><span class="talos-view-all-tags" style="font-size:11px;color:var(--text-brand);cursor:pointer;font-weight:normal;">查看全部 ${totalTags} 个标签 →</span></div><div style="padding:8px 0;display:flex;flex-wrap:wrap;align-items:center;">${tagsHtml}</div>`;
+		return `<div style="display:flex;justify-content:flex-end;margin-bottom:4px;"><span class="polaris-view-all-tags" style="font-size:11px;color:var(--text-brand);cursor:pointer;font-weight:normal;">查看全部 ${totalTags} 个标签 →</span></div><div style="padding:8px 0;display:flex;flex-wrap:wrap;align-items:center;">${tagsHtml}</div>`;
 	}
 
 	// 打开 Obsidian 全部标签面板
 
 	// 渲染当日日志（右侧详情面板）
 	private renderDayLog(dateStr: string) {
-		const detail = this.rootEl!.querySelector(".talos-detail-content") as HTMLElement;
-		detail.className = "talos-detail-content detail-body";
+		const detail = this.rootEl!.querySelector(".polaris-detail-content") as HTMLElement;
+		detail.className = "polaris-detail-content detail-body";
 		const activity = this.getDayActivityDetail(dateStr);
 
 		// 按文件夹分组的文档列表
@@ -6658,7 +6935,7 @@ export class TalosDashboardView extends ItemView {
 						const timeStr = `${String(f.time.getHours()).padStart(2,"0")}:${String(f.time.getMinutes()).padStart(2,"0")}`;
 						const typeIcon = f.type === "created" ? "🆕" : "✏️";
 						const typeText = f.type === "created" ? "新增" : "修改";
-						return `<div class="talos-daylog-file" data-path="${f.path}" style="display:flex;align-items:center;gap:8px;padding:8px;border-radius:6px;cursor:pointer;transition:background 0.15s;">
+						return `<div class="polaris-daylog-file" data-path="${f.path}" style="display:flex;align-items:center;gap:8px;padding:8px;border-radius:6px;cursor:pointer;transition:background 0.15s;">
 							<span style="font-size:14px;">${typeIcon}</span>
 							<div style="flex:1;min-width:0;">
 								<div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${f.name}</div>
@@ -6671,37 +6948,37 @@ export class TalosDashboardView extends ItemView {
 						<div>${filesHtml}</div>
 					</div>`;
 				}).join("")
-			: '<div style="text-align:center;padding:30px;color:var(--text-muted);font-size:13px;">这一天没有修改任何笔记</div>';
+			: '<div style="text-align:center;padding:28px;color:var(--text-muted);font-size:13px;">这一天没有修改任何笔记</div>';
 
 		detail.innerHTML = `
 			<div class="detail-section">
 				<div class="detail-section-title" style="display:flex;justify-content:space-between;align-items:center;">
 					<span>📅 当日日志</span>
-					<span class="talos-daylog-close" style="cursor:pointer;font-size:18px;color:var(--text-muted);padding:0 4px;">×</span>
+					<span class="polaris-daylog-close" style="cursor:pointer;font-size:18px;color:var(--text-muted);padding:0 4px;">×</span>
 				</div>
 				<div style="background:linear-gradient(135deg,rgba(34,197,94,0.1),rgba(59,130,246,0.1));border-radius:10px;padding:16px;margin-bottom:12px;">
 					<div style="font-size:18px;font-weight:700;margin-bottom:4px;">${activity.date} ${activity.weekday}</div>
-					<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;">
+					<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
 						<div style="text-align:center;"><div style="font-size:20px;font-weight:700;color:var(--text-brand);">${activity.total}</div><div style="font-size:10px;color:var(--text-muted);">总活跃度</div></div>
-						<div style="text-align:center;"><div style="font-size:20px;font-weight:700;color:#3b82f6;">${activity.created}</div><div style="font-size:10px;color:var(--text-muted);">新增笔记</div></div>
-						<div style="text-align:center;"><div style="font-size:20px;font-weight:700;color:#eab308;">${activity.modified}</div><div style="font-size:10px;color:var(--text-muted);">修改笔记</div></div>
-						<div style="text-align:center;"><div style="font-size:20px;font-weight:700;color:#a855f7;">${activity.streak}</div><div style="font-size:10px;color:var(--text-muted);">连续活跃(天)</div></div>
+						<div style="text-align:center;"><div style="font-size:20px;font-weight:700;color:#60a5fa;">${activity.created}</div><div style="font-size:10px;color:var(--text-muted);">新增笔记</div></div>
+						<div style="text-align:center;"><div style="font-size:20px;font-weight:700;color:#fbbf24;">${activity.modified}</div><div style="font-size:10px;color:var(--text-muted);">修改笔记</div></div>
+						<div style="text-align:center;"><div style="font-size:20px;font-weight:700;color:#a78bfa;">${activity.streak}</div><div style="font-size:10px;color:var(--text-muted);">连续活跃(天)</div></div>
 					</div>
-					${activity.mostActivePeriod ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.1);font-size:11px;color:var(--text-secondary);text-align:center;">⏰ 最活跃时段：${activity.mostActivePeriod}（${activity.mostActiveCount} 篇）</div>` : ""}
+					${activity.mostActivePeriod ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.1);font-size:11px;color:var(--text-secondary);text-align:center;">⏰ 最活跃时段：${activity.mostActivePeriod}（${activity.mostActiveCount} 篇）</div>` : ""}
 				</div>
 				<div style="max-height:400px;overflow-y:auto;">${foldersHtml}</div>
 				<div style="margin-top:12px;display:flex;gap:8px;">
-					<button class="talos-daylog-report btn-primary" style="flex:1;padding:12px;font-size:14px;">📝 生成日报</button>
+					<button class="polaris-daylog-report btn-primary" style="flex:1;padding:12px;font-size:14px;">📝 生成日报</button>
 				</div>
 			</div>`;
 
 		// 关闭按钮
-		(detail.querySelector(".talos-daylog-close") as HTMLElement).onclick = () => {
+		(detail.querySelector(".polaris-daylog-close") as HTMLElement).onclick = () => {
 			this.resetDetail();
 		};
 
 		// 文件点击打开
-		detail.querySelectorAll(".talos-daylog-file").forEach((el) => {
+		detail.querySelectorAll(".polaris-daylog-file").forEach((el) => {
 			(el as HTMLElement).onclick = () => {
 				const path = (el as HTMLElement).dataset.path || "";
 				if (path) this.openNoteByPath(path);
@@ -6711,7 +6988,7 @@ export class TalosDashboardView extends ItemView {
 		});
 
 		// 生成日报按钮
-		(detail.querySelector(".talos-daylog-report") as HTMLElement).onclick = () => {
+		(detail.querySelector(".polaris-daylog-report") as HTMLElement).onclick = () => {
 			this.generateDailyReport(dateStr);
 		};
 	}
@@ -6859,7 +7136,7 @@ export class TalosDashboardView extends ItemView {
 		const shown = notes.length + tasks.length + reviews.length;
 
 		const pop = document.createElement("div");
-		pop.className = "talos-search-drop";
+		pop.className = "polaris-search-drop";
 		pop.setAttribute("data-theme", this.theme);
 		let html = "";
 		const statusName: Record<string, string> = { todo: "待开始", doing: "进行中", done: "已完成" };
@@ -7016,7 +7293,7 @@ export class TalosDashboardView extends ItemView {
 			this.showModal("从模板新建", `
 				<div style="display:flex;flex-direction:column;gap:8px;">
 					${templates.map((t: any, i: number) => `
-						<button class="tpl-select-btn" data-idx="${i}" style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:rgba(255,255,255,0.05);border:1px solid var(--border-color);border-radius:8px;cursor:pointer;color:var(--text-primary);font-size:14px;text-align:left;transition:all 0.15s;">
+						<button class="tpl-select-btn" data-idx="${i}" style="display:flex;align-items:center;gap:8px;padding:12px 12px;background:rgba(255,255,255,0.05);border:1px solid var(--border-color);border-radius:8px;cursor:pointer;color:var(--text-primary);font-size:14px;text-align:left;transition:all 0.15s;">
 							<span style="font-size:18px;">📄</span>
 							<span>${t.name}</span>
 						</button>
@@ -7024,7 +7301,7 @@ export class TalosDashboardView extends ItemView {
 				</div>
 			`);
 
-			const modal = this.rootEl!.querySelector(".talos-modal-box") as HTMLElement;
+			const modal = this.rootEl!.querySelector(".polaris-modal-box") as HTMLElement;
 			modal.querySelectorAll(".tpl-select-btn").forEach((btn) => {
 				(btn as HTMLElement).onclick = async () => {
 					const idx = parseInt((btn as HTMLElement).dataset.idx || "0");
@@ -7045,14 +7322,14 @@ export class TalosDashboardView extends ItemView {
 						});
 					// 弹出输入标题的模态框
 					this.showModal("新建笔记", `
-						<form id="talos-tpl-note-form">
+						<form id="polaris-tpl-note-form">
 							<div class="form-field"><label class="form-label">笔记标题 <span class="required">*</span></label><input class="form-input" name="title" type="text" placeholder="输入笔记标题..." value="${tpl.name.replace(/^tpl-/, "")}" required autofocus></div>
-							<div class="form-actions"><button type="button" class="btn-secondary talos-modal-cancel">取消</button><button type="submit" class="btn-primary">创建并打开</button></div>
+							<div class="form-actions"><button type="button" class="btn-secondary polaris-modal-cancel">取消</button><button type="submit" class="btn-primary">创建并打开</button></div>
 						</form>
 					`);
-					const modal2 = this.rootEl!.querySelector(".talos-modal-box") as HTMLElement;
-					(modal2.querySelector(".talos-modal-cancel") as HTMLElement).onclick = () => this.closeModal();
-					(modal2.querySelector("#talos-tpl-note-form") as HTMLFormElement).onsubmit = async (e) => {
+					const modal2 = this.rootEl!.querySelector(".polaris-modal-box") as HTMLElement;
+					(modal2.querySelector(".polaris-modal-cancel") as HTMLElement).onclick = () => this.closeModal();
+					(modal2.querySelector("#polaris-tpl-note-form") as HTMLFormElement).onsubmit = async (e) => {
 						e.preventDefault();
 						const form = e.target as HTMLFormElement;
 						const title = (new FormData(form).get("title") || "").toString().trim();
@@ -7077,6 +7354,19 @@ export class TalosDashboardView extends ItemView {
 	}
 
 	async onClose() {
+		// 取消进行中的拖拽（如有）
+		if (this._activeDragFinish) { const f = this._activeDragFinish; f(); }
+		// 移除 document 级 mousedown 监听（就地展开/浮层：视图关闭后残留会干扰下次打开）
+		if (this.todoExpandCloseHandler) { document.removeEventListener("mousedown", this.todoExpandCloseHandler); this.todoExpandCloseHandler = null; }
+		if (this.calExpandCloseHandler) { document.removeEventListener("mousedown", this.calExpandCloseHandler); this.calExpandCloseHandler = null; }
+		if (this.datePickerCloseHandler) { document.removeEventListener("mousedown", this.datePickerCloseHandler); this.datePickerCloseHandler = null; }
+		// abort 全部 document 级指针监听（右栏/看板拖拽、宽度调节）
+		for (const ac of this._docAborters) ac.abort();
+		this._docAborters = [];
+		// 停止定时器（番茄计时 / 知识库刷新防抖 / 搜索防抖）
+		if (this.pomodoroInterval) { window.clearInterval(this.pomodoroInterval); this.pomodoroInterval = null; }
+		if (this.kbRefreshTimer) { window.clearTimeout(this.kbRefreshTimer); this.kbRefreshTimer = null; }
+		if (this._searchDebounceTimer !== undefined) { window.clearTimeout(this._searchDebounceTimer); this._searchDebounceTimer = undefined; }
 		if (this.styleEl) { this.styleEl.remove(); this.styleEl = null; }
 		this.rootEl = null;
 		this.containerEl.empty();

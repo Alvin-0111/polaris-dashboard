@@ -2,7 +2,7 @@
 export const TALOS_STYLES = `/* ============================================================
    Polaris-Dashboard 设计 Token（参考 CRM Dashboard 风格）
    ============================================================ */
-.talos-dashboard {
+.polaris-dashboard {
   /* ---- 色彩（参考图：淡黄绿主色 + 淡紫辅助色） ---- */
   --bg-primary: #0f0f13;              /* 带蓝灰相的深色背景，不是纯黑 */
   --bg-glow: rgba(200, 224, 96, 0.05); /* 微弱黄绿色径向光晕 */
@@ -14,7 +14,7 @@ export const TALOS_STYLES = `/* ================================================
   --brand-purple-dark: #8b6fe0;       /* 辅助色深色变体 */
   --danger-red: #f87171;              /* 逾期红：警示/错误（更柔和） */
   --priority-p0: #c084fc;             /* P0 紫（更柔和） */
-  --priority-p1: #fbbf24;             /* P1 黄（更柔和） */
+  --priority-p1: #d8a83a;             /* P1 黄（柔和，降饱和） */
   --priority-p2: #9ca3af;             /* P2 灰 */
   --info-blue: #60a5fa;               /* 信息蓝（更柔和） */
 
@@ -22,9 +22,9 @@ export const TALOS_STYLES = `/* ================================================
   --card-bg-rgb: 28, 28, 34;
   --card-opacity: 0.75;
   --card-blur: 20px;
-  --border-color: rgba(255, 255, 255, 0.08);
-  --divider-color: rgba(255, 255, 255, 0.04);
-  --progress-track: rgba(255, 255, 255, 0.08);  /* 进度条轨道底色（暗色） */
+  --border-color: rgba(255, 255, 255, 0.12);
+  --divider-color: rgba(255, 255, 255, 0.06);
+  --progress-track: rgba(255, 255, 255, 0.14);  /* 进度条轨道底色（暗色） */
   --control-bg: rgba(255, 255, 255, 0.08);      /* 小按钮/图例底色（暗色） */
   --divider-line: rgba(255, 255, 255, 0.08);    /* 内联分隔线（暗色） */
   --input-bg: rgba(255, 255, 255, 0.06);        /* 输入框底色（暗色） */
@@ -34,9 +34,9 @@ export const TALOS_STYLES = `/* ================================================
   --tag-green-text: #0f0f13;                     /* 绿色标签深字（暗浅共用） */
   --date-text: var(--brand-green);               /* 日期大字（暗色：品牌绿，暗底对比足够） */
 
-  --text-primary: #f0f0f3;            /* 不是纯白，带一点蓝灰 */
-  --text-secondary: #a1a1aa;
-  --text-muted: #71717a;
+  --text-primary: #f5f5f7;            /* 标题/主文字：接近纯白，清晰醒目 */
+  --text-secondary: #c4c4cc;         /* 正文/次要文字：中等灰度，易读不刺眼 */
+  --text-muted: #94949e;              /* 辅助/提示文字：浅灰但可读，不突兀 */
 
   /* ---- 阴影（三层柔和弥散：轮廓 + 氛围 + 远层光晕，高级柔光感） ---- */
   --shadow-card:
@@ -75,7 +75,7 @@ export const TALOS_STYLES = `/* ================================================
 }
 
 /* 浅色主题（参考图浅色模式） */
-.talos-dashboard[data-theme="light"] {
+.polaris-dashboard[data-theme="light"] {
   --bg-primary: #f5f5f0;              /* 米白色背景，带暖相 */
   --bg-glow: rgba(200, 224, 96, 0.08);
   --brand-green: #c8e060;             /* 主色：与暗色一致（按钮/填充/边框/图标），保持整体色彩体系不变 */
@@ -102,64 +102,94 @@ export const TALOS_STYLES = `/* ================================================
 }
 
 /* 浅色专属：装饰色块 alpha 加深，避免与米白背景融合（暗色 0.15 在暗底可见，浅色需提高） */
-.talos-dashboard[data-theme="light"] .talos-stats-overview .stat-icon.green { background: rgba(200,224,96,calc(var(--card-opacity) * 0.373)) !important; }
-.talos-dashboard[data-theme="light"] .talos-stats-overview .stat-icon.blue { background: rgba(96,165,250,calc(var(--card-opacity) * 0.333)) !important; }
-.talos-dashboard[data-theme="light"] .talos-stats-overview .stat-icon.purple { background: rgba(167,139,250,calc(var(--card-opacity) * 0.333)) !important; }
-.talos-dashboard[data-theme="light"] .talos-stats-overview .stat-icon.red { background: rgba(248,113,113,calc(var(--card-opacity) * 0.333)) !important; }
-.talos-dashboard[data-theme="light"] .talos-stats-overview .stat-icon.neutral { background: rgba(161,161,170,calc(var(--card-opacity) * 0.293)) !important; }
-.talos-dashboard[data-theme="light"] .canvas-stat-icon { background: rgba(200,224,96,calc(var(--card-opacity) * 0.373)) !important; }
-.talos-dashboard[data-theme="light"] .canvas-stat-icon.blue { background: rgba(96,165,250,calc(var(--card-opacity) * 0.333)) !important; }
-.talos-dashboard[data-theme="light"] .canvas-stat-icon.purple { background: rgba(167,139,250,calc(var(--card-opacity) * 0.333)) !important; }
-.talos-dashboard[data-theme="light"] .canvas-stat-icon.red { background: rgba(248,113,113,calc(var(--card-opacity) * 0.333)) !important; }
-.talos-dashboard[data-theme="light"] .focus-badge { background: rgba(200,224,96,calc(var(--card-opacity) * 0.333)) !important; }
-.talos-dashboard[data-theme="light"] .talos-stats-overview .stat-card { border-color: rgba(0,0,0,0.12) !important; }
-.talos-dashboard[data-theme="light"] .canvas-stat-card { border-color: rgba(0,0,0,0.12) !important; }
-.talos-dashboard[data-theme="light"] .habit-icon-option:not(.selected) { border-color: rgba(0,0,0,0.15) !important; }
+.polaris-dashboard[data-theme="light"] .polaris-stats-overview .stat-icon.green { background: rgba(200,224,96,calc(var(--card-opacity) * 0.373)) !important; }
+.polaris-dashboard[data-theme="light"] .polaris-stats-overview .stat-icon.blue { background: rgba(96,165,250,calc(var(--card-opacity) * 0.333)) !important; }
+.polaris-dashboard[data-theme="light"] .polaris-stats-overview .stat-icon.purple { background: rgba(167,139,250,calc(var(--card-opacity) * 0.333)) !important; }
+.polaris-dashboard[data-theme="light"] .polaris-stats-overview .stat-icon.red { background: rgba(248,113,113,calc(var(--card-opacity) * 0.333)) !important; }
+.polaris-dashboard[data-theme="light"] .polaris-stats-overview .stat-icon.neutral { background: rgba(161,161,170,calc(var(--card-opacity) * 0.293)) !important; }
+.polaris-dashboard[data-theme="light"] .canvas-stat-icon { background: rgba(200,224,96,calc(var(--card-opacity) * 0.373)) !important; }
+.polaris-dashboard[data-theme="light"] .canvas-stat-icon.blue { background: rgba(96,165,250,calc(var(--card-opacity) * 0.333)) !important; }
+.polaris-dashboard[data-theme="light"] .canvas-stat-icon.purple { background: rgba(167,139,250,calc(var(--card-opacity) * 0.333)) !important; }
+.polaris-dashboard[data-theme="light"] .canvas-stat-icon.red { background: rgba(248,113,113,calc(var(--card-opacity) * 0.333)) !important; }
+.polaris-dashboard[data-theme="light"] .focus-badge { background: rgba(200,224,96,calc(var(--card-opacity) * 0.333)) !important; }
+.polaris-dashboard[data-theme="light"] .polaris-stats-overview .stat-card { border-color: rgba(0,0,0,0.12) !important; }
+.polaris-dashboard[data-theme="light"] .canvas-stat-card { border-color: rgba(0,0,0,0.12) !important; }
+.polaris-dashboard[data-theme="light"] .habit-icon-option:not(.selected) { border-color: rgba(0,0,0,0.15) !important; }
 
 /* 浅色专属：badge 文字回落深色（绿/黄浅底对比不足，图形色保持品牌色） */
-.talos-dashboard[data-theme="light"] .badge-green { color:#a8c040 !important; background: rgba(200,224,96,calc(var(--card-opacity) * 0.373)) !important; }
-.talos-dashboard[data-theme="light"] .badge-yellow { color:#1a1a1f !important; background: rgba(251,191,36,calc(var(--card-opacity) * 0.373)) !important; }
+.polaris-dashboard[data-theme="light"] .badge-green { color:#a8c040 !important; background: rgba(200,224,96,calc(var(--card-opacity) * 0.373)) !important; }
+.polaris-dashboard[data-theme="light"] .badge-yellow { color:#1a1a1f !important; background: rgba(251,191,36,calc(var(--card-opacity) * 0.373)) !important; }
 
 /* ============================================================
    全局基础
    ============================================================ */
-.talos-dashboard * { margin: 0; padding: 0; box-sizing: border-box; }
-.talos-dashboard { height: 100%; }
+.polaris-dashboard * { margin: 0; padding: 0; box-sizing: border-box; }
+.polaris-dashboard { height: 100%; }
 
-.talos-dashboard .talos-app {
+.polaris-dashboard .polaris-app {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
     "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-  background: var(--wallpaper-bg, var(--bg-primary));
+  background: linear-gradient(180deg, rgba(8, 8, 14, 0.4) 0%, rgba(8, 8, 14, 0.55) 100%), var(--wallpaper-bg, var(--bg-primary));
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
   color: var(--text-primary);
   font-size: var(--fs-body);
   overflow: auto;
-  transition: background 0.3s ease, color 0.3s ease;
+  scrollbar-gutter: stable;
+  position: relative;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* 浅色主题：米白底 */
-.talos-dashboard[data-theme="light"] .talos-app {
+.polaris-dashboard[data-theme="light"] .polaris-app {
   background: var(--bg-primary);
 }
 
-/* 自定义滚动条 */
-.talos-dashboard ::-webkit-scrollbar { width: 6px; height: 6px; }
-.talos-dashboard ::-webkit-scrollbar-track { background: transparent; }
-.talos-dashboard ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: var(--radius-full);
+/* 自定义滚动条：液态玻璃风格（强制覆盖 Obsidian 原生样式） */
+.polaris-dashboard ::-webkit-scrollbar {
+  width: 6px !important;
+  height: 6px !important;
 }
-.talos-dashboard ::-webkit-scrollbar-thumb:hover { background: rgba(200, 224, 96, 0.3); }
-.talos-dashboard[data-theme="light"] ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.1);
+.polaris-dashboard ::-webkit-scrollbar-track {
+  background: transparent !important;
+  border: none !important;
 }
-.talos-dashboard[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+.polaris-dashboard ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-radius: 999px !important;
+  border: none !important;
+  transition: background 0.2s ease !important;
+}
+.polaris-dashboard ::-webkit-scrollbar-thumb:hover {
+  background: rgba(200, 224, 96, 0.3) !important;
+}
+.polaris-dashboard ::-webkit-scrollbar-thumb:active {
+  background: rgba(200, 224, 96, 0.45) !important;
+}
+.polaris-dashboard[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1) !important;
+}
+.polaris-dashboard[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(150, 176, 48, 0.35) !important;
+}
+
+/* Firefox 滚动条兼容 */
+.polaris-dashboard * {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+}
+.polaris-dashboard[data-theme="light"] * {
+  scrollbar-color: rgba(0, 0, 0, 0.12) transparent;
+}
+.polaris-dashboard[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
   background: rgba(200, 224, 96, 0.4);
 }
 
 /* ============================================================
    新架构：顶部导航栏 + 中间主内容区 + 右侧今日面板
    ============================================================ */
-.talos-app {
+.polaris-app {
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -168,29 +198,35 @@ export const TALOS_STYLES = `/* ================================================
 }
 
 /* 顶部导航栏 */
-.talos-top-nav {
+.polaris-top-nav {
   height: 56px;
   flex-shrink: 0;
-  background: rgba(var(--card-bg-rgb), 0.85);
-  backdrop-filter: blur(var(--card-blur));
-  -webkit-backdrop-filter: blur(var(--card-blur));
-  border-bottom: 1px solid var(--divider-color);
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(28px) saturate(1.8);
+  -webkit-backdrop-filter: blur(28px) saturate(1.8);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 2px 12px rgba(0, 0, 0, 0.06);
   display: flex;
   align-items: center;
   padding: 0 20px;
   gap: 16px;
-  position: relative;
-  z-index: 100;
 }
 
 /* Logo 区 */
-.talos-top-nav .logo-area {
+.polaris-top-nav .logo-area {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-shrink: 0;
 }
-.talos-top-nav .logo-icon {
+.polaris-top-nav .logo-icon {
   width: 34px;
   height: 34px;
   flex-shrink: 0;
@@ -198,20 +234,20 @@ export const TALOS_STYLES = `/* ================================================
   align-items: center;
   justify-content: center;
 }
-.talos-top-nav .logo-icon svg { width: 100%; height: 100%; }
-.talos-top-nav .logo-name {
+.polaris-top-nav .logo-icon svg { width: 100%; height: 100%; }
+.polaris-top-nav .logo-name {
   font-size: var(--fs-title);
   font-weight: 700;
 }
 
 /* 左侧 Ribbon 图标（缩小 Polaris 插件图标） */
-.talos-ribbon-icon svg {
+.polaris-ribbon-icon svg {
   width: 14px;
   height: 14px;
 }
 
 /* 看板导航 Tab */
-.talos-top-nav .board-tabs {
+.polaris-top-nav .board-tabs {
   display: flex;
   gap: 2px;
   background: rgba(255, 255, 255, 0.04);
@@ -219,9 +255,9 @@ export const TALOS_STYLES = `/* ================================================
   padding: 3px;
   flex-shrink: 0;
 }
-.talos-top-nav .board-tab {
+.polaris-top-nav .board-tab {
   position: relative;
-  padding: 7px 14px;
+  padding: 8px 12px;
   border-radius: var(--radius-sm);
   font-size: var(--fs-caption);
   font-weight: 500;
@@ -233,17 +269,17 @@ export const TALOS_STYLES = `/* ================================================
   font-family: inherit;
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
 }
-.talos-top-nav .board-tab:hover { color: var(--text-primary); background: rgba(255, 255, 255, 0.04); }
-.talos-top-nav .board-tab.active {
+.polaris-top-nav .board-tab:hover { color: var(--text-primary); background: rgba(255, 255, 255, 0.04); }
+.polaris-top-nav .board-tab.active {
   background: #cfe36a;
   color: #0f0f13;
   font-weight: 600;
 }
 
 /* 全局搜索 */
-.talos-top-nav .search-area {
+.polaris-top-nav .search-area {
   flex: 1;
   min-width: 200px;
   max-width: 600px;
@@ -252,8 +288,8 @@ export const TALOS_STYLES = `/* ================================================
 }
 /* 展开时：输入框与下拉连体（谷歌式）。search-area 自身不撑高，
    下拉绝对定位悬浮在输入框正下方，页面布局不被推挤 */
-.talos-top-nav .search-area.tsd-open .search-input,
-.talos-top-nav .search-area.tsd-open .search-input:focus {
+.polaris-top-nav .search-area.tsd-open .search-input,
+.polaris-top-nav .search-area.tsd-open .search-input:focus {
   background: rgba(var(--card-bg-rgb), 0.98) !important;
   border: 1px solid rgba(200, 224, 96, 0.7) !important;
   border-bottom: none !important;
@@ -261,15 +297,15 @@ export const TALOS_STYLES = `/* ================================================
   border-bottom-right-radius: 0 !important;
   box-shadow: none !important;
 }
-.talos-top-nav .search-area.tsd-open .search-kbd { display: none; }
+.polaris-top-nav .search-area.tsd-open .search-kbd { display: none; }
 
-.talos-top-nav .search-area .search-input {
+.polaris-top-nav .search-area .search-input {
   width: 100%;
   height: 36px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: var(--radius-md);
-  padding: 0 14px 0 36px;
+  padding: 0 12px 0 36px;
   color: var(--text-primary);
   font-size: 13px;
   outline: none;
@@ -277,14 +313,14 @@ export const TALOS_STYLES = `/* ================================================
   transition: all 0.2s ease;
   font-family: inherit;
 }
-.talos-top-nav .search-area .search-input::placeholder { color: var(--text-muted); opacity: 0.75; }
-.talos-top-nav .search-area .search-input:focus {
+.polaris-top-nav .search-area .search-input::placeholder { color: var(--text-muted); opacity: 0.75; }
+.polaris-top-nav .search-area .search-input:focus {
   border-color: var(--focus-border) !important;
   background: rgba(255, 255, 255, 0.06);
   box-shadow: none !important;
   outline: none;
 }
-.talos-top-nav .search-area .search-icon {
+.polaris-top-nav .search-area .search-icon {
   position: absolute;
   left: 12px;
   top: 50%;
@@ -294,7 +330,7 @@ export const TALOS_STYLES = `/* ================================================
   align-items: center;
   pointer-events: none;
 }
-.talos-top-nav .search-area .search-kbd {
+.polaris-top-nav .search-area .search-kbd {
   position: absolute;
   right: 10px;
   top: 50%;
@@ -306,18 +342,18 @@ export const TALOS_STYLES = `/* ================================================
 }
 
 /* 顶部右侧操作区 */
-.talos-top-nav .top-actions {
+.polaris-top-nav .top-actions {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
   margin-left: auto;
 }
-.talos-top-nav .quick-btn {
+.polaris-top-nav .quick-btn {
   padding: 8px 16px;
-  background: var(--brand-green);
-  color: #0f0f13;
-  border: none;
+  background: transparent;
+  color: var(--brand-green);
+  border: 1px solid rgba(200, 224, 96, 0.35);
   border-radius: var(--radius-lg);
   font-size: var(--fs-body);
   font-weight: 700;
@@ -328,12 +364,12 @@ export const TALOS_STYLES = `/* ================================================
   align-items: center;
   gap: 6px;
 }
-.talos-top-nav .quick-btn:hover {
+.polaris-top-nav .quick-btn:hover {
   background: var(--brand-green-dark);
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(200, 224, 96, 0.3);
 }
-.talos-top-nav .icon-btn {
+.polaris-top-nav .icon-btn {
   width: 36px;
   height: 36px;
   display: flex;
@@ -347,48 +383,51 @@ export const TALOS_STYLES = `/* ================================================
   color: var(--text-secondary);
   font-size: 16px;
 }
-.talos-top-nav .icon-btn:hover {
+.polaris-top-nav .icon-btn:hover {
   border-color: rgba(200, 224, 96, 0.4);
   background: rgba(200, 224, 96, 0.08);
   color: var(--brand-green);
 }
 
 /* 主内容区（中间 + 右侧） */
-.talos-content {
+.polaris-content {
   display: flex;
   flex: 1;
   min-height: 0;
+  margin-top: -56px;
+  padding-top: 56px;
 }
 
 /* 中间主内容区 */
-.talos-main {
+.polaris-main {
   flex: 1;
   min-width: 0;
   overflow-y: auto;
-  padding: var(--space-lg) var(--space-xl);
+  padding: 0 var(--space-xl) var(--space-lg);
   transition: opacity 0.2s ease;
 }
 
 /* 右侧今日面板（固定） */
-.talos-detail {
+.polaris-detail {
   width: 320px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  padding: var(--space-md) var(--space-lg);
+  padding: 0 var(--space-lg) var(--space-md);
   border-left: 1px solid var(--divider-color);
   overflow-y: auto;
   background: rgba(var(--card-bg-rgb), 0.2);
 }
+}
 
 /* 数据概览（工作看板顶部） */
-.talos-stats-overview {
+.polaris-stats-overview {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: var(--space-md);
   margin-bottom: 0;
 }
-.talos-stats-overview .stat-card {
+.polaris-stats-overview .stat-card {
   display: flex;
   align-items: center;
   gap: var(--space-md);
@@ -401,11 +440,11 @@ export const TALOS_STYLES = `/* ================================================
   transition: all 0.2s ease;
   cursor: pointer;
 }
-.talos-stats-overview .stat-card:hover {
+.polaris-stats-overview .stat-card:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-card);
 }
-.talos-stats-overview .stat-icon {
+.polaris-stats-overview .stat-icon {
   width: 44px;
   height: 44px;
   border-radius: var(--radius-md);
@@ -415,34 +454,34 @@ export const TALOS_STYLES = `/* ================================================
   font-size: 20px;
   flex-shrink: 0;
 }
-.talos-stats-overview .stat-icon.green { background: rgba(200,224,96,calc(var(--card-opacity) * 0.2)); color: var(--brand-green); }
-.talos-stats-overview .stat-icon.blue { background: rgba(96,165,250,calc(var(--card-opacity) * 0.2)); color: var(--info-blue); }
-.talos-stats-overview .stat-icon.purple { background: rgba(167,139,250,calc(var(--card-opacity) * 0.2)); color: var(--brand-purple); }
-.talos-stats-overview .stat-icon.red { background: rgba(248,113,113,calc(var(--card-opacity) * 0.2)); color: var(--danger-red); }
-.talos-stats-overview .stat-icon.neutral { background: rgba(161,161,170,calc(var(--card-opacity) * 0.2)); color: #a1a1aa; }
-.talos-stats-overview .stat-info { flex: 1; min-width: 0; }
-.talos-stats-overview .stat-num {
+.polaris-stats-overview .stat-icon.green { background: rgba(255,255,255,0.06); color: var(--brand-green); }
+.polaris-stats-overview .stat-icon.blue { background: rgba(255,255,255,0.06); color: var(--info-blue); }
+.polaris-stats-overview .stat-icon.purple { background: rgba(255,255,255,0.06); color: var(--brand-purple); }
+.polaris-stats-overview .stat-icon.red { background: rgba(255,255,255,0.06); color: var(--danger-red); }
+.polaris-stats-overview .stat-icon.neutral { background: rgba(255,255,255,0.06); color: #a1a1aa; }
+.polaris-stats-overview .stat-info { flex: 1; min-width: 0; }
+.polaris-stats-overview .stat-num {
   font-size: var(--fs-stat);
   font-weight: 700;
   line-height: 1.1;
   margin-bottom: 2px;
 }
-.talos-stats-overview .stat-label {
+.polaris-stats-overview .stat-label {
   font-size: var(--fs-caption);
   color: var(--text-secondary);
 }
-.talos-stats-overview .stat-note {
+.polaris-stats-overview .stat-note {
   font-size: 11px;
   color: var(--text-muted);
   margin-top: 2px;
 }
-.talos-stats-overview .stat-note-warn {
+.polaris-stats-overview .stat-note-warn {
   color: var(--danger-red);
   font-weight: 600;
 }
 
 /* 任务详情抽屉 */
-.talos-drawer-overlay {
+.polaris-drawer-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.5);
@@ -452,8 +491,8 @@ export const TALOS_STYLES = `/* ================================================
   visibility: hidden;
   transition: all 0.3s ease;
 }
-.talos-drawer-overlay.open { opacity: 1; visibility: visible; }
-.talos-drawer {
+.polaris-drawer-overlay.open { opacity: 1; visibility: visible; }
+.polaris-drawer {
   position: fixed;
   top: 0;
   right: -420px;
@@ -469,15 +508,15 @@ export const TALOS_STYLES = `/* ================================================
   padding: var(--space-xl);
   box-shadow: -6px 0 20px -6px rgba(0,0,0,0.3);
 }
-.talos-drawer.open { right: 0; }
-.talos-drawer-header {
+.polaris-drawer.open { right: 0; }
+.polaris-drawer-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: var(--space-xl);
 }
-.talos-drawer-title { font-size: var(--fs-title); font-weight: 700; }
-.talos-drawer-close {
+.polaris-drawer-title { font-size: var(--fs-title); font-weight: 700; }
+.polaris-drawer-close {
   width: 32px;
   height: 32px;
   display: flex;
@@ -491,7 +530,7 @@ export const TALOS_STYLES = `/* ================================================
   font-size: 16px;
   transition: all 0.15s ease;
 }
-.talos-drawer-close:hover { background: rgba(248,113,113,0.15); color: var(--danger-red); }
+.polaris-drawer-close:hover { background: rgba(248,113,113,0.15); color: var(--danger-red); }
 
 /* ============================================================
    玻璃卡片基类（参考图柔和卡片风格）
@@ -504,25 +543,25 @@ export const TALOS_STYLES = `/* ================================================
   border: 1px solid var(--border-color);
   border-radius: var(--radius-xl);
   padding: var(--space-lg);
-  box-shadow: var(--shadow-card);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), var(--shadow-card);
   overflow: hidden;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .glass-card:hover {
-  box-shadow: var(--shadow-card);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), var(--shadow-card);
   transform: translateY(-2px);
   border-color: rgba(200, 224, 96, 0.35);
 }
 
 /* 知识板块分布：下钻行 hover */
-.talos-subj-open { transition: background 0.15s ease; }
-.talos-subj-toggle:hover { background: var(--control-bg); }
-.talos-subj-open:hover { background: var(--control-bg); }
-.talos-subj-file { transition: background 0.15s ease; }
-.talos-subj-file:hover { background: rgba(255, 255, 255, 0.06); }
-.talos-subj-file-list::-webkit-scrollbar { width: 6px; }
-.talos-subj-file-list::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 3px; }
+.polaris-subj-open { transition: background 0.15s ease; }
+.polaris-subj-toggle:hover { background: var(--control-bg); }
+.polaris-subj-open:hover { background: var(--control-bg); }
+.polaris-subj-file { transition: background 0.15s ease; }
+.polaris-subj-file:hover { background: rgba(255, 255, 255, 0.06); }
+.polaris-subj-file-list::-webkit-scrollbar { width: 6px; }
+.polaris-subj-file-list::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 3px; }
 
 /* 无 hover 效果的静态玻璃卡片 */
 .glass-card-static {
@@ -533,7 +572,7 @@ export const TALOS_STYLES = `/* ================================================
   border: 1px solid var(--border-color);
   border-radius: var(--radius-xl);
   padding: var(--space-lg);
-  box-shadow: var(--shadow-card);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), var(--shadow-card);
   overflow: hidden;
 }
 
@@ -552,7 +591,7 @@ export const TALOS_STYLES = `/* ================================================
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.board-fade-in { animation: boardFadeIn 0.25s ease both; }
+.board-fade-in { animation: boardFadeIn 0.2s ease both; }
 
 /* 弹窗动画 */
 @keyframes modalIn {
@@ -571,10 +610,14 @@ export const TALOS_STYLES = `/* ================================================
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
   cursor: grabbing;
   z-index: 50;
+  border-color: #c8e060 !important;
+  outline: none !important;
 }
 /* 跟手拖拽：拖动中禁止过渡，避免卡片闪动/拖影 */
 .dash-card.dragging { transition: none; }
-/* 跟手拖拽：拖拽占位符（其他卡片围绕占位符让位） */
+/* 跟手拖拽：拖拽占位符（其他卡片围绕占位符让位）
+   右栏黄绿边框染在内部卡片边框上（贴合内部圆角，禁止外层无圆角 inset 环） */
+.rp-card.dragging > * { border-color: #c8e060 !important; }
 .dash-card-drag-placeholder,
 .rp-drag-placeholder {
   background: rgba(200, 224, 96, 0.12);
@@ -676,7 +719,7 @@ export const TALOS_STYLES = `/* ================================================
   display: flex;
   align-items: stretch;
   gap: var(--space-sm);
-  background: rgba(var(--card-bg-rgb), var(--card-opacity));
+  background: rgba(var(--card-bg-rgb), calc(var(--card-opacity) * 0.33));
   backdrop-filter: blur(var(--card-blur));
   -webkit-backdrop-filter: blur(var(--card-blur));
   border: 1px solid var(--border-color);
@@ -717,48 +760,68 @@ export const TALOS_STYLES = `/* ================================================
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 10px 0;
+  padding: 8px 0;
   font-size: 16px;
-  background: rgba(255, 255, 255, calc(var(--card-opacity) * 0.053));
-  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(12px) saturate(1.4);
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius-md);
   cursor: pointer;
   transition: all 0.2s ease;
   color: var(--text-secondary);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 .icon-btn:hover {
-  border-color: rgba(200, 224, 96, 0.5);
-  background: rgba(200, 224, 96, 0.08);
+  border-color: rgba(200, 224, 96, 0.45);
+  background: rgba(200, 224, 96, 0.1);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 2px 8px rgba(200, 224, 96, 0.1);
   color: var(--brand-green);
 }
 
-/* 今日打卡 · 添加新习惯按钮：品牌绿描边 + 实底 hover，暗色下清晰可辨 */
+/* 今日打卡 · 添加新习惯按钮：液态玻璃绿调，半透明+模糊 */
 .compact-checkin-add {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(200, 224, 96, 0.35);
+  border: 1px solid rgba(200, 224, 96, 0.3);
   border-radius: var(--radius-md);
-  background: rgba(200, 224, 96, 0.08);
+  background: rgba(200, 224, 96, 0.1);
+  backdrop-filter: blur(12px) saturate(1.5);
+  -webkit-backdrop-filter: blur(12px) saturate(1.5);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 2px 6px rgba(200, 224, 96, 0.08);
   color: var(--brand-green);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 .compact-checkin-add:hover {
-  background: var(--brand-green);
-  border-color: var(--brand-green);
-  color: #0f0f13;
+  background: rgba(200, 224, 96, 0.22);
+  border-color: rgba(200, 224, 96, 0.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 4px 12px rgba(200, 224, 96, 0.18);
+  color: var(--brand-green);
 }
-.talos-dashboard[data-theme="light"] .compact-checkin-add {
-  border-color: rgba(0, 0, 0, 0.15);
-  background: rgba(0, 0, 0, 0.06);
+.polaris-dashboard[data-theme="light"] .compact-checkin-add {
+  border-color: rgba(150, 176, 48, 0.25);
+  background: rgba(255, 255, 255, 0.4);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 2px 6px rgba(0, 0, 0, 0.05);
   color: var(--text-brand);
 }
-.talos-dashboard[data-theme="light"] .compact-checkin-add:hover {
-  background: var(--brand-green);
-  border-color: var(--brand-green);
-  color: #0f0f13;
+.polaris-dashboard[data-theme="light"] .compact-checkin-add:hover {
+  background: rgba(200, 224, 96, 0.3);
+  border-color: rgba(150, 176, 48, 0.5);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 4px 12px rgba(168, 192, 64, 0.15);
+  color: var(--brand-green-dark);
 }
 
 /* ============================================================
@@ -796,13 +859,13 @@ export const TALOS_STYLES = `/* ================================================
   text-align: right;
   font-weight: 600;
 }
-.progress-text.talos-task-progress {
+.progress-text.polaris-task-progress {
   cursor: pointer;
   padding: 2px 6px;
   border-radius: var(--radius-sm);
   transition: background 0.15s, color 0.15s;
 }
-.progress-text.talos-task-progress:hover {
+.progress-text.polaris-task-progress:hover {
   background: rgba(200, 224, 96, 0.15);
   color: var(--brand-green);
 }
@@ -818,12 +881,14 @@ export const TALOS_STYLES = `/* ================================================
   flex: 1;
   height: 8px;
   border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, calc(var(--card-opacity) * 0.107));
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
   cursor: pointer;
-  transition: background 0.15s, transform 0.1s;
+  transition: background 0.15s, transform 0.15s;
 }
 .progress-segmented .seg.active {
   background: linear-gradient(90deg, var(--brand-green), var(--brand-green-dark));
+  box-shadow: 0 0 8px rgba(200, 224, 96, 0.3);
 }
 .progress-segmented .seg:hover {
   transform: scaleY(1.4);
@@ -837,30 +902,30 @@ export const TALOS_STYLES = `/* ================================================
 .progress-segmented .seg:hover ~ .seg {
   background: rgba(255, 255, 255, 0.08);
 }
-.talos-dashboard[data-theme="light"] .progress-segmented .seg {
+.polaris-dashboard[data-theme="light"] .progress-segmented .seg {
   background: rgba(0, 0, 0, calc(var(--card-opacity) * 0.08));
 }
 /* 浅色主题：激活段与暗色保持同款品牌绿渐变（#c8e060 浅绿主色 → #a8c040 深一档），不引入规范外色值 */
-.talos-dashboard[data-theme="light"] .progress-segmented .seg.active {
+.polaris-dashboard[data-theme="light"] .progress-segmented .seg.active {
   background: linear-gradient(90deg, #c8e060, #a8c040);
 }
-.talos-dashboard[data-theme="light"] .progress-fill {
+.polaris-dashboard[data-theme="light"] .progress-fill {
   background: linear-gradient(90deg, #c8e060, #a8c040);
 }
-.talos-dashboard[data-theme="light"] .progress-segmented:hover .seg {
+.polaris-dashboard[data-theme="light"] .progress-segmented:hover .seg {
   background: rgba(168, 192, 64, 0.3);
 }
-.talos-dashboard[data-theme="light"] .progress-segmented .seg:hover ~ .seg {
+.polaris-dashboard[data-theme="light"] .progress-segmented .seg:hover ~ .seg {
   background: rgba(0, 0, 0, 0.06);
 }
 
 /* 设置弹窗：背景壁纸缩略图卡片（苹果式预览） */
-.talos-wp-grid {
+.polaris-wp-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  gap: 8px;
 }
-.talos-wp-card {
+.polaris-wp-card {
   position: relative;
   display: flex;
   flex-direction: column;
@@ -871,50 +936,76 @@ export const TALOS_STYLES = `/* ================================================
   background: transparent;
   cursor: pointer;
   width: auto;
+  height: auto;
+  min-height: 0;
+  flex-shrink: 0;
+  border-radius: 12px;
 }
-.talos-wp-thumb {
+.polaris-wp-thumb {
   position: relative;
+  display: block;
   width: 100%;
-  height: 84px;
-  border-radius: 10px;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  flex-shrink: 0;
+  border-radius: 12px;
   background-size: cover;
   background-position: center;
   border: 1.5px solid var(--border-color);
   box-sizing: border-box;
   transition: box-shadow 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
 }
-.talos-wp-card:hover .talos-wp-thumb {
+.polaris-wp-card:hover {
+  background: transparent;
+}
+.polaris-wp-card:hover .polaris-wp-thumb {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
   transform: scale(1.03);
 }
-.talos-wp-thumb-custom {
+.polaris-wp-thumb-custom {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   background: rgba(255, 255, 255, 0.06);
   border-style: dashed;
+  overflow: hidden;
 }
-.talos-wp-thumb-custom .talos-wp-plus {
+.polaris-wp-custom-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 12px;
+  display: none;
+}
+.polaris-wp-thumb-custom .polaris-wp-plus {
+  position: relative;
+  z-index: 1;
   font-size: 20px;
   color: var(--text-secondary);
   line-height: 1;
 }
-.talos-wp-thumb-none {
-  background: rgba(255, 255, 255, 0.06);
+.polaris-wp-thumb-none {
+  background: #0f0f13;
 }
-.talos-wp-name {
+.polaris-dashboard[data-theme="light"] .polaris-wp-thumb-none {
+  background: #f5f5f0;
+}
+.polaris-wp-name {
   font-size: 12px;
   color: var(--text-secondary);
 }
-.talos-wp-card.active .talos-wp-thumb {
+.polaris-wp-card.active .polaris-wp-thumb {
   border-color: var(--brand-green);
   box-shadow: 0 0 0 2px rgba(200, 224, 96, 0.35);
 }
-.talos-wp-card.active .talos-wp-name {
+.polaris-wp-card.active .polaris-wp-name {
   color: var(--brand-green);
   font-weight: 600;
 }
-.talos-wp-card.active .talos-wp-thumb::after {
+.polaris-wp-card.active .polaris-wp-thumb::after {
   content: "✓";
   position: absolute;
   top: -6px;
@@ -923,7 +1014,7 @@ export const TALOS_STYLES = `/* ================================================
   height: 16px;
   border-radius: 50%;
   background: var(--brand-green);
-  color: #1a1a1a;
+  color: #1a1a1f;
   font-size: 10px;
   font-weight: 700;
   display: flex;
@@ -931,14 +1022,14 @@ export const TALOS_STYLES = `/* ================================================
   justify-content: center;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
-.talos-dashboard[data-theme="light"] .talos-wp-card.active .talos-wp-thumb {
+.polaris-dashboard[data-theme="light"] .polaris-wp-card.active .polaris-wp-thumb {
   border-color: #9cb836;
   box-shadow: 0 0 0 2px rgba(150, 176, 48, 0.35);
 }
-.talos-dashboard[data-theme="light"] .talos-wp-card.active .talos-wp-name {
+.polaris-dashboard[data-theme="light"] .polaris-wp-card.active .polaris-wp-name {
   color: #5a6c1a;
 }
-.talos-dashboard[data-theme="light"] .talos-wp-card.active .talos-wp-thumb::after {
+.polaris-dashboard[data-theme="light"] .polaris-wp-card.active .polaris-wp-thumb::after {
   background: #9cb836;
   color: #fff;
 }
@@ -949,7 +1040,7 @@ export const TALOS_STYLES = `/* ================================================
   align-items: center;
   gap: 6px;
   font-size: var(--fs-caption);
-  padding: 3px 10px;
+  padding: 3px 8px;
   border-radius: var(--radius-full);
   white-space: nowrap;
   font-weight: 600;
@@ -970,10 +1061,10 @@ export const TALOS_STYLES = `/* ================================================
 
 /* ---- 主/次按钮 ---- */
 .btn-primary {
-  background: var(--brand-green);
-  color: #0f0f13;
-  border: none;
-  padding: 10px 20px;
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  padding: 8px 20px;
   border-radius: var(--radius-lg);
   font-weight: 700;
   font-size: var(--fs-body);
@@ -982,26 +1073,30 @@ export const TALOS_STYLES = `/* ================================================
   transition: all 0.2s ease;
 }
 .btn-primary:hover {
-  background: var(--brand-green-dark);
-  color: #0f0f13;
+  background: rgba(200, 224, 96, 0.13);
+  border-color: rgba(200, 224, 96, 0.4);
+  color: var(--brand-green);
   transform: translateY(-1px);
 }
 .btn-primary:active {
-  background: #96b030;
-  color: #0f0f13;
+  background: rgba(200, 224, 96, 0.16);
+  color: var(--brand-green);
   transform: translateY(0);
 }
 
-/* 看板头部"新建"按钮：玻璃化半透明绿，与整体透明描边按钮统一 */
-.talos-header-new,
-.talos-quick-note,
-.talos-focus-edit {
-  background: rgba(200, 224, 96, calc(var(--card-opacity) * 0.187));
-  color: var(--brand-green);
-  border: 1px solid rgba(200, 224, 96, 0.35);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  padding: 6px 14px;
+/* 看板头部"新建"按钮：液态玻璃拟态，半透明+模糊+高光边框 */
+.polaris-header-new,
+.polaris-quick-note,
+.polaris-focus-edit {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(14px) saturate(1.6);
+  -webkit-backdrop-filter: blur(14px) saturate(1.6);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 2px 8px rgba(0, 0, 0, 0.08);
+  padding: 6px 12px;
   border-radius: var(--radius-md);
   font-size: 12px;
   font-weight: 600;
@@ -1009,20 +1104,23 @@ export const TALOS_STYLES = `/* ================================================
   cursor: pointer;
   transition: all 0.2s ease;
 }
-.talos-header-new:hover,
-.talos-quick-note:hover,
-.talos-focus-edit:hover {
-  background: rgba(200, 224, 96, calc(var(--card-opacity) * 0.32));
-  border-color: rgba(200, 224, 96, 0.6);
+.polaris-header-new:hover,
+.polaris-quick-note:hover,
+.polaris-focus-edit:hover {
+  background: rgba(200, 224, 96, 0.14);
+  border-color: rgba(200, 224, 96, 0.45);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 4px 16px rgba(200, 224, 96, 0.12);
   color: var(--brand-green);
   transform: translateY(-1px);
 }
 /* 焦点卡"查看详情"：与"继续编辑"同尺寸，次级描边 */
-.talos-focus-detail {
+.polaris-focus-detail {
   background: rgba(255,255,255,0.04);
   color: var(--text-secondary);
   border: 1px solid rgba(255,255,255,0.14);
-  padding: 6px 14px;
+  padding: 6px 12px;
   border-radius: var(--radius-md);
   font-size: 12px;
   font-weight: 600;
@@ -1030,40 +1128,52 @@ export const TALOS_STYLES = `/* ================================================
   cursor: pointer;
   transition: all 0.2s ease;
 }
-.talos-focus-detail:hover {
+.polaris-focus-detail:hover {
   background: rgba(255,255,255,0.08);
   border-color: rgba(200,224,96,0.5);
   color: var(--brand-green);
 }
-.talos-header-new:active,
-.talos-quick-note:active,
-.talos-focus-edit:active {
-  background: rgba(200, 224, 96, calc(var(--card-opacity) * 0.4));
+.polaris-header-new:active,
+.polaris-quick-note:active,
+.polaris-focus-edit:active {
+  background: rgba(200, 224, 96, 0.18);
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.1),
+    0 1px 4px rgba(200, 224, 96, 0.1);
   transform: translateY(0);
 }
-.talos-dashboard[data-theme="light"] .talos-header-new,
-.talos-dashboard[data-theme="light"] .talos-quick-note,
-.talos-dashboard[data-theme="light"] .talos-focus-edit {
-  background: rgba(168, 192, 64, calc(var(--card-opacity) * 0.213));
+.polaris-dashboard[data-theme="light"] .polaris-header-new,
+.polaris-dashboard[data-theme="light"] .polaris-quick-note,
+.polaris-dashboard[data-theme="light"] .polaris-focus-edit {
+  background: rgba(255, 255, 255, 0.35);
   color: #5a6c1a;
-  border-color: rgba(150, 176, 48, 0.45);
+  border-color: rgba(150, 176, 48, 0.35);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 2px 8px rgba(0, 0, 0, 0.06);
 }
-.talos-dashboard[data-theme="light"] .talos-header-new:hover,
-.talos-dashboard[data-theme="light"] .talos-quick-note:hover,
-.talos-dashboard[data-theme="light"] .talos-focus-edit:hover {
-  background: rgba(168, 192, 64, calc(var(--card-opacity) * 0.32));
-  border-color: rgba(150, 176, 48, 0.7);
+.polaris-dashboard[data-theme="light"] .polaris-header-new:hover,
+.polaris-dashboard[data-theme="light"] .polaris-quick-note:hover,
+.polaris-dashboard[data-theme="light"] .polaris-focus-edit:hover {
+  background: rgba(168, 192, 64, 0.2);
+  border-color: rgba(150, 176, 48, 0.6);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 4px 12px rgba(168, 192, 64, 0.15);
 }
-.talos-dashboard[data-theme="light"] .talos-header-new:active,
-.talos-dashboard[data-theme="light"] .talos-quick-note:active,
-.talos-dashboard[data-theme="light"] .talos-focus-edit:active {
-  background: rgba(168, 192, 64, calc(var(--card-opacity) * 0.427));
+.polaris-dashboard[data-theme="light"] .polaris-header-new:active,
+.polaris-dashboard[data-theme="light"] .polaris-quick-note:active,
+.polaris-dashboard[data-theme="light"] .polaris-focus-edit:active {
+  background: rgba(168, 192, 64, 0.28);
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.08),
+    0 1px 4px rgba(168, 192, 64, 0.1);
 }
 .btn-secondary {
   background: transparent;
   color: var(--text-primary);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  padding: 10px 20px;
+  padding: 8px 20px;
   border-radius: var(--radius-lg);
   font-size: var(--fs-body);
   font-family: inherit;
@@ -1085,16 +1195,16 @@ export const TALOS_STYLES = `/* ================================================
   transform: none;
   box-shadow: none;
 }
-.talos-dashboard[data-theme="light"] .btn-secondary {
+.polaris-dashboard[data-theme="light"] .btn-secondary {
   border-color: rgba(0, 0, 0, 0.16);
   color: #374151;
 }
-.talos-dashboard[data-theme="light"] .btn-secondary:hover {
+.polaris-dashboard[data-theme="light"] .btn-secondary:hover {
   background: rgba(0,0,0,0.06);
   border-color: rgba(168,192,64,0.9);
   color: #7a8c1a;
 }
-.talos-dashboard[data-theme="light"] .btn-secondary:active {
+.polaris-dashboard[data-theme="light"] .btn-secondary:active {
   background: rgba(168,192,64,0.15);
   border-color: #a8c040;
   color: #7a8c1a;
@@ -1299,7 +1409,7 @@ export const TALOS_STYLES = `/* ================================================
 .compact-habit-item { transition: background 0.15s ease; }
 .compact-habit-item:hover { background: rgba(255, 255, 255, 0.05); }
 .compact-habit-item.checked { background: rgba(34, 197, 94, 0.08); }
-.talos-dashboard[data-theme="light"] .compact-habit-item:hover { background: rgba(0, 0, 0, 0.05); }
+.polaris-dashboard[data-theme="light"] .compact-habit-item:hover { background: rgba(0, 0, 0, 0.05); }
 .compact-habit-check {
   width: 20px;
   height: 20px;
@@ -1328,7 +1438,7 @@ export const TALOS_STYLES = `/* ================================================
 .compact-habit-streak { font-size: 10px; color: var(--text-muted); flex-shrink: 0; }
 
 /* 右侧栏打卡区容器：内部各卡片间距统一为 --space-md（消除 margin+gap 叠加） */
-.talos-today-checkin {
+.polaris-today-checkin {
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
@@ -1340,7 +1450,7 @@ export const TALOS_STYLES = `/* ================================================
   grid-template-columns: repeat(7, 1fr);
   gap: 4px;
   margin-top: var(--space-md);
-  padding-top: 10px;
+  padding-top: 8px;
   border-top: 1px solid var(--border-color);
 }
 .compact-week-calendar .week-day { gap: 3px; cursor: pointer; }
@@ -1356,39 +1466,48 @@ export const TALOS_STYLES = `/* ================================================
 .gantt-view-toggle {
   display: flex;
   gap: 2px;
-  background: rgba(255, 255, 255, calc(var(--card-opacity) * 0.067));
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px) saturate(1.4);
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
   border-radius: var(--radius-md);
   padding: 3px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 .gantt-view-btn {
   border: none;
   background: transparent;
   color: var(--text-secondary);
   font-size: var(--fs-caption);
-  padding: 6px 14px;
+  padding: 6px 12px;
   border-radius: var(--radius-sm);
   font-family: inherit;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s ease;
   font-weight: 500;
 }
 .gantt-view-btn.active {
-  background: #cfe36a;
-  color: #0f0f13;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: var(--brand-green);
   font-weight: 600;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    0 2px 6px rgba(0, 0, 0, 0.12);
 }
 .gantt-view-btn:hover:not(.active) {
-  background: rgba(255,255,255,0.04);
+  background: rgba(255,255,255,0.06);
   color: #f0f0f3;
 }
 .gantt-view-btn:active:not(.active) {
-  background: rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.1);
   color: #f0f0f3;
 }
-.talos-dashboard[data-theme="light"] .gantt-view-btn:hover:not(.active),
-.talos-dashboard[data-theme="light"] .gantt-view-btn:active:not(.active) {
+.polaris-dashboard[data-theme="light"] .gantt-view-btn:hover:not(.active),
+.polaris-dashboard[data-theme="light"] .gantt-view-btn:active:not(.active) {
   background: rgba(0,0,0,0.04);
-  color: #1a1a1a;
+  color: #1a1a1f;
 }
 .gantt-plot { position: relative; padding-top: 28px; }
 .gantt-range-label {
@@ -1408,7 +1527,7 @@ export const TALOS_STYLES = `/* ================================================
   background: rgba(255, 255, 255, 0.14);
   pointer-events: none;
 }
-.talos-dashboard[data-theme="light"] .gantt-month-line { background: rgba(0, 0, 0, 0.14); }
+.polaris-dashboard[data-theme="light"] .gantt-month-line { background: rgba(0, 0, 0, 0.14); }
 .gantt-today-tag {
   position: absolute;
   top: 4px;
@@ -1489,8 +1608,8 @@ export const TALOS_STYLES = `/* ================================================
 .filter-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
 
 /* ---- 搜索按钮（点击展开） ---- */
-.talos-dashboard .kanban-search-wrap { display: flex; align-items: center; }
-.talos-dashboard .kanban-search-toggle {
+.polaris-dashboard .kanban-search-wrap { display: flex; align-items: center; }
+.polaris-dashboard .kanban-search-toggle {
   width: 36px !important;
   height: 36px !important;
   padding: 0 !important;
@@ -1504,16 +1623,16 @@ export const TALOS_STYLES = `/* ================================================
   justify-content: center;
   transition: all 0.2s ease;
 }
-.talos-dashboard .kanban-search-toggle svg { display: block; }
-.talos-dashboard .kanban-search-toggle:hover {
+.polaris-dashboard .kanban-search-toggle svg { display: block; }
+.polaris-dashboard .kanban-search-toggle:hover {
   background: rgba(255,255,255,0.1);
   border-color: rgba(255,255,255,0.3);
   color: #f0f0f3;
 }
-.talos-dashboard .kanban-search-box { display: none; position: relative; align-items: center; }
-.talos-dashboard .kanban-search-wrap.expanded .kanban-search-box { display: flex; }
-.talos-dashboard .kanban-search-wrap.expanded .kanban-search-toggle { display: none; }
-.talos-dashboard .kanban-search-icon {
+.polaris-dashboard .kanban-search-box { display: none; position: relative; align-items: center; }
+.polaris-dashboard .kanban-search-wrap.expanded .kanban-search-box { display: flex; }
+.polaris-dashboard .kanban-search-wrap.expanded .kanban-search-toggle { display: none; }
+.polaris-dashboard .kanban-search-icon {
   position: absolute;
   left: 12px;
   top: 50%;
@@ -1524,9 +1643,9 @@ export const TALOS_STYLES = `/* ================================================
   display: flex;
   align-items: center;
 }
-.talos-dashboard .kanban-search-input {
+.polaris-dashboard .kanban-search-input {
   height: 36px !important;
-  padding: 0 14px 0 36px !important;
+  padding: 0 12px 0 36px !important;
   border: 1px solid rgba(255,255,255,0.15) !important;
   border-radius: var(--radius-md);
   background: rgba(255,255,255,0.04);
@@ -1539,14 +1658,14 @@ export const TALOS_STYLES = `/* ================================================
   font-family: inherit;
   box-sizing: border-box;
 }
-.talos-dashboard .kanban-search-input::placeholder { color: var(--text-muted) !important; opacity: 0.75; }
-.talos-dashboard .kanban-search-input:focus {
+.polaris-dashboard .kanban-search-input::placeholder { color: var(--text-muted) !important; opacity: 0.75; }
+.polaris-dashboard .kanban-search-input:focus {
   border-color: var(--focus-border) !important;
   background: rgba(255,255,255,0.06);
   box-shadow: none !important;
   outline: none !important;
 }
-.talos-dashboard .kanban-search-clear {
+.polaris-dashboard .kanban-search-clear {
   position: absolute;
   right: 8px;
   top: 50%;
@@ -1558,59 +1677,73 @@ export const TALOS_STYLES = `/* ================================================
   border-radius: 4px;
   z-index: 2;
 }
-.talos-dashboard .kanban-search-clear:hover { color: #f0f0f3; background: rgba(255,255,255,0.1); }
+.polaris-dashboard .kanban-search-clear:hover { color: #f0f0f3; background: rgba(255,255,255,0.1); }
 
 /* ---- 搜索结果反馈 ---- */
-.talos-dashboard .kanban-search-result {
+.polaris-dashboard .kanban-search-result {
   font-size: 12px;
   color: var(--text-muted);
-  margin: -4px 0 10px;
+  margin: -4px 0 8px;
   padding-left: 2px;
 }
-.talos-dashboard .kanban-search-result b { color: var(--text-brand); font-weight: 700; }
-.talos-dashboard .search-hit {
+.polaris-dashboard .kanban-search-result b { color: var(--text-brand); font-weight: 700; }
+.polaris-dashboard .search-hit {
   background: rgba(200,224,96,0.35);
   color: inherit;
   border-radius: 2px;
   padding: 0 1px;
 }
-.talos-dashboard[data-theme="light"] .search-hit { background: rgba(200,224,96,0.55); }
+.polaris-dashboard[data-theme="light"] .search-hit { background: rgba(200,224,96,0.55); }
 .filter-tab {
   border: 1px solid rgba(255,255,255,0.1);
-  background: transparent;
+  background: rgba(255,255,255,0.06);
+  backdrop-filter: blur(10px) saturate(1.3);
+  -webkit-backdrop-filter: blur(10px) saturate(1.3);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
   color: #a1a1aa;
   font-size: var(--fs-caption);
   padding: 6px 14px;
   border-radius: var(--radius-md);
   font-family: inherit;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s ease;
   font-weight: 500;
 }
 .filter-tab:hover {
-  background: rgba(255,255,255,0.1);
-  border-color: rgba(255,255,255,0.5);
+  background: rgba(255,255,255,0.12);
+  border-color: rgba(255,255,255,0.2);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.12),
+    0 2px 8px rgba(0,0,0,0.1);
   color: #f0f0f3;
 }
 .filter-tab:active:not(.active) {
-  background: rgba(255,255,255,0.14);
-  border-color: rgba(255,255,255,0.6);
+  background: rgba(255,255,255,0.15);
+  border-color: rgba(255,255,255,0.25);
   color: #f0f0f3;
 }
-.talos-dashboard[data-theme="light"] .filter-tab {
-  border-color: rgba(0,0,0,0.15);
+.polaris-dashboard[data-theme="light"] .filter-tab {
+  border-color: rgba(0,0,0,0.1);
+  background: rgba(255,255,255,0.4);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
   color: #52525b;
 }
-.talos-dashboard[data-theme="light"] .filter-tab:hover,
-.talos-dashboard[data-theme="light"] .filter-tab:active:not(.active) {
-  background: rgba(0,0,0,0.06);
-  border-color: rgba(0,0,0,0.5);
-  color: #1a1a1a;
+.polaris-dashboard[data-theme="light"] .filter-tab:hover,
+.polaris-dashboard[data-theme="light"] .filter-tab:active:not(.active) {
+  background: rgba(255,255,255,0.6);
+  border-color: rgba(0,0,0,0.15);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.8),
+    0 2px 6px rgba(0,0,0,0.06);
+  color: #1a1a1f;
 }
 .filter-tab.active {
-  background: var(--brand-green);
-  border-color: var(--brand-green);
-  color: #0f0f13;
+  background: rgba(200, 224, 96, 0.15);
+  border-color: rgba(200, 224, 96, 0.45);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    0 2px 10px rgba(200, 224, 96, 0.12);
+  color: var(--brand-green);
   font-weight: 600;
 }
 .kanban-columns {
@@ -1636,7 +1769,7 @@ export const TALOS_STYLES = `/* ================================================
   gap: 8px;
   font-size: var(--fs-caption);
   color: var(--text-secondary);
-  padding: 0 4px 10px;
+  padding: 0 4px 8px;
   border-bottom: 1px solid var(--divider-color);
   font-weight: 600;
 }
@@ -1645,7 +1778,7 @@ export const TALOS_STYLES = `/* ================================================
   margin-left: auto;
   background: rgba(255, 255, 255, calc(var(--card-opacity) * 0.08));
   border-radius: var(--radius-full);
-  padding: 2px 10px;
+  padding: 2px 8px;
   font-size: var(--fs-micro);
   font-weight: 600;
 }
@@ -1673,11 +1806,11 @@ export const TALOS_STYLES = `/* ================================================
 .task-card.status-doing { border-left: 2px solid rgba(59,130,246,0.6); }
 .task-card.status-done { border-left: 2px solid rgba(34,197,94,0.6); }
 .task-card.status-overdue { border-left: 2px solid rgba(239,68,68,0.6); }
-.task-card-top { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+.task-card-top { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
 .task-priority {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   font-size: var(--fs-micro);
   padding: 2px 8px;
   border-radius: var(--radius-full);
@@ -1690,7 +1823,7 @@ export const TALOS_STYLES = `/* ================================================
 .task-due { margin-left: auto; font-size: var(--fs-micro); color: var(--text-muted); white-space: nowrap; }
 .task-due.overdue { color: var(--danger-red); font-weight: 600; }
 .task-title { font-size: var(--fs-body); line-height: 1.5; margin-bottom: 12px; font-weight: 500; }
-.task-progress-row { display: flex; align-items: center; gap: 10px; }
+.task-progress-row { display: flex; align-items: center; gap: 8px; }
 
 /* ============================================================
    中间画布 · 知识库看板组件
@@ -1800,17 +1933,19 @@ export const TALOS_STYLES = `/* ================================================
 .review-item + .review-item { border-top: 1px solid var(--divider-color); }
 .review-item:hover { background: rgba(255, 255, 255, 0.03); }
 .review-check {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
-  border: 2px solid var(--check-border);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.45);
-  background: transparent;
+  font-size: 10px;
+  color: transparent;
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   padding: 0;
   font: inherit;
   line-height: 1;
@@ -1823,7 +1958,7 @@ export const TALOS_STYLES = `/* ================================================
   color: #0f0f13;
   font-weight: 700;
 }
-.talos-dashboard[data-theme="light"] .review-check { border-color: rgba(0, 0, 0, 0.28); color: rgba(0, 0, 0, 0.45); }
+.polaris-dashboard[data-theme="light"] .review-check { border-color: rgba(0, 0, 0, 0.28); color: rgba(0, 0, 0, 0.45); }
 .review-item.completed .review-text {
   text-decoration: line-through;
   color: var(--text-muted);
@@ -1833,36 +1968,36 @@ export const TALOS_STYLES = `/* ================================================
 .review-subject { font-size: var(--fs-micro); color: var(--text-muted); margin-top: 2px; }
 .review-skip {
   flex-shrink: 0;
-  background: transparent;
-  border: 1px solid var(--border-color);
-  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-secondary);
   font-size: var(--fs-caption);
-  padding: 3px 12px;
-  border-radius: var(--radius-full);
+  padding: 5px 14px;
+  border-radius: 10px;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 .review-skip:hover {
-  border-color: var(--brand-green);
+  border-color: rgba(200, 224, 96, 0.4);
   color: var(--brand-green);
-  background: rgba(200, 224, 96, calc(var(--card-opacity) * 0.107));
+  background: rgba(200, 224, 96, 0.1);
 }
 
 .review-wrong {
   flex-shrink: 0;
-  background: transparent;
-  border: 1px solid rgba(251, 146, 60, 0.4);
-  color: #fbbf24;
+  background: rgba(217, 119, 6, 0.1);
+  border: 1px solid rgba(217, 119, 6, 0.3);
+  color: #f59e0b;
   font-size: var(--fs-caption);
-  padding: 3px 10px;
-  border-radius: var(--radius-full);
+  padding: 5px 14px;
+  border-radius: 10px;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 .review-wrong:hover {
-  border-color: #f59e0b;
-  background: rgba(251, 146, 60, calc(var(--card-opacity) * 0.16));
-  color: #fb923c;
+  border-color: rgba(217, 119, 6, 0.5);
+  background: rgba(217, 119, 6, 0.18);
+  color: #fbbf24;
 }
 
 /* ---- 备忘录随手记 ---- */
@@ -1920,7 +2055,7 @@ export const TALOS_STYLES = `/* ================================================
   font-size: var(--fs-title);
   font-weight: 700;
   line-height: 1.2;
-  padding-left: 15px;
+  padding-left: 16px;
   margin-bottom: var(--space-md);
   position: relative;
 }
@@ -1965,38 +2100,38 @@ export const TALOS_STYLES = `/* ================================================
 }
 
 /* 今日待办就地展开块：左竖线与所属任务行同色，形成"从该任务长出"的连接 */
-.talos-todo-expand {
-  margin: 0 0 4px 10px;
-  padding: 10px 12px 12px 16px;
+.polaris-todo-expand {
+  margin: 0 0 4px 8px;
+  padding: 8px 12px 12px 16px;
   border-left: 2px solid var(--brand-green);
   border-radius: 0 var(--radius-md) var(--radius-md) var(--radius-md);
   background: rgba(255, 255, 255, 0.02);
 }
-.talos-dashboard[data-theme="light"] .talos-todo-expand {
+.polaris-dashboard[data-theme="light"] .polaris-todo-expand {
   background: rgba(0, 0, 0, 0.02);
 }
 /* 展开态任务行：品牌色淡底，标识当前展开来源 */
-.talos-todo-item.todo-expanded {
+.polaris-todo-item.todo-expanded {
   background: rgba(200, 224, 96, 0.10);
 }
-.talos-dashboard[data-theme="light"] .talos-todo-item.todo-expanded {
+.polaris-dashboard[data-theme="light"] .polaris-todo-item.todo-expanded {
   background: rgba(200, 224, 96, 0.18);
 }
 /* 未展开行 hover 淡底（与今日打卡一致）；展开行不加，保留品牌绿底 */
-.talos-todo-item:not(.todo-expanded):hover {
+.polaris-todo-item:not(.todo-expanded):hover {
   background: rgba(255, 255, 255, 0.05);
 }
-.talos-dashboard[data-theme="light"] .talos-todo-item:not(.todo-expanded):hover {
+.polaris-dashboard[data-theme="light"] .polaris-todo-item:not(.todo-expanded):hover {
   background: rgba(0, 0, 0, 0.05);
 }
 /* 展开块内紧凑排版：状态/优先级按钮均分不溢出 */
-.talos-todo-expand .status-segmented { flex: 1; }
-.talos-todo-expand .status-seg { flex: 1; text-align: center; padding: 6px 6px; font-size: 11px; }
-.talos-todo-expand .detail-edit-row { padding: 10px 10px; }
-.talos-todo-expand .detail-edit-row-label { min-width: 56px; font-size: 11px; }
-.talos-todo-expand .detail-edit-row-input { min-width: 0; flex: 1; padding: 5px 8px; font-size: 11px; }
-.talos-todo-expand .detail-grid { margin: 10px 0; }
-.talos-todo-expand .badge { font-size: 10px; }
+.polaris-todo-expand .status-segmented { flex: 1; }
+.polaris-todo-expand .status-seg { flex: 1; text-align: center; padding: 6px 6px; font-size: 11px; }
+.polaris-todo-expand .detail-edit-row { padding: 8px 8px; }
+.polaris-todo-expand .detail-edit-row-label { min-width: 56px; font-size: 11px; }
+.polaris-todo-expand .detail-edit-row-input { min-width: 0; flex: 1; padding: 4px 8px; font-size: 11px; }
+.polaris-todo-expand .detail-grid { margin: 8px 0; }
+.polaris-todo-expand .badge { font-size: 10px; }
 
 /* 2×2 信息网格 */
 .detail-grid {
@@ -2023,7 +2158,7 @@ export const TALOS_STYLES = `/* ================================================
   font-weight: 500;
 }
 .detail-grid-value .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-.talos-dashboard[data-theme="light"] .detail-grid-item {
+.polaris-dashboard[data-theme="light"] .detail-grid-item {
   background: rgba(0, 0, 0, 0.03);
 }
 
@@ -2038,7 +2173,7 @@ export const TALOS_STYLES = `/* ================================================
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 14px;
+  padding: 12px 12px;
   border-bottom: 1px solid var(--border-color);
   gap: 12px;
 }
@@ -2071,7 +2206,7 @@ export const TALOS_STYLES = `/* ================================================
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
-  padding: 6px 10px;
+  padding: 6px 8px;
   font-size: var(--fs-caption);
   color: var(--text-primary);
   cursor: pointer;
@@ -2090,12 +2225,12 @@ export const TALOS_STYLES = `/* ================================================
   cursor: text;
   text-align: left;
 }
-.talos-dashboard[data-theme="light"] .detail-edit-row-select,
-.talos-dashboard[data-theme="light"] .detail-edit-row-input {
+.polaris-dashboard[data-theme="light"] .detail-edit-row-select,
+.polaris-dashboard[data-theme="light"] .detail-edit-row-input {
   background: rgba(0, 0, 0, 0.03);
-  color: #1a1a1a;
+  color: #1a1a1f;
 }
-.talos-dashboard[data-theme="light"] .detail-edit-row:hover {
+.polaris-dashboard[data-theme="light"] .detail-edit-row:hover {
   background: rgba(0, 0, 0, 0.02);
 }
 
@@ -2124,7 +2259,7 @@ export const TALOS_STYLES = `/* ================================================
 }
 
 /* 日期选择浮层（月历点选面板） */
-.talos-date-pop {
+.polaris-date-pop {
   position: fixed;
   z-index: 99999;
   width: 236px;
@@ -2132,13 +2267,13 @@ export const TALOS_STYLES = `/* ================================================
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
-  padding: 10px;
+  padding: 8px;
   font-size: 12px;
   color: var(--text-primary);
 }
-/* 日期浮层挂载在 document.body（不在 .talos-dashboard 作用域内），浅色变量取不到会回退暗色；
+/* 日期浮层挂载在 document.body（不在 .polaris-dashboard 作用域内），浅色变量取不到会回退暗色；
    openDatePicker 会把插件主题写入浮层的 data-theme，据此补全浅色 token */
-.talos-date-pop[data-theme="light"] {
+.polaris-date-pop[data-theme="light"] {
   --card-bg-rgb: 255, 255, 255;
   --border-color: rgba(0, 0, 0, 0.06);
   --text-primary: #1a1a1f;
@@ -2148,49 +2283,49 @@ export const TALOS_STYLES = `/* ================================================
   --text-brand: #1a1a1f;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
 }
-.talos-date-pop-head {
+.polaris-date-pop-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 8px;
 }
-.talos-date-nav {
+.polaris-date-nav {
   background: var(--control-bg);
   border: none;
   border-radius: 6px;
-  padding: 2px 10px;
+  padding: 2px 8px;
   font-size: 14px;
   line-height: 1.5;
   color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.15s;
 }
-.talos-date-nav:hover {
+.polaris-date-nav:hover {
   color: var(--text-primary);
   background: rgba(200, 224, 96, 0.15);
 }
-.talos-date-pop-title {
+.polaris-date-pop-title {
   font-size: 13px;
   font-weight: 600;
 }
-.talos-date-pop-week {
+.polaris-date-pop-week {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   margin-bottom: 4px;
 }
-.talos-date-pop-week span {
+.polaris-date-pop-week span {
   text-align: center;
   font-size: 11px;
   color: var(--text-muted);
   padding: 3px 0;
 }
-.talos-date-pop-grid {
+.polaris-date-pop-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 2px;
   margin-bottom: 8px;
 }
-.talos-date-cell {
+.polaris-date-cell {
   aspect-ratio: 1;
   display: flex;
   align-items: center;
@@ -2199,28 +2334,28 @@ export const TALOS_STYLES = `/* ================================================
   cursor: pointer;
   font-size: 12px;
   color: var(--text-secondary);
-  transition: all 0.12s;
+  transition: all 0.15s;
 }
-.talos-date-cell:hover {
+.polaris-date-cell:hover {
   background: rgba(200, 224, 96, 0.15);
   color: var(--text-primary);
 }
-.talos-date-cell.today {
+.polaris-date-cell.today {
   outline: 1.5px solid var(--brand-green);
 }
-.talos-date-cell.sel {
+.polaris-date-cell.sel {
   background: var(--brand-green);
-  color: #1a1a1a;
+  color: #1a1a1f;
   font-weight: 700;
 }
-.talos-date-pop-foot {
+.polaris-date-pop-foot {
   display: flex;
   justify-content: space-between;
   border-top: 1px solid var(--border-color);
   padding-top: 8px;
 }
-.talos-date-today,
-.talos-date-clear {
+.polaris-date-today,
+.polaris-date-clear {
   background: transparent;
   border: none;
   color: var(--text-secondary);
@@ -2230,8 +2365,8 @@ export const TALOS_STYLES = `/* ================================================
   border-radius: 6px;
   transition: all 0.15s;
 }
-.talos-date-today:hover,
-.talos-date-clear:hover {
+.polaris-date-today:hover,
+.polaris-date-clear:hover {
   color: var(--text-brand);
   background: rgba(200, 224, 96, 0.12);
 }
@@ -2261,37 +2396,37 @@ export const TALOS_STYLES = `/* ================================================
   background: rgba(255, 255, 255, 0.06);
 }
 .status-seg.active {
-  background: var(--brand-green);
-  color: #0f0f13;
+  background: transparent;
+  color: var(--brand-green);
   font-weight: 700;
 }
 .status-seg.active[data-status="todo"] {
-  background: #9ca3af;
-  color: #0f0f13;
+  background: transparent;
+  color: #9ca3af;
 }
 .status-seg.active[data-status="doing"] {
-  background: var(--info-blue);
-  color: #0f0f13;
+  background: transparent;
+  color: var(--info-blue);
 }
 .status-seg.active[data-status="done"] {
-  background: var(--brand-green);
-  color: #0f0f13;
+  background: transparent;
+  color: var(--brand-green);
 }
-.talos-dashboard[data-theme="light"] .status-segmented {
+.polaris-dashboard[data-theme="light"] .status-segmented {
   background: rgba(0, 0, 0, 0.06);
   border: 1px solid rgba(0, 0, 0, 0.08);
   padding: 2px;
 }
-.talos-dashboard[data-theme="light"] .status-seg {
+.polaris-dashboard[data-theme="light"] .status-seg {
   color: #374151;
 }
-.talos-dashboard[data-theme="light"] .status-seg:hover {
+.polaris-dashboard[data-theme="light"] .status-seg:hover {
   background: rgba(0, 0, 0, 0.06);
 }
 
 /* 表单内优先级分段控件：与输入框同高同宽，三档均分 */
-.talos-dashboard .form-priority-seg { width: 100%; height: 36px; }
-.talos-dashboard .form-priority-seg .status-seg { flex: 1; display: flex; align-items: center; justify-content: center; height: 100%; padding: 0; font-size: 12px; }
+.polaris-dashboard .form-priority-seg { width: 100%; height: 36px; }
+.polaris-dashboard .form-priority-seg .status-seg { flex: 1; display: flex; align-items: center; justify-content: center; height: 100%; padding: 0; font-size: 12px; }
 
 /* 焦点任务详情状态行：分段按钮均分剩余宽度，避免第三个按钮被 space-between 推到右缘贴边/截断 */
 .detail-edit-row .status-segmented {
@@ -2305,22 +2440,22 @@ export const TALOS_STYLES = `/* ================================================
 }
 
 /* 展开块分段按钮：显式压过 Obsidian 全局 button 样式（浅色下未选中必须透明，不能渲染成深灰底） */
-.talos-dashboard[data-theme="light"] .status-seg:not(.active) {
+.polaris-dashboard[data-theme="light"] .status-seg:not(.active) {
   background: transparent !important;
   color: #374151 !important;
 }
-.talos-dashboard[data-theme="light"] .status-seg:hover:not(.active) {
+.polaris-dashboard[data-theme="light"] .status-seg:hover:not(.active) {
   background: rgba(0, 0, 0, 0.08) !important;
   color: #374151 !important;
 }
-.talos-dashboard[data-theme="dark"] .status-seg:not(.active) {
+.polaris-dashboard[data-theme="dark"] .status-seg:not(.active) {
   background: transparent !important;
 }
-.talos-dashboard[data-theme="dark"] .status-seg:hover:not(.active) {
+.polaris-dashboard[data-theme="dark"] .status-seg:hover:not(.active) {
   background: rgba(255, 255, 255, 0.08) !important;
 }
 /* 浅色次按钮加固：边框/底色不被 Obsidian 全局样式冲掉 */
-.talos-dashboard[data-theme="light"] .btn-secondary {
+.polaris-dashboard[data-theme="light"] .btn-secondary {
   background: transparent !important;
   border: 1px solid rgba(0, 0, 0, 0.2) !important;
   color: #374151 !important;
@@ -2329,11 +2464,11 @@ export const TALOS_STYLES = `/* ================================================
 /* 底部双按钮 */
 .detail-actions { display: flex; gap: var(--space-sm); }
 .detail-actions .btn-primary,
-.detail-actions .btn-secondary { flex: 1; padding: 10px 0; }
+.detail-actions .btn-secondary { flex: 1; padding: 8px 0; }
 
 /* ---- 本周学习进度 ---- */
 .learning-item {
-  padding: 10px 12px;
+  padding: 8px 12px;
   border-radius: var(--radius-sm);
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid transparent;
@@ -2342,8 +2477,8 @@ export const TALOS_STYLES = `/* ================================================
 }
 .learning-item:last-child { margin-bottom: 0; }
 .learning-item:hover { background: rgba(200, 224, 96, 0.05); border-color: rgba(200, 224, 96, 0.25); }
-.talos-dashboard[data-theme="light"] .learning-item { background: rgba(0, 0, 0, 0.02); }
-.talos-dashboard[data-theme="light"] .learning-item:hover { background: rgba(200, 224, 96, 0.08); border-color: rgba(200, 224, 96, 0.3); }
+.polaris-dashboard[data-theme="light"] .learning-item { background: rgba(0, 0, 0, 0.02); }
+.polaris-dashboard[data-theme="light"] .learning-item:hover { background: rgba(200, 224, 96, 0.08); border-color: rgba(200, 224, 96, 0.3); }
 .learning-top {
   display: flex;
   justify-content: space-between;
@@ -2355,8 +2490,8 @@ export const TALOS_STYLES = `/* ================================================
 .learning-pct.done { color: var(--text-brand); }
 
 /* 右侧栏本周学习子项卡片 */
-.talos-learning-item {
-  padding: 8px 10px;
+.polaris-learning-item {
+  padding: 8px 8px;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid transparent;
@@ -2364,16 +2499,16 @@ export const TALOS_STYLES = `/* ================================================
   cursor: pointer;
   transition: all 0.15s ease;
 }
-.talos-learning-item:hover { background: rgba(200, 224, 96, 0.05); border-color: rgba(200, 224, 96, 0.25); }
-.talos-dashboard[data-theme="light"] .talos-learning-item { background: rgba(0, 0, 0, 0.02); }
-.talos-dashboard[data-theme="light"] .talos-learning-item:hover { background: rgba(200, 224, 96, 0.08); border-color: rgba(200, 224, 96, 0.3); }
+.polaris-learning-item:hover { background: rgba(200, 224, 96, 0.05); border-color: rgba(200, 224, 96, 0.25); }
+.polaris-dashboard[data-theme="light"] .polaris-learning-item { background: rgba(0, 0, 0, 0.02); }
+.polaris-dashboard[data-theme="light"] .polaris-learning-item:hover { background: rgba(200, 224, 96, 0.08); border-color: rgba(200, 224, 96, 0.3); }
 
 /* ---- 今日日记条目 ---- */
 .diary-item {
   display: flex;
   gap: var(--space-sm);
   align-items: flex-start;
-  padding: 10px 0;
+  padding: 8px 0;
   font-size: var(--fs-caption);
   color: var(--text-secondary);
   line-height: 1.6;
@@ -2392,7 +2527,7 @@ export const TALOS_STYLES = `/* ================================================
 .insight-item {
   display: flex;
   gap: 8px;
-  padding: 10px 0;
+  padding: 8px 0;
   font-size: var(--fs-caption);
   color: var(--text-secondary);
   line-height: 1.6;
@@ -2410,7 +2545,7 @@ export const TALOS_STYLES = `/* ================================================
 .detail-info-value { color: var(--text-primary); text-align: right; font-weight: 500; }
 
 /* 图表卡片可点击提示 */
-.talos-knowledge-trend, .talos-knowledge-para { cursor: pointer; }
+.polaris-knowledge-trend, .polaris-knowledge-para { cursor: pointer; }
 
 /* ============================================================
    交互组件（弹窗/表单/滑块/开关/拖拽/画布头）
@@ -2432,8 +2567,8 @@ export const TALOS_STYLES = `/* ================================================
 }
 
 /* ---- 弹窗基础 ---- */
-.talos-modal-root { position: fixed; inset: 0; z-index: 9998; display: none; }
-.talos-modal-root.open { display: flex; align-items: center; justify-content: center; }
+.polaris-modal-root { position: fixed; inset: 0; z-index: 9998; display: none; }
+.polaris-modal-root.open { display: flex; align-items: center; justify-content: center; }
 .modal-overlay {
   position: absolute;
   inset: 0;
@@ -2453,9 +2588,9 @@ export const TALOS_STYLES = `/* ================================================
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-2xl);
-  padding: var(--space-xl) var(--space-xl) 14px;
+  padding: var(--space-xl) var(--space-xl) 12px;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
-  animation: modalIn 0.25s ease both;
+  animation: modalIn 0.2s ease both;
 }
 .modal-header {
   display: flex;
@@ -2470,14 +2605,14 @@ export const TALOS_STYLES = `/* ================================================
   color: var(--text-muted) !important;
   font-size: 18px;
   cursor: pointer;
-  padding: 6px 10px;
+  padding: 6px 8px;
   border-radius: var(--radius-sm);
   transition: all 0.15s ease;
 }
 .modal-close:hover { color: var(--text-primary) !important; background: rgba(255, 255, 255, 0.06) !important; }
 /* 浅色主题：关闭按钮用深灰保证可见度，hover 更深 */
-.talos-dashboard[data-theme="light"] .modal-close { color: #52525b !important; }
-.talos-dashboard[data-theme="light"] .modal-close:hover { color: #1a1a1a !important; background: rgba(0, 0, 0, 0.06) !important; }
+.polaris-dashboard[data-theme="light"] .modal-close { color: #52525b !important; }
+.polaris-dashboard[data-theme="light"] .modal-close:hover { color: #1a1a1f !important; background: rgba(0, 0, 0, 0.06) !important; }
 
 /* ---- 表单控件 ---- */
 .form-field { margin-bottom: var(--space-lg); }
@@ -2489,10 +2624,10 @@ export const TALOS_STYLES = `/* ================================================
   font-weight: 600;
 }
 .form-label .required { color: var(--danger-red); }
-.talos-dashboard .form-input,
-.talos-dashboard .form-select,
-.talos-dashboard .form-textarea,
-.talos-dashboard .form-date-field {
+.polaris-dashboard .form-input,
+.polaris-dashboard .form-select,
+.polaris-dashboard .form-textarea,
+.polaris-dashboard .form-date-field {
   width: 100%;
   background: rgba(255, 255, 255, 0.04) !important;
   border: 1px solid rgba(255, 255, 255, 0.15) !important;
@@ -2504,37 +2639,37 @@ export const TALOS_STYLES = `/* ================================================
   box-shadow: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
-.talos-dashboard .form-input {
+.polaris-dashboard .form-input {
   height: 36px !important;
-  padding: 0 14px !important;
+  padding: 0 12px !important;
   line-height: 36px;
 }
-.talos-dashboard .form-input:focus,
-.talos-dashboard .form-select:focus,
-.talos-dashboard .form-textarea:focus,
-.talos-dashboard .form-date-field:focus {
+.polaris-dashboard .form-input:focus,
+.polaris-dashboard .form-select:focus,
+.polaris-dashboard .form-textarea:focus,
+.polaris-dashboard .form-date-field:focus {
   border-color: var(--focus-border) !important;
   box-shadow: none !important;
   outline: none;
 }
-.talos-dashboard .form-input::placeholder,
-.talos-dashboard .form-textarea::placeholder { color: var(--text-muted) !important; }
-.talos-dashboard .form-textarea { min-height: 80px; resize: vertical; line-height: 1.6; padding: 10px 14px !important; }
-.talos-dashboard .form-select {
+.polaris-dashboard .form-input::placeholder,
+.polaris-dashboard .form-textarea::placeholder { color: var(--text-muted) !important; }
+.polaris-dashboard .form-textarea { min-height: 80px; resize: vertical; line-height: 1.6; padding: 8px 12px !important; }
+.polaris-dashboard .form-select {
   appearance: none;
   -webkit-appearance: none;
   height: 36px !important;
-  padding: 0 32px 0 14px !important;
+  padding: 0 32px 0 12px !important;
   cursor: pointer;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='white' stroke-opacity='0.5' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>") !important;
   background-repeat: no-repeat !important;
   background-position: right 10px center !important;
   background-size: 14px !important;
 }
-.talos-dashboard .form-select option { background: #1c1c22 !important; color: #f0f0f3 !important; }
-.talos-dashboard[data-theme="light"] .form-select option { background: #ffffff !important; color: #1a1a1a !important; }
+.polaris-dashboard .form-select option { background: #1c1c22 !important; color: #f0f0f3 !important; }
+.polaris-dashboard[data-theme="light"] .form-select option { background: #ffffff !important; color: #1a1a1f !important; }
 /* 表单日期字段（按钮式，与详情区一致；继承 form-input 外观） */
-.talos-dashboard .form-date-field {
+.polaris-dashboard .form-date-field {
   appearance: none;
   -webkit-appearance: none;
   display: flex;
@@ -2546,7 +2681,7 @@ export const TALOS_STYLES = `/* ================================================
   font-size: var(--fs-body);
   line-height: 1.4;
   height: 36px !important;
-  padding: 0 14px !important;
+  padding: 0 12px !important;
 }
 .form-date-field .form-date-value { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .form-date-field .form-date-value.empty { color: var(--text-muted); }
@@ -2565,7 +2700,7 @@ export const TALOS_STYLES = `/* ================================================
   padding-top: 20px;  /* 分隔线到按钮的间距 */
   border-top: 1px solid rgba(255, 255, 255, 0.12) !important;  /* 统一分隔线，覆盖宿主样式 */
 }
-.talos-dashboard[data-theme="light"] .form-actions {
+.polaris-dashboard[data-theme="light"] .form-actions {
   border-top-color: rgba(0, 0, 0, 0.14) !important;  /* 浅色主题下的分隔线 */
 }
 .form-actions .btn-primary,
@@ -2579,8 +2714,8 @@ export const TALOS_STYLES = `/* ================================================
   font-size: 15px;
   font-weight: 600;
   color: var(--text-primary);
-  padding-left: 15px;
-  margin: 22px 0 14px;
+  padding-left: 16px;
+  margin: 20px 0 12px;
   position: relative;
 }
 .setting-section-title::before {
@@ -2602,7 +2737,7 @@ export const TALOS_STYLES = `/* ================================================
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   font-size: var(--fs-body);
 }
 .setting-value { color: var(--text-brand); font-weight: 700; font-size: var(--fs-caption); }
@@ -2612,7 +2747,7 @@ export const TALOS_STYLES = `/* ================================================
   margin-top: 6px;
   line-height: 1.5;
 }
-.talos-dashboard[data-theme="light"] .setting-hint { color: rgba(0, 0, 0, 0.45); }
+.polaris-dashboard[data-theme="light"] .setting-hint { color: rgba(0, 0, 0, 0.45); }
 input[type="range"].setting-slider {
   -webkit-appearance: none;
   appearance: none;
@@ -2661,29 +2796,81 @@ input[type="range"].setting-slider::-moz-range-thumb {
   cursor: pointer;
 }
 /* 浅色主题：轨道改浅灰、滑块描边改白 */
-.talos-dashboard[data-theme="light"] input[type="range"].setting-slider::-webkit-slider-runnable-track { background: rgba(0, 0, 0, 0.10); }
-.talos-dashboard[data-theme="light"] input[type="range"].setting-slider::-webkit-slider-thumb { border-color: #ffffff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18); }
-.talos-dashboard[data-theme="light"] input[type="range"].setting-slider::-moz-range-track { background: rgba(0, 0, 0, 0.10); }
-.talos-dashboard[data-theme="light"] input[type="range"].setting-slider::-moz-range-thumb { border-color: #ffffff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18); }
+.polaris-dashboard[data-theme="light"] input[type="range"].setting-slider::-webkit-slider-runnable-track { background: rgba(0, 0, 0, 0.10); }
+.polaris-dashboard[data-theme="light"] input[type="range"].setting-slider::-webkit-slider-thumb { border-color: #ffffff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18); }
+.polaris-dashboard[data-theme="light"] input[type="range"].setting-slider::-moz-range-track { background: rgba(0, 0, 0, 0.10); }
+.polaris-dashboard[data-theme="light"] input[type="range"].setting-slider::-moz-range-thumb { border-color: #ffffff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18); }
 /* ---- 自绘滑块（自定义组件，替代原生 range：轨道与按钮 flex 精确居中） ---- */
 .tslider { position: relative; height: 14px; display: flex; align-items: center; cursor: pointer; touch-action: none; }
 .tslider-track { position: relative; width: 100%; height: 6px; border-radius: var(--radius-full); background: rgba(255, 255, 255, 0.14); }
-.tslider-thumb { position: absolute; top: 50%; left: 0; width: 22px; height: 14px; border-radius: var(--radius-full); background: var(--brand-green); border: 2px solid #17171c; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4); transform: translate(-50%, -50%); transition: transform 0.12s ease; }
+.tslider-thumb { position: absolute; top: 50%; left: 0; width: 22px; height: 14px; border-radius: var(--radius-full); background: var(--brand-green); border: 2px solid #17171c; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4); transform: translate(-50%, -50%); transition: transform 0.15s ease; }
 .tslider:hover .tslider-thumb { transform: translate(-50%, -50%) scale(1.18); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.55); }
-.talos-dashboard[data-theme="light"] .tslider-track { background: rgba(0, 0, 0, 0.10); }
-.talos-dashboard[data-theme="light"] .tslider-thumb { border-color: #ffffff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18); }
+.polaris-dashboard[data-theme="light"] .tslider-track { background: rgba(0, 0, 0, 0.10); }
+.polaris-dashboard[data-theme="light"] .tslider-thumb { border-color: #ffffff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18); }
 /* 手柄内联常显：标题左缘不再让位，竖条紧贴手柄右侧（手柄14px+4px间距，标题起点18px），module-title 无竖条 */
-.rp-card .detail-section-title { padding-left: 0; }
+.rp-card .detail-section-title { padding-left: 8px; }
 .rp-card .module-title { padding-left: 0; }
-.rp-card .detail-section-title::before { left: 22px; }
+.rp-card .detail-section-title::before { display: none; }
+/* 右栏标题竖条（真实元素，跟随手柄排布：手柄|竖条|文字） */
+.rp-card .detail-section-title .rp-strip {
+  flex-shrink: 0;
+  width: 4px;
+  height: 24px;
+  border-radius: 2px;
+  background: var(--brand-green);
+  margin-left: -8px; /* 抵消 flex gap：手柄-竖条=8px（保留手柄 margin 10） */
+}
+/* 右栏标题文字显式主题色（防环境样式干扰变灰，如番茄标题） */
+.rp-card .detail-section-title .rp-title { color: var(--text-primary); }
 /* 上间距统一 8px：番茄(16→-8) / 打卡(12→-4) / 待办·学习(10→-2) */
 .rp-card .glass-card-static .detail-section-title { margin-top: -8px; }
-.rp-card .talos-compact-checkin .detail-section-title { margin-top: -4px; }
-.rp-card .talos-today-todos .detail-section-title,
-.rp-card .talos-today-quicknote .detail-section-title { margin-top: -2px; }
+.rp-card .glass-card-static .detail-section-title,
+.rp-card .polaris-compact-checkin .detail-section-title { padding-left: 4px; } /* 16+4=20px（7.4 规范） */
+.rp-card .polaris-compact-checkin .detail-section-title { margin-top: -4px; }
+.rp-card .polaris-today-todos .detail-section-title,
+.rp-card .polaris-today-quicknote .detail-section-title { margin-top: -2px; }
 /* ---- 右栏卡片拖拽排序 ---- */
+.polaris-pomo-card .polaris-pomo-toggle,
+.polaris-pomo-card .polaris-pomo-reset,
+.polaris-pomo-card .polaris-pomo-skip {
+  height: 32px;
+  padding: 0 16px;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1;
+}
+.polaris-pomo-card .polaris-pomo-toggle {
+  background: transparent;
+  color: var(--brand-green);
+  border: 1px solid rgba(200, 224, 96, 0.35);
+}
+.polaris-pomo-card .polaris-pomo-toggle:hover { background: rgba(200, 224, 96, 0.12); border-color: rgba(200, 224, 96, 0.5); }
+.polaris-pomo-card .polaris-pomo-reset,
+.polaris-pomo-card .polaris-pomo-skip {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+}
+.polaris-pomo-card .polaris-pomo-reset:hover,
+.polaris-pomo-card .polaris-pomo-skip:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+}
+.polaris-dashboard[data-theme="light"] .polaris-pomo-card .polaris-pomo-reset,
+.polaris-dashboard[data-theme="light"] .polaris-pomo-card .polaris-pomo-skip {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.12);
+}
+.polaris-dashboard[data-theme="light"] .polaris-pomo-card .polaris-pomo-reset:hover,
+.polaris-dashboard[data-theme="light"] .polaris-pomo-card .polaris-pomo-skip:hover {
+  background: rgba(0, 0, 0, 0.09);
+}
 .rp-card { position: relative; }
-.rp-handle { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; position: relative; width: 14px; height: 14px; margin-right: 10px; cursor: grab; touch-action: none; font-size: 11px; line-height: 1; color: rgba(255, 255, 255, 0.55); border-radius: var(--radius-sm); opacity: 0.4; transition: opacity 0.15s ease, color 0.15s ease, transform 0.15s ease; }
+.rp-handle { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; position: relative; width: 14px; height: 14px; margin-right: 8px; cursor: grab; touch-action: none; font-size: 11px; line-height: 1; color: rgba(255, 255, 255, 0.55); border-radius: var(--radius-sm); opacity: 0.4; transition: opacity 0.15s ease, color 0.15s ease, transform 0.15s ease; }
 .rp-handle::before { content: ""; position: absolute; inset: -7px -3px; border-radius: 8px; background: rgba(200, 224, 96, 0.16); opacity: 0; transition: opacity 0.15s ease; }
 .rp-card:hover .rp-handle { opacity: 0.75; }
 .rp-handle:hover::before { opacity: 1; }
@@ -2722,10 +2909,10 @@ input[type="range"].setting-slider::-moz-range-thumb {
   background: #0f0f13;
 }
 /* 浅色主题：开关轨道与圆点适配 */
-.talos-dashboard[data-theme="light"] .switch-slider { background: rgba(0, 0, 0, 0.12); }
-.talos-dashboard[data-theme="light"] .switch-slider::before { background: #ffffff; }
-.talos-dashboard[data-theme="light"] .theme-switch input:checked + .switch-slider { background: var(--brand-green); }
-.talos-dashboard[data-theme="light"] .theme-switch input:checked + .switch-slider::before { background: #ffffff; }
+.polaris-dashboard[data-theme="light"] .switch-slider { background: rgba(0, 0, 0, 0.12); }
+.polaris-dashboard[data-theme="light"] .switch-slider::before { background: #ffffff; }
+.polaris-dashboard[data-theme="light"] .theme-switch input:checked + .switch-slider { background: var(--brand-green); }
+.polaris-dashboard[data-theme="light"] .theme-switch input:checked + .switch-slider::before { background: #ffffff; }
 
 /* ---- 导出弹窗：配置预览 ---- */
 .export-preview {
@@ -2815,8 +3002,9 @@ input[type="range"].setting-slider::-moz-range-thumb {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
+  padding-left: 4px; /* 卡片内边距16 + 标题行4 = 手柄距左缘20px（7.4 规范） */
   margin-top: -8px;
-  margin-bottom: 10px;
+  margin-bottom: 12px; /* 标题与内容间距12px（7.3 规范，禁10px） */
   user-select: none;
   -webkit-user-select: none;
 }
@@ -2908,28 +3096,28 @@ input[type="range"].setting-slider::-moz-range-thumb {
   pointer-events: none;
 }
 /* 统计卡 danger（逾期高亮） */
-.talos-stats-overview .stat-card.danger .stat-num,
-.talos-stats-overview .stat-card.danger .stat-icon { color: var(--danger-red); }
+.polaris-stats-overview .stat-card.danger .stat-num,
+.polaris-stats-overview .stat-card.danger .stat-icon { color: var(--danger-red); }
 /* 统计行卡片壳 */
 .dash-card-stat-row .dash-card-body { padding: 0; }
 .dash-card-body { flex: 1; min-width: 0; }
 
 /* 内容少的复习卡片：垂直居中，避免等高拉伸后的顶部留白 */
-.talos-rv-mastery {
+.polaris-rv-mastery {
   display: flex;
   flex-direction: column;
   justify-content: center;
 }
 /* 图表类卡片 body：flex 纵向布局，让图表弹性填满卡片高度（飞书式填充） */
-.dash-card-body.talos-rv-progress,
-.dash-card-body.talos-rv-trend {
+.dash-card-body.polaris-rv-progress,
+.dash-card-body.polaris-rv-trend {
   display: flex;
   flex-direction: column;
 }
 /* 浅色主题：拖拽/调宽手柄可见性适配 */
-.talos-dashboard[data-theme="light"] .dash-card-drag,
-.talos-dashboard[data-theme="light"] .dash-card-resize { color: rgba(0, 0, 0, 0.45); }
-.talos-dashboard[data-theme="light"] .rp-handle { color: rgba(0, 0, 0, 0.45); }
+.polaris-dashboard[data-theme="light"] .dash-card-drag,
+.polaris-dashboard[data-theme="light"] .dash-card-resize { color: rgba(0, 0, 0, 0.45); }
+.polaris-dashboard[data-theme="light"] .rp-handle { color: rgba(0, 0, 0, 0.45); }
 
 /* 复习角标（顶部导航与侧边导航） */
 .review-badge {
@@ -2949,24 +3137,24 @@ input[type="range"].setting-slider::-moz-range-thumb {
 }
 
 /* 点击语录文本 → 管理每日一句（hover 给轻微可点暗示） */
-.talos-quote-click:hover {
+.polaris-quote-click:hover {
   color: var(--brand-green);
 }
-.talos-dashboard[data-theme="light"] .talos-quote-click:hover {
+.polaris-dashboard[data-theme="light"] .polaris-quote-click:hover {
   color: #6b8f2f;
 }
 
 /* 每日一签：抽签入口 hover 反馈 */
-.talos-sign-entry:hover {
+.polaris-sign-entry:hover {
   color: var(--brand-green);
 }
-.talos-dashboard[data-theme="light"] .talos-sign-entry:hover {
+.polaris-dashboard[data-theme="light"] .polaris-sign-entry:hover {
   color: #6b8f2f;
 }
 
 /* 每日一签：摇签动画（轻量，约 0.6s） */
-.talos-sign-entry.talos-sign-shake,
-.talos-sign-modal .talos-sign-shake {
+.polaris-sign-entry.polaris-sign-shake,
+.polaris-sign-modal .polaris-sign-shake {
   animation: talosSignShake 0.6s ease-in-out;
   display: inline-block;
 }
@@ -2979,10 +3167,10 @@ input[type="range"].setting-slider::-moz-range-thumb {
 }
 
 /* ==================== 顶部搜索实时下拉 ==================== */
-/* 结构：.talos-search-drop（flex 列，overflow hidden 裁圆角）
+/* 结构：.polaris-search-drop（flex 列，overflow hidden 裁圆角）
          ├─ .tsd-body（内部滚动）
          └─ .tsd-foot（底部结果栏，始终可见） */
-.talos-search-drop {
+.polaris-search-drop {
   position: absolute;
   top: 100%;
   left: 0;
@@ -3000,8 +3188,8 @@ input[type="range"].setting-slider::-moz-range-thumb {
   color: var(--text-primary);
   z-index: 300;
 }
-.talos-dashboard[data-theme="light"] .talos-search-drop,
-.talos-search-drop[data-theme="light"] {
+.polaris-dashboard[data-theme="light"] .polaris-search-drop,
+.polaris-search-drop[data-theme="light"] {
   border-color: #96b030;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
 }
@@ -3013,8 +3201,8 @@ input[type="range"].setting-slider::-moz-range-thumb {
   overflow-y: auto;
   overflow-x: hidden; /* 长路径靠副行换行展示，杜绝横向滚动条 */
   overscroll-behavior: contain;
-  padding: 0 14px 6px; /* 左右留白加大：内容不再贴边（14 + 条目 12 = 26px 内容边距） */
-  scroll-padding-top: 30px; /* 键盘导航时避开吸顶的分组标题 */
+  padding: 0 12px 6px; /* 左右留白加大：内容不再贴边（14 + 条目 12 = 26px 内容边距） */
+  scroll-padding-top: 28px; /* 键盘导航时避开吸顶的分组标题 */
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
 }
@@ -3022,10 +3210,10 @@ input[type="range"].setting-slider::-moz-range-thumb {
 .tsd-body::-webkit-scrollbar-track { background: transparent; }
 .tsd-body::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.16); border-radius: var(--radius-full); }
 .tsd-body::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); }
-.talos-dashboard[data-theme="light"] .tsd-body,
-.talos-search-drop[data-theme="light"] .tsd-body { scrollbar-color: rgba(0, 0, 0, 0.18) transparent; }
-.talos-dashboard[data-theme="light"] .tsd-body::-webkit-scrollbar-thumb,
-.talos-search-drop[data-theme="light"] .tsd-body::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.18); }
+.polaris-dashboard[data-theme="light"] .tsd-body,
+.polaris-search-drop[data-theme="light"] .tsd-body { scrollbar-color: rgba(0, 0, 0, 0.18) transparent; }
+.polaris-dashboard[data-theme="light"] .tsd-body::-webkit-scrollbar-thumb,
+.polaris-search-drop[data-theme="light"] .tsd-body::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.18); }
 /* 顶部分割线（输入框与内容区之间）：内缩于大边框之内，长度与组间分割线一致，
    不与外框相连，左右各留出与内容相同的留白 */
 .tsd-body::before {
@@ -3035,8 +3223,8 @@ input[type="range"].setting-slider::-moz-range-thumb {
   margin-bottom: 4px; /* 与组间分割线一致：线到分组标题的间距同为 12px（4 + 标题 8） */
   border-top: 1px solid rgba(255, 255, 255, 0.10);
 }
-.talos-dashboard[data-theme="light"] .tsd-body::before,
-.talos-search-drop[data-theme="light"] .tsd-body::before { border-top-color: rgba(0, 0, 0, 0.12); }
+.polaris-dashboard[data-theme="light"] .tsd-body::before,
+.polaris-search-drop[data-theme="light"] .tsd-body::before { border-top-color: rgba(0, 0, 0, 0.12); }
 
 /* 分组 */
 .tsd-group { padding-bottom: 4px; }
@@ -3045,8 +3233,8 @@ input[type="range"].setting-slider::-moz-range-thumb {
   margin-top: 4px;
   padding-top: 4px;
 }
-.talos-dashboard[data-theme="light"] .tsd-group + .tsd-group,
-.talos-search-drop[data-theme="light"] .tsd-group + .tsd-group { border-top-color: rgba(0, 0, 0, 0.07); }
+.polaris-dashboard[data-theme="light"] .tsd-group + .tsd-group,
+.polaris-search-drop[data-theme="light"] .tsd-group + .tsd-group { border-top-color: rgba(0, 0, 0, 0.07); }
 
 /* 分组标题：吸顶，滚动过程中始终知道自己在看哪一组 */
 .tsd-group-title {
@@ -3069,18 +3257,18 @@ input[type="range"].setting-slider::-moz-range-thumb {
   background: rgba(255, 255, 255, 0.10);
   color: var(--text-secondary);
   border-radius: var(--radius-full);
-  padding: 1px 7px;
+  padding: 1px 8px;
   font-size: 10px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
-.talos-dashboard[data-theme="light"] .tsd-gt-count,
-.talos-search-drop[data-theme="light"] .tsd-gt-count { background: rgba(0, 0, 0, 0.07); }
+.polaris-dashboard[data-theme="light"] .tsd-gt-count,
+.polaris-search-drop[data-theme="light"] .tsd-gt-count { background: rgba(0, 0, 0, 0.07); }
 
 /* 条目：单行制（左标题 + 右路径元信息），靠 hover / 当前项区分。
-   选择器统一加 .talos-search-drop 前缀提高特异性：
+   选择器统一加 .polaris-search-drop 前缀提高特异性：
    行元素虽是 div，但仍会继承主题的列表/按钮样式，前缀可稳定压过。 */
-.talos-search-drop .tsd-item {
+.polaris-search-drop .tsd-item {
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -3104,16 +3292,16 @@ input[type="range"].setting-slider::-moz-range-thumb {
   appearance: none;
   -webkit-appearance: none;
   cursor: pointer;
-  transition: background 0.12s ease, box-shadow 0.12s ease;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
 }
-.talos-search-drop .tsd-item + .tsd-item { margin-top: 1px; }
-.talos-search-drop .tsd-item:hover { background: rgba(255, 255, 255, 0.055); }
+.polaris-search-drop .tsd-item + .tsd-item { margin-top: 1px; }
+.polaris-search-drop .tsd-item:hover { background: rgba(255, 255, 255, 0.055); }
 /* 当前项（键盘 ↑↓ 与鼠标 hover 共用同一状态）：左侧品牌绿指示条 + 更实的底 */
-.talos-search-drop .tsd-item.tsd-active { background: rgba(200, 224, 96, 0.10); box-shadow: inset 2px 0 0 var(--brand-green); }
-.talos-dashboard[data-theme="light"] .talos-search-drop .tsd-item:hover { background: rgba(0, 0, 0, 0.04); }
-.talos-dashboard[data-theme="light"] .talos-search-drop .tsd-item.tsd-active { background: rgba(200, 224, 96, 0.28); }
+.polaris-search-drop .tsd-item.tsd-active { background: rgba(200, 224, 96, 0.10); box-shadow: inset 2px 0 0 var(--brand-green); }
+.polaris-dashboard[data-theme="light"] .polaris-search-drop .tsd-item:hover { background: rgba(0, 0, 0, 0.04); }
+.polaris-dashboard[data-theme="light"] .polaris-search-drop .tsd-item.tsd-active { background: rgba(200, 224, 96, 0.28); }
 
-.talos-search-drop .tsd-item-title {
+.polaris-search-drop .tsd-item-title {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3125,7 +3313,7 @@ input[type="range"].setting-slider::-moz-range-thumb {
 }
 /* 第二行：完整文件夹路径 / 任务状态。弱化、不参与高亮，且【不做任何省略】——
    副行独占一行、可整行换行，把所在位置完整展示出来 */
-.talos-search-drop .tsd-item-sub {
+.polaris-search-drop .tsd-item-sub {
   min-width: 0;
   overflow: visible;
   white-space: normal;
@@ -3145,7 +3333,7 @@ input[type="range"].setting-slider::-moz-range-thumb {
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  padding: 24px 10px;
+  padding: 24px 8px;
   color: var(--text-muted);
   text-align: center;
 }
@@ -3158,17 +3346,17 @@ input[type="range"].setting-slider::-moz-range-thumb {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 9px 26px 10px; /* 与条目文字左边缘对齐（14 + 12 = 26px） */
+  padding: 8px 24px 8px; /* 与条目文字左边缘对齐（12 + 12 = 24px） */
   border-top: 1px solid rgba(255, 255, 255, 0.07);
   font-size: 11px;
   color: var(--text-muted);
 }
-.talos-dashboard[data-theme="light"] .tsd-foot,
-.talos-search-drop[data-theme="light"] .tsd-foot { border-top-color: rgba(0, 0, 0, 0.07); }
+.polaris-dashboard[data-theme="light"] .tsd-foot,
+.polaris-search-drop[data-theme="light"] .tsd-foot { border-top-color: rgba(0, 0, 0, 0.07); }
 .tsd-foot-count b { color: var(--text-secondary); font-weight: 600; font-variant-numeric: tabular-nums; }
 .tsd-foot-actions { display: flex; align-items: center; gap: 4px; }
-.talos-search-drop .tsd-seeall,
-.talos-search-drop .tsd-close {
+.polaris-search-drop .tsd-seeall,
+.polaris-search-drop .tsd-close {
   display: inline-flex;
   align-items: center;
   height: auto;
@@ -3180,14 +3368,14 @@ input[type="range"].setting-slider::-moz-range-thumb {
   font-family: inherit;
   font-size: 11px;
   line-height: 1.4;
-  padding: 3px 7px;
+  padding: 3px 8px;
   border-radius: var(--radius-sm);
   transition: color 0.15s ease, background 0.15s ease;
 }
-.talos-search-drop .tsd-seeall { color: var(--text-brand); font-weight: 600; }
-.talos-search-drop .tsd-seeall:hover { background: rgba(200, 224, 96, 0.12); }
-.talos-search-drop .tsd-close { color: var(--text-muted); }
-.talos-search-drop .tsd-close:hover { background: rgba(255, 255, 255, 0.08); color: var(--text-primary); }
-.talos-dashboard[data-theme="light"] .talos-search-drop .tsd-close:hover { background: rgba(0, 0, 0, 0.06); }
+.polaris-search-drop .tsd-seeall { color: var(--text-brand); font-weight: 600; }
+.polaris-search-drop .tsd-seeall:hover { background: rgba(200, 224, 96, 0.12); }
+.polaris-search-drop .tsd-close { color: var(--text-muted); }
+.polaris-search-drop .tsd-close:hover { background: rgba(255, 255, 255, 0.08); color: var(--text-primary); }
+.polaris-dashboard[data-theme="light"] .polaris-search-drop .tsd-close:hover { background: rgba(0, 0, 0, 0.06); }
 
 `;

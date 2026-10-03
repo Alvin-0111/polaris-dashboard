@@ -1,5 +1,5 @@
 import { Plugin, WorkspaceLeaf } from "obsidian";
-import { TalosDashboardView, VIEW_TYPE_TALOS_DASHBOARD, WorkTask } from "./view";
+import { PolarisDashboardView, VIEW_TYPE_TALOS_DASHBOARD, WorkTask } from "./view";
 
 export interface PomodoroSession {
 	id: string;
@@ -57,7 +57,7 @@ export interface CardLayout {
 	width?: Record<string, number>;
 }
 
-export interface TalosPluginData {
+export interface PolarisPluginData {
 	checkinRecords: CheckinRecords;
 	habits: Habit[];
 	workTasks: WorkTask[];
@@ -102,7 +102,7 @@ const DEFAULT_HABITS: Habit[] = [
 	{ id: "habit-5", name: "冥想", icon: "🧘", color: "#ec4899", createdAt: "2026-09-05", archived: false },
 ];
 
-const DEFAULT_DATA: TalosPluginData = {
+const DEFAULT_DATA: PolarisPluginData = {
 	checkinRecords: {},
 	habits: DEFAULT_HABITS,
 	workTasks: DEFAULT_WORK_TASKS,
@@ -117,15 +117,30 @@ const DEFAULT_DATA: TalosPluginData = {
 	cardBlur: 20,
 	dateCard: { ganzhi: false, yiJi: true, dailySign: false },
 	dailySignRecord: {},
+	rightPanel: { order: [], hidden: [] },
 };
 
-export default class TalosDashboardPlugin extends Plugin {
+/** 递归深合并：用户数据优先，缺失字段回退默认值（防止旧 data.json 缺字段导致渲染异常） */
+function deepMerge(base: any, override: any): any {
+	if (override == null) return base;
+	if (Array.isArray(base) || Array.isArray(override)) return override;
+	if (typeof base === "object" && typeof override === "object") {
+		const out: any = { ...base };
+		for (const k of Object.keys(override)) {
+			out[k] = deepMerge(base[k], override[k]);
+		}
+		return out;
+	}
+	return override;
+}
+
+export default class PolarisDashboardPlugin extends Plugin {
 	dataviewApi: any = null;
-	pluginData: TalosPluginData = DEFAULT_DATA;
+	pluginData: PolarisPluginData = DEFAULT_DATA;
 
 	async onload() {
 		// 加载插件数据
-		this.pluginData = Object.assign({}, DEFAULT_DATA, await this.loadData());
+		this.pluginData = deepMerge(DEFAULT_DATA, await this.loadData());
 
 		// 兼容旧数据：boolean 类型的打卡记录转成数字强度（true -> 3 中等强度）
 		if (this.pluginData.checkinRecords) {
@@ -171,7 +186,7 @@ export default class TalosDashboardPlugin extends Plugin {
 		this.registerView(
 			VIEW_TYPE_TALOS_DASHBOARD,
 			(leaf: WorkspaceLeaf) => {
-				const view = new TalosDashboardView(leaf);
+				const view = new PolarisDashboardView(leaf);
 				view.dataviewApi = this.dataviewApi;
 				view.plugin = this;
 				return view;
@@ -182,11 +197,11 @@ export default class TalosDashboardPlugin extends Plugin {
 		const ribbonIcon = this.addRibbonIcon("layout-dashboard", "Polaris Dashboard", () => {
 			this.activateView();
 		});
-		ribbonIcon.addClass("talos-ribbon-icon");
+		ribbonIcon.addClass("polaris-ribbon-icon");
 
 		// 命令面板入口
 		this.addCommand({
-			id: "open-talos-dashboard",
+			id: "open-polaris-dashboard",
 			name: "打开 Polaris Dashboard",
 			callback: () => {
 				this.activateView();
