@@ -228,7 +228,7 @@ export default class PolarisDashboardPlugin extends Plugin {
 	}
 
 	onunload() {
-		// 清理所有视图
-		this.app.workspace.detachLeavesOfType(VIEW_TYPE_TALOS_DASHBOARD);
+		// Obsidian 会自动清理本插件的视图；此处不 detach，
+		// 避免用户移动过位置的叶子在插件重载时被重置。
 	}
 }

@@ -4,6 +4,16 @@
 
 > Polaris Dashboard is an **Obsidian plugin** that brings a **glassmorphism personal dashboard** to your vault: work kanban, knowledge base, review tracker, pomodoro timer, gantt timeline and more — all in one home page.
 
+> **English** · 中文请往下翻 ↓
+>
+> Polaris Dashboard turns your Obsidian vault into a beautiful glassmorphism command center with three boards:
+>
+> - **Work Board** — today's todos with priority tags (P0/P1/P2) and overdue highlighting, task kanban, focus items, and a draggable gantt project timeline (week/month/quarter/year).
+> - **Knowledge Board** — activity heatmap, PARA distribution, top tags, weekly learning progress, daily habit check-ins and a calendar.
+> - **Review Board** — review progress overview, knowledge area distribution, expected review planning and 7-day trends.
+>
+> It also includes a **pomodoro timer** (focus/break modes with statistics), a global note search bar, draggable card layouts, and a dark/light theme switcher. Requires **Obsidian 1.4+** and the **Dataview** community plugin.
+
 [English](#english) · [中文](#中文)
 
 ---
