@@ -12,9 +12,9 @@
 > - **Knowledge Board** — activity heatmap, PARA distribution, top tags, weekly learning progress, daily habit check-ins and a calendar.
 > - **Review Board** — review progress overview, knowledge area distribution, expected review planning and 7-day trends.
 >
-> It also includes a **pomodoro timer** (focus/break modes with statistics), a global note search bar, draggable card layouts, and a dark/light theme switcher. Requires **Obsidian 1.4+** and the **Dataview** community plugin.
+> It also includes a **pomodoro timer** (focus/break modes with statistics), a global note search bar, draggable card layouts, and a dark/light theme switcher. Requires **Obsidian 1.7.2+**. No external plugin dependencies — it reads your vault directly.
 
-[English](#english) · [中文](#中文)
+[Releases / 下载](https://github.com/Alvin-0111/polaris-dashboard/releases) · [Issues / 反馈](https://github.com/Alvin-0111/polaris-dashboard/issues) · 英文简介见上方 ↑
 
 ---
 
@@ -43,24 +43,41 @@
 ## 📦 安装 / Installation
 
 ### 前提 / Prerequisites
-- **Obsidian** 桌面版（v1.4+）
-- 社区插件 **Dataview**（用于读取 Vault 内的任务/笔记数据）
+- **Obsidian 桌面版 v1.7.2+**（插件为 `isDesktopOnly`，暂不支持移动端）
+- **无需安装任何额外插件** —— 直接读取本地 Vault，不依赖 Dataview
 
-### 方式一：手动安装
-1. 下载本仓库的 `main.js` 与 `manifest.json`
-2. 拷贝到你的笔记库：
+### 方式一：从 Releases 安装（推荐）
+1. 到 [Releases](https://github.com/Alvin-0111/polaris-dashboard/releases) 下载最新版的三个文件：
+   `main.js`、`manifest.json`、`styles.css`
+2. 一起放进你笔记库的插件目录：
    ```
    你的Vault/.obsidian/plugins/polaris-dashboard/
+   ├── main.js
+   ├── manifest.json
+   └── styles.css
    ```
-3. 重启 Obsidian，进入 设置 → 第三方插件 → 启用 **Polaris Dashboard**
+3. 重启 Obsidian → 设置 → 第三方插件 → 启用 **Polaris Dashboard**
+
+> ⚠️ `styles.css` 不能漏，否则整个界面没有样式。
 
 ### 方式二：源码构建
 ```bash
-npm install
-npm run build        # 产出 dist/main.js
+npm ci
+npm run build        # 产出 dist/main.js + dist/styles.css
 ```
+把 `dist/main.js`、`dist/styles.css` 和根目录 `manifest.json` 一起拷到上面的插件目录。
 
-> 插件通过 Dataview 读取**使用者自己的** Vault 数据，不含任何云端同步，你的笔记始终留在本地。
+### 方式三：社区插件市场（上架审核通过后可用）
+设置 → 第三方插件 → 浏览 → 搜索 `Polaris Dashboard` → 安装并启用。
+
+### Installation (EN)
+1. Download `main.js`, `manifest.json` and `styles.css` from the [latest release](https://github.com/Alvin-0111/polaris-dashboard/releases).
+2. Copy all three into `<Vault>/.obsidian/plugins/polaris-dashboard/`.
+3. Restart the app → Settings → Community plugins → enable **Polaris Dashboard**.
+Requires desktop app **v1.7.2+**. No additional plugins required.
+
+> 插件直接读取**使用者自己的** Vault 数据（通过 Obsidian API / metadataCache），
+> 不含任何云端同步，你的笔记始终留在本地。
 
 ---
 
@@ -88,7 +105,7 @@ npm run build        # 产出 dist/main.js
 
 ## 🛠️ 技术栈 / Tech Stack
 
-TypeScript · esbuild · Obsidian API · Dataview · 原生 DOM/CSS（无框架）
+TypeScript · esbuild · Obsidian API · 原生 DOM/CSS（无框架、无外部插件依赖）
 
 ---
 
@@ -100,5 +117,4 @@ TypeScript · esbuild · Obsidian API · Dataview · 原生 DOM/CSS（无框架�
 
 ## 📄 许可 / License
 
-© 2026 Alvin. 保留所有权利（All Rights Reserved）。
-如需商用或二次分发，请联系作者。
+[MIT](LICENSE) © 2026 Alvin — 可自由使用、修改与二次分发，详见仓库根目录 `LICENSE`。
