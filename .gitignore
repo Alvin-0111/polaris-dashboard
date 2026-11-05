@@ -14,3 +14,6 @@ backup-*/
 
 # Obsidian vault local copy (do not publish)
 .obsidian/
+
+# Legacy stale build artifact: releases are distributed via GitHub Releases only
+/main.js
