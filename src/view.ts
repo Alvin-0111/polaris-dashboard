@@ -271,7 +271,6 @@ export class PolarisDashboardView extends ItemView {
 		const root = this.rootEl!;
 		setHtml(root, `
 			<div class="polaris-app">
-				<nav class="polaris-top-nav"></nav>
 				<div class="polaris-content">
 					<main class="polaris-main"></main>
 					<aside class="polaris-detail">
@@ -279,9 +278,9 @@ export class PolarisDashboardView extends ItemView {
 					</aside>
 				</div>
 			</div>
+			<nav class="polaris-top-nav"></nav>
 			<div class="polaris-drawer-overlay" id="polaris-drawer-overlay"></div>
 			<div class="polaris-drawer" id="polaris-drawer"></div>
-			<div class="polaris-toast-container" id="polaris-toast-container"></div>
 		`);
 		this.renderTopNav();
 		this.renderBoard();
@@ -289,6 +288,50 @@ export class PolarisDashboardView extends ItemView {
 		// 绑定抽屉遮罩点击关闭
 		const overlay = root.querySelector("#polaris-drawer-overlay") as HTMLElement;
 		overlay.onclick = () => this.closeDrawer();
+		// 首帧强制重新合成：规避 Chromium「backdrop 首帧为空 / 滚动后不刷新」问题
+		// （表现：nav 只透壁纸、不透卡片；在 DevTools 里手动改一次样式就恢复）
+		requestAnimationFrame(() => {
+			const nav = root.querySelector(".polaris-top-nav") as HTMLElement | null;
+			if (!nav) return;
+			nav.style.transform = "translateZ(0)";
+			void nav.offsetHeight;
+			nav.style.transform = "";
+		});
+
+		// ===== 临时自检（BD_DIAG）：判读后整段删除 =====
+		// [UI 迭代 2026-10-22] 已判读完毕，开关置为 false 以禁用斑马纹与读数徽章。
+		// 保留代码块仅为便于回滚对照；确认无需再判读后可整段删除。
+		const BD_DIAG = false;
+		if (BD_DIAG) {
+			const app = root.querySelector(".polaris-app") as HTMLElement | null;
+			if (app && !app.querySelector(".polaris-bd-zebra")) {
+				const zebra = document.createElement("div");
+				zebra.className = "polaris-bd-zebra";
+				app.insertBefore(zebra, app.firstChild);
+			}
+			requestAnimationFrame(() => {
+				const nav = root.querySelector(".polaris-top-nav") as HTMLElement | null;
+				const cs = nav ? getComputedStyle(nav) : null;
+				const ca = app ? getComputedStyle(app) : null;
+				const info = {
+					新JS已加载_父容器: nav?.parentElement?.className || "(无)",
+					nav_position: cs?.position,
+					nav_zIndex: cs?.zIndex,
+					nav_backdropFilter: cs?.backdropFilter,
+					nav_bg: cs?.backgroundColor,
+					新CSS已加载_app_paddingTop: ca?.paddingTop,
+					app_overflow: ca?.overflow,
+					app_可滚动量: app ? app.scrollHeight - app.clientHeight : null,
+				};
+				console.log("[Polaris BD 自检]", info);
+				if (nav) {
+					const badge = document.createElement("span");
+					badge.className = "polaris-bd-badge";
+					badge.textContent = `${cs?.position} z${cs?.zIndex} pt=${ca?.paddingTop} bf=${(cs?.backdropFilter || "").slice(0, 14)}`;
+					nav.appendChild(badge);
+				}
+			});
+		}
 	}
 
 	// 顶部导航栏
@@ -4944,14 +4987,10 @@ export class PolarisDashboardView extends ItemView {
 	// ==================== 操作 ====================
 
 	private showToast(message: string) {
+		// [修复 2026-10-23] 自制 toast 已移除：.toast 样式与 toast-in/out 动画在 styles.css 中
+		// 从未定义，导致 animationend 永不触发、提示堆叠在左上角且永不消失。
+		// 统一走 Obsidian 原生 Notice（自动消失、自动适配主题），同时消除双重通知。
 		new Notice(message, 3000);
-		const container = this.rootEl?.querySelector("#polaris-toast-container") as HTMLElement;
-		if (!container) return;
-		const toast = document.createElement("div");
-		toast.className = "toast";
-		toast.textContent = message;
-		container.appendChild(toast);
-		setTimeout(() => { toast.classList.add("toast-out"); toast.addEventListener("animationend", () => toast.remove(), { once: true }); }, 3000);
 	}
 
 	// ==================== 功能闭环（真实操作Obsidian） ====================

@@ -124,15 +124,26 @@ export const TALOS_STYLES = `/* ================================================
    全局基础
    ============================================================ */
 .polaris-dashboard * { margin: 0; padding: 0; box-sizing: border-box; }
-.polaris-dashboard { height: 100%; }
+.polaris-dashboard {
+  height: 100%;
+  position: relative;
+  /* 壁纸画在不滚动的根容器上，而不是滚动容器 .polaris-app 上。
+     否则 .polaris-app 作为 overflow:auto 滚动容器再叠 background-attachment:fixed，
+     Chromium 会把壁纸提成独立合成层，nav 的 backdrop-filter 只采样到壁纸层、
+     采样不到兄弟滚动层里的卡片——表现为「毛玻璃只透壁纸不透卡片」。 */
+  background: linear-gradient(180deg, rgba(8, 8, 14, 0.4) 0%, rgba(8, 8, 14, 0.55) 100%), var(--wallpaper-bg, var(--bg-primary));
+  background-size: cover;
+  background-position: center;
+}
+
+.polaris-dashboard[data-theme="light"] {
+  background: var(--bg-primary);
+}
 
 .polaris-dashboard .polaris-app {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
     "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-  background: linear-gradient(180deg, rgba(8, 8, 14, 0.4) 0%, rgba(8, 8, 14, 0.55) 100%), var(--wallpaper-bg, var(--bg-primary));
-  background-size: cover;
-  background-position: center;
-  background-attachment: fixed;
+  background: transparent;
   color: var(--text-primary);
   font-size: var(--fs-body);
   overflow: auto;
@@ -141,10 +152,7 @@ export const TALOS_STYLES = `/* ================================================
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* 浅色主题：米白底 */
-.polaris-dashboard[data-theme="light"] .polaris-app {
-  background: var(--bg-primary);
-}
+/* 浅色主题：根容器已是米白底，.polaris-app 保持透明即可 */
 
 /* 自定义滚动条：液态玻璃风格（强制覆盖 Obsidian 原生样式） */
 .polaris-dashboard ::-webkit-scrollbar {
@@ -197,18 +205,18 @@ export const TALOS_STYLES = `/* ================================================
   z-index: 1;
 }
 
-/* 顶部导航栏 */
+/* 顶部导航栏：sticky 直接钉在滚动容器顶部，backdrop-filter 设在 nav 本体上。
+   这是 macOS 导航栏的经典做法——sticky 元素和滚动内容在同一个滚动层里，
+   backdrop-filter 必然采样到从 nav 下方滚过的卡片，不会被合成层隔离。 */
 .polaris-top-nav {
   height: 56px;
   flex-shrink: 0;
-  position: absolute;
+  position: sticky;
   top: 0;
-  left: 0;
-  right: 0;
   z-index: 100;
   background: rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(28px) saturate(1.8);
-  -webkit-backdrop-filter: blur(28px) saturate(1.8);
+  -webkit-backdrop-filter: saturate(180%) blur(28px);
+  backdrop-filter: saturate(180%) blur(28px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
@@ -389,36 +397,35 @@ export const TALOS_STYLES = `/* ================================================
   color: var(--brand-green);
 }
 
-/* 主内容区（中间 + 右侧） */
+/* 主内容区（中间 + 右侧）
+   不再用 margin-top:-56px 把内容塞到悬浮 nav 下面；
+   nav 现在是 sticky 占位的正常流元素，内容紧随其后自然排布，
+   整页由 .polaris-app 统一滚动。 */
 .polaris-content {
   display: flex;
-  flex: 1;
-  min-height: 0;
-  margin-top: -56px;
-  padding-top: 56px;
+  align-items: stretch;
+  flex-shrink: 0;
 }
 
-/* 中间主内容区 */
+/* 中间主内容区：不再自己滚动，滚动上交给 .polaris-app */
 .polaris-main {
   flex: 1;
   min-width: 0;
-  overflow-y: auto;
-  padding: 0 var(--space-xl) var(--space-lg);
+  padding: var(--space-lg) var(--space-xl) var(--space-lg);
   transition: opacity 0.2s ease;
 }
 
-/* 右侧今日面板（固定） */
+/* 右侧今日面板：随整页一起滚动，去掉独立滚动层与半透明底色，
+   否则 nav 的 backdrop-filter 采样不到这里滚过的卡片 */
 .polaris-detail {
   width: 320px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  padding: 0 var(--space-lg) var(--space-md);
+  padding: var(--space-lg) var(--space-lg) var(--space-md);
   border-left: 1px solid var(--divider-color);
-  overflow-y: auto;
-  background: rgba(var(--card-bg-rgb), 0.2);
 }
-}
+
 
 /* 数据概览（工作看板顶部） */
 .polaris-stats-overview {

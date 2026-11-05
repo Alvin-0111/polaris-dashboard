@@ -123,27 +123,36 @@
    全局基础
    ============================================================ */
 .polaris-dashboard * { margin: 0; padding: 0; box-sizing: border-box; }
-.polaris-dashboard { height: 100%; }
+.polaris-dashboard {
+  height: 100%;
+  position: relative;
+  /* 壁纸画在不滚动的根容器上，而不是滚动容器 .polaris-app 上。
+     否则 .polaris-app 作为 overflow:auto 滚动容器再叠 background-attachment:fixed，
+     Chromium 会把壁纸提成独立合成层，nav 的 backdrop-filter 只采样到壁纸层、
+     采样不到兄弟滚动层里的卡片——表现为「毛玻璃只透壁纸不透卡片」。 */
+  background: linear-gradient(180deg, rgba(8, 8, 14, 0.4) 0%, rgba(8, 8, 14, 0.55) 100%), var(--wallpaper-bg, var(--bg-primary));
+  background-size: cover;
+  background-position: center;
+}
+
+.polaris-dashboard[data-theme="light"] {
+  background: var(--bg-primary);
+}
 
 .polaris-dashboard .polaris-app {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
     "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-  background: linear-gradient(180deg, rgba(8, 8, 14, 0.4) 0%, rgba(8, 8, 14, 0.55) 100%), var(--wallpaper-bg, var(--bg-primary));
-  background-size: cover;
-  background-position: center;
-  background-attachment: fixed;
+  background: transparent;
   color: var(--text-primary);
   font-size: var(--fs-body);
   overflow: auto;
   scrollbar-gutter: stable;
   position: relative;
+  padding-top: 56px;   /* 给 absolute 定位的 .polaris-top-nav 让位（nav 已移出本滚动容器） */
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* 浅色主题：米白底 */
-.polaris-dashboard[data-theme="light"] .polaris-app {
-  background: var(--bg-primary);
-}
+/* 浅色主题：根容器已是米白底，.polaris-app 保持透明即可 */
 
 /* 自定义滚动条：液态玻璃风格（强制覆盖 Obsidian 原生样式） */
 .polaris-dashboard ::-webkit-scrollbar {
@@ -196,18 +205,22 @@
   z-index: 1;
 }
 
-/* 顶部导航栏 */
+/* 顶部导航栏：nav 已移出滚动容器 .polaris-app，改为后置于 .polaris-app 的绝对定位覆盖层。
+   这样 nav 不再走 sticky + 合成滚动容器那条路径，backdrop 采样范围覆盖整个
+   .polaris-app（含滚动中的卡片）+ 根容器壁纸，不会被 sticky 的合成时序问题影响。
+   层级：nav 150 < 抽屉 200/201 < 搜索下拉 300 < 弹窗 9998/9999。 */
 .polaris-top-nav {
   height: 56px;
   flex-shrink: 0;
-  position: absolute;
+  position: absolute;   /* 不再是 sticky：脱离滚动容器，绘制顺序靠 DOM 后置 + z-index */
   top: 0;
   left: 0;
   right: 0;
-  z-index: 100;
+  z-index: 150;
   background: rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(28px) saturate(1.8);
-  -webkit-backdrop-filter: blur(28px) saturate(1.8);
+  -webkit-backdrop-filter: saturate(180%) blur(28px);
+  backdrop-filter: saturate(180%) blur(28px);
+  will-change: backdrop-filter;  /* 让 Chromium 首帧就建好 backdrop */
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
@@ -217,6 +230,8 @@
   padding: 0 20px;
   gap: 16px;
 }
+
+/* [UI 迭代 2026-10-22] 临时自检样式已移除：BD_DIAG 判读完毕并置为 false，斑马纹 .polaris-bd-zebra 与读数徽章 .polaris-bd-badge 不再使用 */
 
 /* Logo 区 */
 .polaris-top-nav .logo-area {
@@ -334,7 +349,7 @@
   right: 10px;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 11px;
+  font-size: var(--fs-micro);
   color: rgba(255, 255, 255, 0.35);
   pointer-events: none;
   user-select: none;
@@ -388,34 +403,33 @@
   color: var(--brand-green);
 }
 
-/* 主内容区（中间 + 右侧） */
+/* 主内容区（中间 + 右侧）
+   不再用 margin-top:-56px 把内容塞到悬浮 nav 下面；
+   nav 现在是 sticky 占位的正常流元素，内容紧随其后自然排布，
+   整页由 .polaris-app 统一滚动。 */
 .polaris-content {
   display: flex;
-  flex: 1;
-  min-height: 0;
-  margin-top: -56px;
-  padding-top: 56px;
+  align-items: stretch;
+  flex-shrink: 0;
 }
 
-/* 中间主内容区 */
+/* 中间主内容区：不再自己滚动，滚动上交给 .polaris-app */
 .polaris-main {
   flex: 1;
   min-width: 0;
-  overflow-y: auto;
-  padding: 0 var(--space-xl) var(--space-lg);
+  padding: var(--space-lg) var(--space-xl) var(--space-lg);
   transition: opacity 0.2s ease;
 }
 
-/* 右侧今日面板（固定） */
+/* 右侧今日面板：随整页一起滚动，去掉独立滚动层与半透明底色，
+   否则 nav 的 backdrop-filter 采样不到这里滚过的卡片 */
 .polaris-detail {
   width: 320px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  padding: 0 var(--space-lg) var(--space-md);
+  padding: var(--space-lg) var(--space-lg) var(--space-md);
   border-left: 1px solid var(--divider-color);
-  overflow-y: auto;
-  background: rgba(var(--card-bg-rgb), 0.2);
 }
 
 /* 数据概览（工作看板顶部） */
@@ -469,7 +483,7 @@
   color: var(--text-secondary);
 }
 .polaris-stats-overview .stat-note {
-  font-size: 11px;
+  font-size: var(--fs-micro);
   color: var(--text-muted);
   margin-top: 2px;
 }
@@ -477,6 +491,7 @@
   color: var(--danger-red);
   font-weight: 600;
 }
+
 
 /* 任务详情抽屉 */
 .polaris-drawer-overlay {
@@ -1248,7 +1263,7 @@
 .canvas-stat-info { flex: 1; min-width: 0; }
 .canvas-stat-num { font-size: var(--fs-stat); font-weight: 700; line-height: 1.1; margin-bottom: 2px; }
 .canvas-stat-label { font-size: var(--fs-caption); color: var(--text-secondary); }
-.canvas-stat-note { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.canvas-stat-note { font-size: var(--fs-micro); color: var(--text-muted); margin-top: 2px; }
 .canvas-stat-card.danger .canvas-stat-num,
 .canvas-stat-card.danger .canvas-stat-icon { color: var(--danger-red); }
 
@@ -1417,7 +1432,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: var(--fs-micro);
   color: #fff;
   font-weight: 700;
   line-height: 1;
@@ -1516,6 +1531,7 @@
   color: var(--text-muted);
   z-index: 1;
   font-weight: 500;
+  white-space: nowrap; /* [修复 2026-10-23] 窄容器下不再逐字竖排折行 */
 }
 .gantt-month-line {
   position: absolute;
@@ -2124,10 +2140,10 @@
 }
 /* 展开块内紧凑排版：状态/优先级按钮均分不溢出 */
 .polaris-todo-expand .status-segmented { flex: 1; }
-.polaris-todo-expand .status-seg { flex: 1; text-align: center; padding: 6px 6px; font-size: 11px; }
+.polaris-todo-expand .status-seg { flex: 1; text-align: center; padding: 6px 6px; font-size: var(--fs-micro); }
 .polaris-todo-expand .detail-edit-row { padding: 8px 8px; }
-.polaris-todo-expand .detail-edit-row-label { min-width: 56px; font-size: 11px; }
-.polaris-todo-expand .detail-edit-row-input { min-width: 0; flex: 1; padding: 4px 8px; font-size: 11px; }
+.polaris-todo-expand .detail-edit-row-label { min-width: 56px; font-size: var(--fs-micro); }
+.polaris-todo-expand .detail-edit-row-input { min-width: 0; flex: 1; padding: 4px 8px; font-size: var(--fs-micro); }
 .polaris-todo-expand .detail-grid { margin: 8px 0; }
 .polaris-todo-expand .badge { font-size: 10px; }
 
@@ -2313,7 +2329,7 @@
 }
 .polaris-date-pop-week span {
   text-align: center;
-  font-size: 11px;
+  font-size: var(--fs-micro);
   color: var(--text-muted);
   padding: 3px 0;
 }
@@ -2740,7 +2756,7 @@
 }
 .setting-value { color: var(--text-brand); font-weight: 700; font-size: var(--fs-caption); }
 .setting-hint {
-  font-size: 11px;
+  font-size: var(--fs-micro);
   color: var(--text-muted);
   margin-top: 6px;
   line-height: 1.5;
@@ -2868,7 +2884,7 @@ input[type="range"].setting-slider::-moz-range-thumb {
   background: rgba(0, 0, 0, 0.09);
 }
 .rp-card { position: relative; }
-.rp-handle { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; position: relative; width: 14px; height: 14px; margin-right: 8px; cursor: grab; touch-action: none; font-size: 11px; line-height: 1; color: rgba(255, 255, 255, 0.55); border-radius: var(--radius-sm); opacity: 0.4; transition: opacity 0.15s ease, color 0.15s ease, transform 0.15s ease; }
+.rp-handle { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; position: relative; width: 14px; height: 14px; margin-right: 8px; cursor: grab; touch-action: none; font-size: var(--fs-micro); line-height: 1; color: rgba(255, 255, 255, 0.55); border-radius: var(--radius-sm); opacity: 0.4; transition: opacity 0.15s ease, color 0.15s ease, transform 0.15s ease; }
 .rp-handle::before { content: ""; position: absolute; inset: -7px -3px; border-radius: 8px; background: rgba(200, 224, 96, 0.16); opacity: 0; transition: opacity 0.15s ease; }
 .rp-card:hover .rp-handle { opacity: 0.75; }
 .rp-handle:hover::before { opacity: 1; }
@@ -3037,7 +3053,7 @@ input[type="range"].setting-slider::-moz-range-thumb {
   margin-right: -2px;
   cursor: grab;
   color: rgba(255, 255, 255, 0.55);
-  font-size: 11px;
+  font-size: var(--fs-micro);
   padding: 0;
   border-radius: var(--radius-sm);
   line-height: 1;
@@ -3243,7 +3259,7 @@ input[type="range"].setting-slider::-moz-range-thumb {
   align-items: center;
   gap: 6px;
   padding: 8px 12px 6px;
-  font-size: 11px;
+  font-size: var(--fs-micro);
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--text-secondary);
@@ -3316,7 +3332,7 @@ input[type="range"].setting-slider::-moz-range-thumb {
   overflow: visible;
   white-space: normal;
   word-break: break-all;
-  font-size: 11px;
+  font-size: var(--fs-micro);
   font-weight: 400;
   line-height: 1.4;
   color: var(--text-muted);
@@ -3346,7 +3362,7 @@ input[type="range"].setting-slider::-moz-range-thumb {
   gap: 8px;
   padding: 8px 24px 8px; /* 与条目文字左边缘对齐（12 + 12 = 24px） */
   border-top: 1px solid rgba(255, 255, 255, 0.07);
-  font-size: 11px;
+  font-size: var(--fs-micro);
   color: var(--text-muted);
 }
 .polaris-dashboard[data-theme="light"] .tsd-foot,
@@ -3364,7 +3380,7 @@ input[type="range"].setting-slider::-moz-range-thumb {
   box-shadow: none;
   cursor: pointer;
   font-family: inherit;
-  font-size: 11px;
+  font-size: var(--fs-micro);
   line-height: 1.4;
   padding: 3px 8px;
   border-radius: var(--radius-sm);
@@ -3383,20 +3399,17 @@ input[type="range"].setting-slider::-moz-range-thumb {
 			.workspace-leaf-content[data-type="polaris-dashboard-view"] .view-content { padding:0 !important; overflow:hidden !important; }
 			.polaris-dashboard { height:100% !important; display:flex !important; flex-direction:column !important; }
 			.polaris-dashboard .polaris-app { flex:1 !important; display:flex !important; min-height:0 !important; height:auto !important; }
-			.polaris-dashboard .polaris-sidebar { width:260px !important; flex-shrink:0 !important; overflow-y:auto !important; min-height:0 !important; }
-			.polaris-dashboard .polaris-main { flex:1 !important; overflow-y:auto !important; overflow-x:hidden !important; min-width:0 !important; min-height:0 !important; }
-			.polaris-dashboard .polaris-detail { width:320px !important; flex-shrink:0 !important; overflow-y:auto !important; min-height:0 !important; }
-			.polaris-dashboard .polaris-sidebar,.polaris-dashboard .polaris-main,.polaris-dashboard .polaris-detail { position:relative !important; z-index:1 !important; }
+			.polaris-dashboard .polaris-main { flex:1 !important; overflow-x:hidden !important; min-width:0 !important; min-height:0 !important; }
+			.polaris-dashboard .polaris-detail { width:320px !important; flex-shrink:0 !important; min-height:0 !important; }
+			.polaris-dashboard .polaris-main,.polaris-dashboard .polaris-detail { position:relative !important; z-index:1 !important; }
 			.polaris-dashboard .quick-icon,.polaris-dashboard .list-item-icon,.polaris-dashboard .recent-icon,.polaris-dashboard .canvas-stat-icon,.polaris-dashboard .logo-icon,.polaris-dashboard .nav-icon,.polaris-dashboard .diary-icon,.polaris-dashboard .empty-icon,.polaris-dashboard .search-icon,.polaris-dashboard .section-title { font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif !important; }
 			.polaris-dashboard .polaris-modal-root { position:fixed !important; z-index:9999 !important; }
 			.polaris-dashboard .quick-grid .quick-btn,.polaris-dashboard .quick-actions-grid .quick-btn { display:flex !important; flex-direction:column !important; align-items:center !important; justify-content:center !important; min-height:64px !important; padding:8px 6px !important; gap:4px !important; line-height:1.2 !important; }
-			.polaris-dashboard .polaris-toast-container { pointer-events:none !important; }
-			.polaris-dashboard .polaris-toast-container .toast { pointer-events:auto !important; }
 			/* 搜索框样式修复：确保图标和文字不重叠 */
 			.polaris-dashboard .search-box { position:relative; display:flex; align-items:center; width:100%; }
 			.polaris-dashboard .search-box .search-icon { position:absolute; left:12px; font-size:14px; z-index:2; pointer-events:none; }
 			.polaris-dashboard .search-input { width:100%; padding:8px 60px 8px 36px !important; font-size:13px; box-sizing:border-box; }
-			.polaris-dashboard .search-kbd { position:absolute; right:10px; font-size:11px; z-index:2; pointer-events:none; color:rgba(255,255,255,0.35); user-select:none; }
+			.polaris-dashboard .search-kbd { position:absolute; right:10px; font-size:var(--fs-micro); z-index:2; pointer-events:none; color:rgba(255,255,255,0.35); user-select:none; }
 			.polaris-dashboard .polaris-note-list-search::placeholder { color:var(--text-muted); opacity:0.75; }
 			/* 弹窗笔记列表搜索框：与导航栏搜索框观感统一（细边框/大圆角/同高），深浅色适配 */
 			.polaris-dashboard .polaris-note-list-search {
@@ -3411,11 +3424,6 @@ input[type="range"].setting-slider::-moz-range-thumb {
 			}
 			/* 弹窗搜索图标：内嵌输入框左侧，垂直居中后微调 2px 修正 emoji 重心 */
 			.polaris-dashboard .search-box .polaris-note-list-search-icon {
-				top:50% !important;
-				transform:translateY(calc(-50% + 2px)) !important;
-			}
-			/* 侧栏搜索 emoji 图标：同样垂直居中 + 2px 重心修正 */
-			.polaris-dashboard .polaris-sidebar .search-box .search-icon {
 				top:50% !important;
 				transform:translateY(calc(-50% + 2px)) !important;
 			}
@@ -3790,3 +3798,100 @@ input[type="range"].setting-slider::-moz-range-thumb {
 				color: var(--danger-red) !important;
 			}
 		
+
+
+/* ============================================================
+   UI 迭代补丁（2026-10-22）
+   说明：本区块为纯增量追加，不修改上方任何既有声明。
+   1) 响应式断点    —— 此前全表 0 个 @media，右侧今日面板固定 320px，
+                       窄面板下会把中间主区挤压到不可用。
+   2) 动效偏好      —— 尊重系统「减弱动态效果」设置。
+   3) 键盘焦点可见  —— 此前全表 0 处 :focus-visible，键盘用户无法判断焦点位置。
+   ============================================================ */
+
+/* ---- 1. 响应式断点 v2（2026-10-24：按面板实际宽度的五档体系） ----
+   基准：面板自身宽度（container query），非 Obsidian 窗口宽度。
+   阈值依据：
+   - 1200：detail 320 收窄为 272，主区保住可读宽度
+   - 860 ：detail 最小宽 272 + 主区最小可读 ~560 → 低于此堆叠而非挤压
+   - 700 ：看板 3 列每列至少 200px，主区（堆叠后=面板宽）<700 放不下 → 降 1 列
+   - 560 ：nav 子元素最小宽（logo 110 + tabs 280 + search 200 + actions 76 + gap 64 ≈ 730）
+           已远超面板宽 → 分档隐藏降级，兜底横向滚动
+   设计取舍：看板不设「2 列」中间档——待办/进行中/已完成三态改两列语义不成立。 */
+.polaris-dashboard {
+	container-type: inline-size;
+	container-name: polaris;
+}
+
+/* ---- 档位 1：≤1200 —— 右栏今日面板收窄 ---- */
+@container polaris (max-width: 1200px) {
+	.polaris-dashboard .polaris-detail { width: 272px !important; }
+}
+
+/* ---- 档位 2：≤860 —— 右栏堆叠到主内容下方（非隐藏，避免丢功能）---- */
+@container polaris (max-width: 860px) {
+	.polaris-dashboard .polaris-content { flex-direction: column !important; }
+	.polaris-dashboard .polaris-detail {
+		width: 100% !important;
+		border-left: none !important;
+		border-top: 1px solid var(--divider-color) !important;
+		padding: var(--space-md) var(--space-lg) !important;
+	}
+	.polaris-dashboard .polaris-main { padding: var(--space-md) var(--space-lg) !important; }
+	.polaris-dashboard .canvas-stats { grid-template-columns: repeat(2, 1fr) !important; }
+	/* 导航栏第一档降级：缩留白、藏 ⌘K 角标（角标仅为装饰提示） */
+	.polaris-dashboard .polaris-top-nav { padding: 0 14px !important; gap: 10px !important; }
+	.polaris-dashboard .board-tab { padding: 8px 10px !important; }
+	.polaris-dashboard .search-kbd { display: none !important; }
+}
+
+/* ---- 档位 3：≤700 —— 看板降 1 列、藏 logo 文字 ---- */
+@container polaris (max-width: 700px) {
+	.polaris-dashboard .kanban-columns { grid-template-columns: 1fr !important; }
+	.polaris-dashboard .logo-name { display: none !important; }
+	.polaris-dashboard .polaris-main { padding: var(--space-sm) var(--space-md) !important; }
+	.polaris-dashboard .gantt-range-label {
+		max-width: calc(100% - 104px) !important;
+		overflow: hidden !important;
+		text-overflow: ellipsis !important;
+	}
+}
+
+/* ---- 档位 4：≤560 —— 藏搜索框（该宽度下 nav 搜索暂不可用，看板卡内搜索不受影响）、统计 1 列、nav 兜底横滑 ---- */
+@container polaris (max-width: 560px) {
+	.polaris-dashboard .search-area { display: none !important; }
+	.polaris-dashboard .canvas-stats { grid-template-columns: 1fr !important; }
+	.polaris-dashboard .polaris-top-nav { overflow-x: auto !important; }
+}
+
+/* ---- 窗口级兜底：整个 Obsidian 窗口很窄时（媒体查询与容器查询共存） ---- */
+@media (max-width: 860px) {
+	.polaris-dashboard .polaris-content { flex-direction: column !important; }
+	.polaris-dashboard .polaris-detail {
+		width: 100% !important;
+		border-left: none !important;
+		border-top: 1px solid var(--divider-color) !important;
+		padding: var(--space-md) var(--space-lg) !important;
+	}
+	.polaris-dashboard .polaris-main { padding: var(--space-md) var(--space-lg) !important; }
+}
+
+/* ---- 2. 尊重系统「减弱动态效果」偏好 ---- */
+@media (prefers-reduced-motion: reduce) {
+	.polaris-dashboard *,
+	.polaris-dashboard *::before,
+	.polaris-dashboard *::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+		scroll-behavior: auto !important;
+	}
+}
+
+/* ---- 3. 键盘焦点可见性 ----
+   :focus-visible 仅在键盘导航时触发，鼠标点击不会显示，
+   因此对鼠标用户零视觉变化，只为键盘/无障碍用户提供焦点指示。 */
+.polaris-dashboard :focus-visible {
+	outline: 2px solid var(--focus-border) !important;
+	outline-offset: 2px !important;
+}
